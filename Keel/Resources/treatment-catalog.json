@@ -1,0 +1,126 @@
+{
+  "version": 1,
+  "updated": "2026-07-27",
+  "sourceNote": "Seed from docs/keel-treatment-supplement-list.md. A logging taxonomy, not clinical guidance. Brand availability and PBS status move during the year; confirm before shipping and refresh this file rather than editing code.",
+  "groups": [
+    {
+      "id": "oestrogen-patches",
+      "kind": "treatment",
+      "section": "Oestrogen",
+      "title": "Patches (transdermal)",
+      "defaultMethod": "patch",
+      "items": [
+        { "name": "Estradot" },
+        { "name": "Estraderm MX" },
+        { "name": "Estramon" }
+      ]
+    },
+    {
+      "id": "oestrogen-gel",
+      "kind": "treatment",
+      "section": "Oestrogen",
+      "title": "Gel (transdermal)",
+      "defaultMethod": "gel",
+      "items": [
+        { "name": "Estrogel" },
+        { "name": "Estrogel Pro" }
+      ]
+    },
+    {
+      "id": "oestrogen-spray",
+      "kind": "treatment",
+      "section": "Oestrogen",
+      "title": "Spray (transdermal)",
+      "defaultMethod": "spray",
+      "items": []
+    },
+    {
+      "id": "oestrogen-tablet",
+      "kind": "treatment",
+      "section": "Oestrogen",
+      "title": "Tablet (oral)",
+      "defaultMethod": "tablet",
+      "items": []
+    },
+    {
+      "id": "oestrogen-vaginal",
+      "kind": "treatment",
+      "section": "Oestrogen",
+      "title": "Vaginal or local oestrogen",
+      "note": "For genitourinary symptoms, such as dryness or recurring UTIs.",
+      "defaultMethod": "vaginal",
+      "items": [
+        { "name": "Vaginal cream" },
+        { "name": "Vaginal pessary" },
+        { "name": "Vaginal ring" }
+      ]
+    },
+    {
+      "id": "progesterone",
+      "kind": "treatment",
+      "section": "Progesterone and progestogen",
+      "title": "Progesterone and progestogen",
+      "defaultMethod": "tablet",
+      "items": [
+        { "name": "Oral micronised progesterone (e.g. Prometrium)" },
+        { "name": "Combined oestrogen and progestogen tablet (e.g. Femoston)" },
+        { "name": "Progestogen IUD (e.g. Mirena)", "method": "iud" }
+      ]
+    },
+    {
+      "id": "combined-patches",
+      "kind": "treatment",
+      "section": "Combined",
+      "title": "Combined patches",
+      "note": "Oestrogen and progestogen in one patch. Brands shift with the shortage, so add yours if it isn't listed.",
+      "defaultMethod": "patch",
+      "items": []
+    },
+    {
+      "id": "testosterone",
+      "kind": "treatment",
+      "section": "Testosterone",
+      "title": "Testosterone",
+      "note": "Testosterone is approved in Australia for one specific use, low sexual desire after menopause. Your GP will have discussed why it's part of your plan.",
+      "defaultMethod": "cream",
+      "items": [
+        { "name": "AndroFeme" },
+        { "name": "Testogel", "offLabel": true, "method": "gel" },
+        { "name": "Compounded testosterone", "compounded": true }
+      ]
+    },
+    {
+      "id": "supplements-common",
+      "kind": "supplement",
+      "section": "Supplements",
+      "title": "Common",
+      "items": [
+        { "name": "Magnesium" },
+        { "name": "Vitamin D" },
+        { "name": "Omega-3 or fish oil" },
+        { "name": "Creatine" },
+        { "name": "Collagen" },
+        { "name": "Protein powder" },
+        { "name": "Multivitamin" },
+        { "name": "Iron" },
+        { "name": "Calcium" },
+        { "name": "Probiotic" },
+        { "name": "Vitamin B6 or B-complex" },
+        { "name": "Zinc" }
+      ]
+    },
+    {
+      "id": "supplements-perimenopause",
+      "kind": "supplement",
+      "section": "Supplements",
+      "title": "Often mentioned around this stage",
+      "items": [
+        { "name": "Black cohosh" },
+        { "name": "Evening primrose oil" },
+        { "name": "Ashwagandha" },
+        { "name": "CoQ10" },
+        { "name": "Folic acid" }
+      ]
+    }
+  ]
+}
