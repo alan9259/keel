@@ -2,6 +2,7 @@
 import Foundation
 import SwiftData
 import HealthKit
+import UserNotifications
 #if canImport(FoundationModels)
 import FoundationModels
 #endif
@@ -318,12 +319,36 @@ enum DebugHarness {
             runMedNotifTest(env: env)
         }
 
+        if args.contains("-uitReminderDump") {
+            runReminderDump(env: env)
+        }
+
         if args.contains("-uitSupportRegion") {
             let cur = CrisisResources.matching().map(\.name).joined(separator: ",")
             let forced = CrisisResources.matching(
                 locale: Locale(identifier: "en_NZ"),
                 timeZone: TimeZone(identifier: "Australia/Brisbane")!).map(\.name).joined(separator: ",")
             print("KEEL_SUPPORTREGION tz=\(TimeZone.current.identifier) region=\(Locale.current.region?.identifier ?? "nil") current=[\(cur)] enNZ+Brisbane=[\(forced)]")
+            fflush(stdout)
+        }
+    }
+
+    /// Schedules every lifestyle reminder, waits for any deferred async work, then
+    /// dumps what's actually pending. The old async cancel would wipe the just-added
+    /// hydration/movement/wind-down here (leaving 0); the sync fix keeps them.
+    /// (Scheduling adds to the pending queue without needing notification auth.)
+    @MainActor
+    private static func runReminderDump(env: AppEnvironment) {
+        let n = env.notifications
+        n.scheduleDailyCheckInReminder(hour: 9, minute: 0)
+        n.scheduleHydration(startHour: 8, endHour: 20, everyHours: 2)
+        n.scheduleMovement(hour: 14, minute: 0, weekdaysOnly: true)
+        n.scheduleWindDown(hour: 21, minute: 30)
+        Task {
+            try? await Task.sleep(for: .milliseconds(600)) // let any deferred cancel run
+            let ids = await UNUserNotificationCenter.current().pendingNotificationRequests().map(\.identifier)
+            func c(_ p: String) -> Int { ids.filter { $0.hasPrefix(p) }.count }
+            print("KEEL_REMINDERDUMP total=\(ids.count) dailyCheckIn=\(c("keel.dailyCheckIn")) hydration=\(c("keel.hydration.")) movement=\(c("keel.movement.")) winddown=\(c("keel.winddown"))")
             fflush(stdout)
         }
     }

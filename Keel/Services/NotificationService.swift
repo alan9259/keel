@@ -120,13 +120,19 @@ final class NotificationService {
         center.add(UNNotificationRequest(identifier: id, content: content, trigger: trigger))
     }
 
-    private func cancel(prefix: String) {
-        Task {
-            let pending = await center.pendingNotificationRequests()
-            let ids = pending.map(\.identifier).filter { $0.hasPrefix(prefix) }
-            if !ids.isEmpty { center.removePendingNotificationRequests(withIdentifiers: ids) }
-        }
+    /// Synchronously clear specific pending requests. This runs BEFORE the `add`s
+    /// that follow, unlike the old fetch-pending-and-filter-by-prefix cancel, which
+    /// deferred its work to a `Task` that ran AFTER the adds and deleted the very
+    /// reminders just scheduled — the reason lifestyle reminders never fired while
+    /// medication ones (which `await` their cancel) did.
+    private func remove(_ ids: [String]) {
+        center.removePendingNotificationRequests(withIdentifiers: ids)
     }
+
+    // Every identifier a lifestyle reminder could occupy, so a reschedule or cancel
+    // clears the whole set regardless of the current window or weekday pattern.
+    private var hydrationIDs: [String] { (0...23).map { "\(hydrationPrefix)\($0)" } }
+    private var movementIDs: [String] { (1...7).map { "\(movementPrefix)\($0)" } + ["\(movementPrefix)daily"] }
 
     // MARK: - Lifestyle reminders
 
@@ -134,7 +140,7 @@ final class NotificationService {
     /// quiet overnight. Each hour is its own daily-repeating trigger (a plain
     /// interval trigger would fire around the clock).
     func scheduleHydration(startHour: Int = 8, endHour: Int = 21, everyHours: Int = 2) {
-        cancel(prefix: hydrationPrefix)
+        remove(hydrationIDs)
         var hour = startHour
         while hour <= endHour {
             var when = DateComponents()
@@ -148,7 +154,7 @@ final class NotificationService {
 
     /// A gentle daily movement nudge, weekdays by default.
     func scheduleMovement(hour: Int = 14, minute: Int = 0, weekdaysOnly: Bool = true) {
-        cancel(prefix: movementPrefix)
+        remove(movementIDs)
         let title = "A little movement?"
         let body = "A short walk or a stretch. Whatever feels good today."
         if weekdaysOnly {
@@ -171,7 +177,7 @@ final class NotificationService {
 
     /// A single evening wind-down nudge.
     func scheduleWindDown(hour: Int = 21, minute: Int = 30) {
-        cancel(prefix: windDownID)
+        remove([windDownID])
         var when = DateComponents()
         when.hour = hour
         when.minute = minute
@@ -180,10 +186,10 @@ final class NotificationService {
             trigger: UNCalendarNotificationTrigger(dateMatching: when, repeats: true))
     }
 
-    func cancelHydration() { cancel(prefix: hydrationPrefix) }
-    func cancelMovement() { cancel(prefix: movementPrefix) }
-    func cancelWindDown() { cancel(prefix: windDownID) }
-    func cancelDailyCheckIn() { cancel(prefix: checkInID) }
+    func cancelHydration() { remove(hydrationIDs) }
+    func cancelMovement() { remove(movementIDs) }
+    func cancelWindDown() { remove([windDownID]) }
+    func cancelDailyCheckIn() { remove([checkInID]) }
 
     /// Clear every pending Keel notification. Used by the master notifications
     /// switch. Every pending request in this app is one of ours.
