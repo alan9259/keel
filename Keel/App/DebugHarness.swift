@@ -319,6 +319,12 @@ enum DebugHarness {
             runMedNotifTest(env: env)
         }
 
+        if args.contains("-uitManySymptoms") {
+            env.symptoms.syncBuiltIns()
+            let picks = env.symptoms.allActive().prefix(12).map { (symptom: $0, severity: 2) }
+            env.checkIns.create(mood: .okay, energy: 60, notes: nil, symptoms: Array(picks), date: .now)
+        }
+
         if args.contains("-uitReminderDump") {
             runReminderDump(env: env)
         }
@@ -463,6 +469,18 @@ enum DebugHarness {
         env.ingestHealthSnapshot(snap) // idempotency
         let afterSecond = healthRowTotals(env)
 
+        // Changed Health data should REFRESH (steps updated); sleep stays backfill-only.
+        var changed = snap
+        changed.activityAmounts["steps"] = [today: 12000]
+        changed.sleepByDay = [today: 9.9] // must NOT overwrite the existing 7.4
+        env.ingestHealthSnapshot(changed)
+        func amount(_ id: String, _ day: Date) -> Double? {
+            (try? env.context.fetch(FetchDescriptor<ActivityLog>()))?
+                .first { $0.deletedAt == nil && $0.activityID == id && $0.date.isSameDay(as: day) }?.amount
+        }
+        let stepsUpdated = amount("steps", today) == 12000
+        let sleepPreserved = amount("sleep", today) == 7.4
+
         let links = (try? env.context.fetch(FetchDescriptor<CheckInSymptom>())) ?? []
         let hkLinks = links.filter { $0.source == .healthKit }
         let cycles = (try? env.context.fetch(FetchDescriptor<CycleEntry>())) ?? []
@@ -474,7 +492,7 @@ enum DebugHarness {
             $0.source == .healthKit && $0.symptom?.name == "Hot flushes"
         } ?? false
 
-        print("KEEL_HKIMPORT activityLogs=\(afterFirst.activity) healthSamples=\(afterFirst.samples) hkSymptomLinks=\(hkLinks.count) hkCycleEntries=\(hkCycles.count) archivedSymptomSamples=\(archived.count) todayHotFlushesTagged=\(hotFlushesTagged) secondRunAddedNothing=\(afterFirst == afterSecond)")
+        print("KEEL_HKIMPORT activityLogs=\(afterFirst.activity) healthSamples=\(afterFirst.samples) hkSymptomLinks=\(hkLinks.count) hkCycleEntries=\(hkCycles.count) archivedSymptomSamples=\(archived.count) todayHotFlushesTagged=\(hotFlushesTagged) secondRunAddedNothing=\(afterFirst == afterSecond) stepsUpdated=\(stepsUpdated) sleepPreserved=\(sleepPreserved)")
         fflush(stdout)
     }
 

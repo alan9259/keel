@@ -95,9 +95,20 @@ final class HealthIngestor {
             let descriptor = FetchDescriptor<ActivityLog>(
                 predicate: #Predicate { $0.deletedAt == nil && $0.activityID == activityID && $0.date == day }
             )
-            guard (try? context.fetch(descriptor))?.first == nil else { continue }
-            context.insert(ActivityLog(date: day, activityID: activityID, amount: value, ownerID: ownerID()))
-            wrote += 1
+            if let existing = (try? context.fetch(descriptor))?.first {
+                // Steps/exercise/active-energy change through the day and Apple can
+                // revise recent days, so refresh the stored value to the latest.
+                // Sleep is left alone (backfill-only): it's the one activity she can
+                // type by hand, and `ActivityLog` has no source tag to tell them apart.
+                if activityID != "sleep", existing.amount != value {
+                    existing.amount = value
+                    existing.touch()
+                    wrote += 1
+                }
+            } else {
+                context.insert(ActivityLog(date: day, activityID: activityID, amount: value, ownerID: ownerID()))
+                wrote += 1
+            }
         }
         return wrote
     }
@@ -112,10 +123,15 @@ final class HealthIngestor {
             let descriptor = FetchDescriptor<HealthSample>(
                 predicate: #Predicate { $0.deletedAt == nil && $0.typeID == typeID && $0.day == day }
             )
-            guard (try? context.fetch(descriptor))?.first == nil else { continue }
-            context.insert(HealthSample(typeID: typeID, day: day, value: (rawValue * 10).rounded() / 10,
-                                        unit: series.unit, ownerID: ownerID()))
-            wrote += 1
+            let value = (rawValue * 10).rounded() / 10
+            if let existing = (try? context.fetch(descriptor))?.first {
+                // Vitals (heart rate, HRV, …) are Health-authored; refresh to the latest.
+                if existing.value != value { existing.value = value; existing.touch(); wrote += 1 }
+            } else {
+                context.insert(HealthSample(typeID: typeID, day: day, value: value,
+                                            unit: series.unit, ownerID: ownerID()))
+                wrote += 1
+            }
         }
         return wrote
     }

@@ -6,6 +6,7 @@ protocol CheckInRepositoring {
     @discardableResult
     func create(mood: Mood, energy: Int, notes: String?, symptoms: [(symptom: Symptom, severity: Int)], date: Date) -> CheckIn
     func update(_ checkIn: CheckIn, mood: Mood, energy: Int, notes: String?, symptoms: [(symptom: Symptom, severity: Int)])
+    func delete(_ checkIn: CheckIn)
     func recent(limit: Int) -> [CheckIn]
     func all() -> [CheckIn]
     func todays() -> CheckIn?
@@ -72,6 +73,14 @@ struct CheckInRepository: CheckInRepositoring {
             context.insert(CheckInSymptom(checkIn: checkIn, symptom: symptom, severity: severity, ownerID: owner))
         }
         checkIn.touch()
+        try? context.save()
+    }
+
+    /// Remove an entry: soft-delete it and tombstone its symptom links, so it drops
+    /// out of every view but the deletion still syncs (history isn't hard-erased).
+    func delete(_ checkIn: CheckIn) {
+        for link in checkIn.symptomLinks where !link.isTombstoned { link.softDelete() }
+        checkIn.softDelete()
         try? context.save()
     }
 

@@ -19,6 +19,10 @@ struct CheckInModal: View {
     let onClose: (_ saved: Bool) -> Void
     /// Called when the user wants to re-pick their mood (reopens the slide).
     let onChangeMood: () -> Void
+    /// Called after an existing entry is removed, so the caller can dismiss + confirm.
+    let onDelete: () -> Void
+
+    @State private var showDeleteConfirm = false
 
     @Query(filter: #Predicate<Symptom> { $0.deletedAt == nil && $0.isArchived == false }, sort: \Symptom.name)
     private var symptoms: [Symptom]
@@ -38,12 +42,14 @@ struct CheckInModal: View {
     @State private var didPrefill = false
 
     init(mood: Mood, entryDate: Date = .now, editingID: UUID? = nil,
-         onClose: @escaping (_ saved: Bool) -> Void, onChangeMood: @escaping () -> Void) {
+         onClose: @escaping (_ saved: Bool) -> Void, onChangeMood: @escaping () -> Void,
+         onDelete: @escaping () -> Void = {}) {
         self.mood = mood
         self.entryDate = entryDate
         self.editingID = editingID
         self.onClose = onClose
         self.onChangeMood = onChangeMood
+        self.onDelete = onDelete
     }
 
     private var dateLabel: String {
@@ -62,12 +68,19 @@ struct CheckInModal: View {
                     sleepSection
                     diarySection
                     symptomsSection
+                    if editingID != nil { removeButton }
                 }
                 .padding(.horizontal, 20).padding(.top, 20).padding(.bottom, 30)
             }
             saveBar
         }
         .background(theme.background.ignoresSafeArea())
+        .confirmationDialog("Remove this entry?", isPresented: $showDeleteConfirm, titleVisibility: .visible) {
+            Button("Remove entry", role: .destructive) { performDelete() }
+            Button("Cancel", role: .cancel) {}
+        } message: {
+            Text("This removes the whole check-in for \(dateLabel.lowercased()). It can't be undone.")
+        }
         .sheet(isPresented: $showingPicker) {
             SymptomPickerSheet(selected: $selected)
                 .presentationDragIndicator(.visible)
@@ -291,6 +304,27 @@ struct CheckInModal: View {
                 .padding(.horizontal, 20).padding(.top, 14).padding(.bottom, 24)
         }
         .background(theme.background)
+    }
+
+    /// Only on an existing entry: remove the whole check-in (with a confirmation).
+    private var removeButton: some View {
+        let red = Color(hex: 0xEF4444)
+        return Button(role: .destructive) { showDeleteConfirm = true } label: {
+            Label("Remove entry", systemImage: "trash")
+                .font(KeelFont.body).foregroundStyle(red)
+                .frame(maxWidth: .infinity).padding(.vertical, 12)
+                .overlay(RoundedRectangle(cornerRadius: Radius.input, style: .continuous)
+                    .stroke(red.opacity(0.4), lineWidth: 1))
+        }
+        .buttonStyle(.plain)
+        .padding(.top, 6)
+    }
+
+    private func performDelete() {
+        if let id = editingID, let entry = fetchEntry(id) { env.checkIns.delete(entry) }
+        env.speech.reset()
+        Haptics.success()
+        onDelete()
     }
 
     // MARK: Logic

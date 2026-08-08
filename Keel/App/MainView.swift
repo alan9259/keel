@@ -113,6 +113,10 @@ struct MainView: View {
                 // Reopen the slide once the detail cover has fully dismissed.
                 reopenSlideAfterClose = true
                 checkInRequest = nil
+            } onDelete: {
+                checkInRequest = nil
+                showToast(ToastData(title: "Entry removed.", subtitle: "It's gone from your log."))
+                env.requestSync()
             }
         }
         .sheet(isPresented: $showEntrySheet, onDismiss: {

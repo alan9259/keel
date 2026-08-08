@@ -159,19 +159,46 @@ struct ReportsView: View {
                 if topSymptoms.isEmpty {
                     Text("No symptoms logged.").font(KeelFont.body).foregroundStyle(theme.muted)
                 } else {
-                    ForEach(topSymptoms, id: \.name) { item in
-                        VStack(alignment: .leading, spacing: 5) {
-                            HStack {
-                                Text(item.name).font(KeelFont.body).foregroundStyle(theme.text.opacity(0.8))
-                                Spacer()
-                                Text("\(item.count) days").font(KeelFont.body).foregroundStyle(theme.muted)
+                    let pages = symptomPages
+                    if pages.count == 1 {
+                        VStack(spacing: 12) { ForEach(pages[0], id: \.name) { symptomRow($0) } }
+                    } else {
+                        // More than 10: page them, swipe left/right between pages.
+                        TabView {
+                            ForEach(pages.indices, id: \.self) { i in
+                                VStack(spacing: 12) {
+                                    ForEach(pages[i], id: \.name) { symptomRow($0) }
+                                    Spacer(minLength: 0)
+                                }
+                                .tag(i)
                             }
-                            ProgressCapsule(fraction: Double(item.count) / Double(max(windowCheckIns.count, 1)), color: theme.accent)
-                                .frame(height: 8)
                         }
+                        .tabViewStyle(.page(indexDisplayMode: .always))
+                        .frame(height: CGFloat(min(topSymptoms.count, symptomsPerPage)) * 46 + 30)
                     }
                 }
             }
+        }
+    }
+
+    private let symptomsPerPage = 10
+
+    /// Symptoms split into pages of `symptomsPerPage`, most frequent first.
+    private var symptomPages: [[(name: String, count: Int)]] {
+        stride(from: 0, to: topSymptoms.count, by: symptomsPerPage).map {
+            Array(topSymptoms[$0..<min($0 + symptomsPerPage, topSymptoms.count)])
+        }
+    }
+
+    private func symptomRow(_ item: (name: String, count: Int)) -> some View {
+        VStack(alignment: .leading, spacing: 5) {
+            HStack {
+                Text(item.name).font(KeelFont.body).foregroundStyle(theme.text.opacity(0.8))
+                Spacer()
+                Text("\(item.count) days").font(KeelFont.body).foregroundStyle(theme.muted)
+            }
+            ProgressCapsule(fraction: Double(item.count) / Double(max(windowCheckIns.count, 1)), color: theme.accent)
+                .frame(height: 8)
         }
     }
 
