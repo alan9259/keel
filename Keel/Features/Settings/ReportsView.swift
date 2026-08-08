@@ -17,6 +17,8 @@ struct ReportsView: View {
         var days: Int { switch self { case .week: 7; case .month: 30; case .quarter: 90 } } }
 
     @State private var period: Period = .month
+    /// The sleep bar the user tapped, for the detail line (nil = show the latest night).
+    @State private var selectedSleepIndex: Int?
 
     private var since: Date { Date.now.startOfDay.adding(days: -(period.days - 1)) }
     private var windowCheckIns: [CheckIn] { checkIns.filter { $0.date >= since } }
@@ -224,17 +226,39 @@ struct ReportsView: View {
     private var sleepSection: some View {
         section("Sleep") {
             VStack(alignment: .leading, spacing: 12) {
-                Text("Hours per night").font(KeelFont.eyebrow).tracking(0.6).foregroundStyle(theme.muted)
-                HStack(alignment: .bottom, spacing: 4) {
-                    ForEach(sleepSeries.indices, id: \.self) { i in
-                        let h = sleepSeries[i]
-                        RoundedRectangle(cornerRadius: 3, style: .continuous)
-                            .fill(theme.plum.opacity(h > 0 ? 0.8 : 0.15))
-                            .frame(height: max(CGFloat(h) / 10 * 90, 3))
-                            .frame(maxWidth: .infinity)
+                HStack(alignment: .firstTextBaseline) {
+                    Text("Hours per night").font(KeelFont.eyebrow).tracking(0.6).foregroundStyle(theme.muted)
+                    Spacer()
+                    if sleepAvg > 0 {
+                        Text("avg \(sleepHoursText(sleepAvg)) · score \(sleepScore)")
+                            .font(KeelFont.sans(12)).foregroundStyle(theme.text.opacity(0.6))
                     }
                 }
-                .frame(height: 90)
+                if sleepSeries.allSatisfy({ $0 <= 0 }) {
+                    Text("No sleep logged yet. Add it in a check-in, or connect Apple Health.")
+                        .font(KeelFont.body).foregroundStyle(theme.muted)
+                } else {
+                    Text(sleepDetail).font(KeelFont.sans(13, weight: .medium)).foregroundStyle(theme.text)
+                    HStack(alignment: .bottom, spacing: 4) {
+                        ForEach(sleepSeries.indices, id: \.self) { i in
+                            let h = sleepSeries[i]
+                            let isSel = selectedSleepIndex == i
+                            Button {
+                                Haptics.selection()
+                                selectedSleepIndex = isSel ? nil : i
+                            } label: {
+                                RoundedRectangle(cornerRadius: 3, style: .continuous)
+                                    .fill(theme.plum.opacity(h > 0 ? (isSel ? 1 : 0.8) : 0.15))
+                                    .frame(height: max(CGFloat(h) / 10 * 84, 3))
+                                    .frame(maxWidth: .infinity, alignment: .bottom)
+                                    .contentShape(Rectangle())
+                            }
+                            .buttonStyle(.plain)
+                            .disabled(h <= 0)
+                        }
+                    }
+                    .frame(height: 84)
+                }
             }
         }
     }
@@ -324,13 +348,41 @@ struct ReportsView: View {
     }
 
     /// Sleep hours per day from activity logs; falls back to a gentle sample when empty.
+    /// The days the sleep chart covers, oldest first.
+    private var sleepDays: [Date] {
+        Array((0..<min(period.days, 14)).map { Date.now.startOfDay.adding(days: -$0) }.reversed())
+    }
+
+    /// Real logged sleep per day only. No fabricated fallback — an empty history
+    /// stays empty (the section shows an honest "nothing logged" state instead).
     private var sleepSeries: [Double] {
-        let days = (0..<min(period.days, 14)).map { Date.now.startOfDay.adding(days: -$0) }.reversed()
-        let logged = days.map { day in
-            activities.first { $0.activityID == "sleep" && $0.date.isSameDay(as: day) }?.amount ?? 0
+        sleepDays.map { day in
+            activities.first { $0.deletedAt == nil && $0.activityID == "sleep" && $0.date.isSameDay(as: day) }?.amount ?? 0
         }
-        if logged.contains(where: { $0 > 0 }) { return Array(logged) }
-        return [7, 6.5, 5.5, 7.5, 6, 8, 6.5, 7, 5, 7.5, 6, 6.5, 7, 8].suffix(min(period.days, 14))
+    }
+
+    private let sleepGoalHours: Double = 8
+
+    /// Average across nights that have data (0 when none).
+    private var sleepAvg: Double {
+        let vals = sleepSeries.filter { $0 > 0 }
+        guard !vals.isEmpty else { return 0 }
+        return vals.reduce(0, +) / Double(vals.count)
+    }
+
+    /// 0–100 derived from average sleep against the nightly goal (not an Apple score).
+    private var sleepScore: Int { min(100, Int((sleepAvg / sleepGoalHours * 100).rounded())) }
+
+    private func sleepHoursText(_ h: Double) -> String { String(format: "%.1fh", h) }
+
+    /// The tapped night's hours, else the most recent night with sleep.
+    private var sleepDetail: String {
+        let idx = selectedSleepIndex ?? sleepSeries.lastIndex(where: { $0 > 0 })
+        guard let i = idx, i < sleepDays.count, sleepSeries[i] > 0 else { return "Tap a bar for that night." }
+        let day = sleepDays[i]
+        let label = day.isSameDay(as: .now) ? "Last night"
+            : day.formatted(.dateTime.weekday(.abbreviated).day().month(.abbreviated))
+        return "\(label): \(sleepHoursText(sleepSeries[i]))"
     }
 
     private func moodColor(_ mood: Mood) -> Color {

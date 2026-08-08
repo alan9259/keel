@@ -152,11 +152,20 @@ final class HealthKitService {
         return await withCheckedContinuation { continuation in
             let query = HKSampleQuery(sampleType: type, predicate: predicate,
                                       limit: HKObjectQueryNoLimit, sortDescriptors: nil) { [calendar] _, samples, _ in
-                var perDay: [Date: Double] = [:]
-                for sample in (samples as? [HKCategorySample]) ?? [] where Self.isAsleep(sample.value) {
+                var asleep: [Date: Double] = [:]
+                var inBed: [Date: Double] = [:]
+                let inBedValue = HKCategoryValueSleepAnalysis.inBed.rawValue
+                for sample in (samples as? [HKCategorySample]) ?? [] {
                     let day = calendar.startOfDay(for: sample.endDate)
-                    perDay[day, default: 0] += sample.endDate.timeIntervalSince(sample.startDate) / 3600
+                    let hours = sample.endDate.timeIntervalSince(sample.startDate) / 3600
+                    if Self.isAsleep(sample.value) { asleep[day, default: 0] += hours }
+                    else if sample.value == inBedValue { inBed[day, default: 0] += hours }
                 }
+                // Prefer measured "asleep" time; fall back to "in bed" for days that
+                // only have that (e.g. sleep added by hand in the Health app), so
+                // those still count instead of vanishing.
+                var perDay = inBed
+                for (day, h) in asleep { perDay[day] = h }
                 continuation.resume(returning: perDay)
             }
             store.execute(query)
