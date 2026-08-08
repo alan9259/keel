@@ -15,10 +15,8 @@ struct ReportsView: View {
 
     enum Period: String, CaseIterable, Identifiable { case week = "Week", month = "Month", quarter = "3 Months"; var id: String { rawValue }
         var days: Int { switch self { case .week: 7; case .month: 30; case .quarter: 90 } } }
-    enum Filter: String, CaseIterable, Identifiable { case all = "All", mood = "Mood", symptoms = "Symptoms", meds = "Medications", sleep = "Sleep"; var id: String { rawValue } }
 
     @State private var period: Period = .month
-    @State private var filter: Filter = .all
 
     private var since: Date { Date.now.startOfDay.adding(days: -(period.days - 1)) }
     private var windowCheckIns: [CheckIn] { checkIns.filter { $0.date >= since } }
@@ -28,20 +26,18 @@ struct ReportsView: View {
             VStack(alignment: .leading, spacing: 18) {
                 header
                 periodRow
-                filterRow
+                daysInARowSection
                 statTiles
-                if show(.mood) { moodSection }
-                if show(.symptoms) { symptomsSection }
-                if show(.meds) { medsSection }
-                if show(.sleep) { sleepSection }
+                moodSection
+                symptomsSection
+                medsSection
+                sleepSection
             }
             .padding(.horizontal, 20).padding(.vertical, 12)
         }
         .background(theme.background.ignoresSafeArea())
         .keelFeatureScreen()
     }
-
-    private func show(_ f: Filter) -> Bool { filter == .all || filter == f }
 
     private var header: some View {
         HStack(alignment: .top) {
@@ -65,18 +61,40 @@ struct ReportsView: View {
         }
     }
 
-    private var filterRow: some View {
-        FlowLayout(spacing: 8) {
-            ForEach(Filter.allCases) { f in
-                Button { filter = f; Haptics.light() } label: {
-                    Text(f.rawValue).font(KeelFont.body)
-                        .foregroundStyle(filter == f ? theme.background : theme.text.opacity(0.8))
-                        .padding(.horizontal, 14).padding(.vertical, 7)
-                        .background(filter == f ? theme.accent : theme.card)
-                        .clipShape(Capsule())
-                        .overlay(Capsule().stroke(filter == f ? .clear : theme.border, lineWidth: 1))
+    /// Logging consistency: the current run of consecutive days with an entry, a
+    /// row of the past 7 days ticked, and the longest run she's ever managed.
+    private var daysInARowSection: some View {
+        section("Days in a Row") {
+            VStack(alignment: .leading, spacing: 14) {
+                HStack(alignment: .firstTextBaseline, spacing: 8) {
+                    Text("\(currentStreak)").font(KeelFont.serif(30, weight: .semibold)).foregroundStyle(theme.heading)
+                    Text(currentStreak == 1 ? "day in a row" : "days in a row")
+                        .font(KeelFont.body).foregroundStyle(theme.muted)
                 }
-                .buttonStyle(.plain)
+                HStack(spacing: 6) {
+                    ForEach(last7Days, id: \.self) { day in
+                        let logged = loggedDays.contains(day)
+                        VStack(spacing: 6) {
+                            ZStack {
+                                Circle().fill(logged ? theme.sage : .clear).frame(width: 26, height: 26)
+                                Circle().strokeBorder(logged ? .clear : theme.border, lineWidth: 1.5).frame(width: 26, height: 26)
+                                if logged {
+                                    Image(systemName: "checkmark").font(.system(size: 12, weight: .bold)).foregroundStyle(.white)
+                                }
+                            }
+                            Text(letter(day)).font(KeelFont.sans(11)).foregroundStyle(theme.muted)
+                        }
+                        .frame(maxWidth: .infinity)
+                        .accessibilityLabel("\(day.formatted(.dateTime.weekday(.wide))): \(logged ? "logged" : "not logged")")
+                    }
+                }
+                Divider().background(theme.border)
+                HStack {
+                    Text("Longest streak").font(KeelFont.body).foregroundStyle(theme.text.opacity(0.8))
+                    Spacer()
+                    Text(longestStreak == 1 ? "1 day" : "\(longestStreak) days")
+                        .font(KeelFont.body).foregroundStyle(theme.muted)
+                }
             }
         }
     }
@@ -217,6 +235,44 @@ struct ReportsView: View {
 
     private var symptomFreeDays: Int { windowCheckIns.filter { $0.symptoms.isEmpty }.count }
 
+    // MARK: Streak
+
+    /// Every calendar day (start of day) she logged at least one check-in.
+    private var loggedDays: Set<Date> { Set(checkIns.map { $0.date.startOfDay }) }
+
+    /// The past 7 calendar days, oldest first.
+    private var last7Days: [Date] {
+        let today = Date.now.startOfDay
+        return (0..<7).map { today.adding(days: -6 + $0) }
+    }
+
+    /// Consecutive days with an entry, counting back from today. If today isn't
+    /// logged yet the run isn't broken — it counts back from yesterday.
+    private var currentStreak: Int {
+        var day = Date.now.startOfDay
+        if !loggedDays.contains(day) { day = day.adding(days: -1) }
+        var streak = 0
+        while loggedDays.contains(day) { streak += 1; day = day.adding(days: -1) }
+        return streak
+    }
+
+    /// The longest run of consecutive logged days across all her history.
+    private var longestStreak: Int {
+        let sorted = loggedDays.sorted()
+        guard !sorted.isEmpty else { return 0 }
+        var longest = 1, run = 1
+        for i in 1..<sorted.count {
+            run = sorted[i - 1].adding(days: 1).isSameDay(as: sorted[i]) ? run + 1 : 1
+            longest = max(longest, run)
+        }
+        return longest
+    }
+
+    private func letter(_ date: Date) -> String {
+        let cal = Calendar.current
+        return cal.veryShortStandaloneWeekdaySymbols[cal.component(.weekday, from: date) - 1]
+    }
+
     private var moodCounts: [Mood: Int] {
         Dictionary(grouping: windowCheckIns, by: \.mood).mapValues(\.count)
     }
@@ -265,6 +321,7 @@ struct ReportsView: View {
         lines.append("Check-ins: \(windowCheckIns.count)")
         lines.append("Average energy: \(avgEnergy)%")
         lines.append("Symptom-free days: \(symptomFreeDays)")
+        lines.append("Days in a row: \(currentStreak) (longest: \(longestStreak))")
         lines.append("Medication adherence: \(Int(adherence * 100))%")
         if !topSymptoms.isEmpty {
             lines.append("")
