@@ -49,6 +49,7 @@ struct MedicationsView: View {
             TreatmentPickerSheet { draft in
                 let med = env.medications.add(draft)
                 reschedule(med)
+                env.autoLogTodaysDoses() // if she added it with auto-log on, tick today now
                 env.requestSync()
             }
             .presentationDragIndicator(.visible)
@@ -68,6 +69,7 @@ struct MedicationsView: View {
                 onSave: { updated in
                     env.medications.update(med, with: updated)
                     reschedule(med)
+                    env.autoLogTodaysDoses() // enabling auto-log ticks today's log straight away
                     editing = nil
                     env.requestSync()
                 }

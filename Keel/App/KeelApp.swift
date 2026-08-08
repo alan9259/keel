@@ -44,6 +44,8 @@ private struct ThemedRoot: View {
                 case .active:
                     // Fill in today's due doses for auto-log medicines on return.
                     env.autoLogTodaysDoses()
+                    // Pull the latest from Apple Health each time she opens the app.
+                    env.syncHealthData()
                 default:
                     break
                 }

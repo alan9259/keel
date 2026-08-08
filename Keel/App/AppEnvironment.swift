@@ -1,6 +1,7 @@
 import Foundation
 import SwiftData
 import SwiftUI
+import UIKit
 
 /// Composition root. Owns the container, services, and repositories, and injects
 /// the current `ownerID` (from `AuthService`) into every repository so all
@@ -87,8 +88,11 @@ final class AppEnvironment {
         symptoms.syncBuiltIns()
         insights.refreshDerived()
         medications.migrateLegacySchedules()
-        refreshMedicationReminders()
+        // Lifestyle reminders first: they're few and always wanted, so they claim
+        // notification slots before a stack of medication reminders can fill iOS's
+        // 64-pending budget and starve them out.
         refreshLifestyleReminders()
+        refreshMedicationReminders()
         autoLogTodaysDoses()
         if users.currentProfile()?.healthKitAuthorized == true {
             syncHealthData()
@@ -135,8 +139,8 @@ final class AppEnvironment {
     func setPushNotificationsEnabled(_ on: Bool) {
         settings.pushNotifications = on
         if on {
-            refreshMedicationReminders()
             refreshLifestyleReminders()
+            refreshMedicationReminders()
         } else {
             notifications.cancelAll()
         }
@@ -233,7 +237,15 @@ final class AppEnvironment {
     func autoBackupToICloud() {
         guard settings.icloudBackup, settings.autoBackup else { return }
         if let last = lastAutoICloudBackup, Date().timeIntervalSince(last) < 3600 { return }
+        // The app is heading to the background, so ask UIKit for time to finish the
+        // upload — otherwise the task is suspended before it completes and nothing
+        // is backed up.
+        var bgTask = UIBackgroundTaskIdentifier.invalid
+        bgTask = UIApplication.shared.beginBackgroundTask(withName: "keel.icloudBackup") {
+            if bgTask != .invalid { UIApplication.shared.endBackgroundTask(bgTask); bgTask = .invalid }
+        }
         Task {
+            defer { if bgTask != .invalid { UIApplication.shared.endBackgroundTask(bgTask); bgTask = .invalid } }
             guard await icloudBackup.availability().isAvailable else { return }
             lastAutoICloudBackup = Date()
             _ = try? await icloudBackup.backUpNow()

@@ -304,8 +304,11 @@ struct DashboardView: View {
                     }
                     .chartYAxis(.hidden)
                     .chartXAxis {
+                        // `centered` puts each weekday label under the middle of its
+                        // day's bar; without it the label sits on the day boundary
+                        // (the bar's left edge) and reads as misaligned.
                         AxisMarks(values: .stride(by: .day)) { value in
-                            AxisValueLabel(format: .dateTime.weekday(.narrow))
+                            AxisValueLabel(format: .dateTime.weekday(.narrow), centered: true)
                                 .font(KeelFont.sans(11))
                                 .foregroundStyle(theme.muted)
                         }

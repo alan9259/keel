@@ -228,7 +228,9 @@ struct ReportsView: View {
     private var topSymptoms: [(name: String, count: Int)] {
         var counts: [String: Int] = [:]
         for c in windowCheckIns { for s in c.symptoms { counts[s.name, default: 0] += 1 } }
-        return counts.sorted { $0.value > $1.value }.prefix(5).map { ($0.key, $0.value) }
+        // Every symptom she logged in the window, most frequent first — a GP report
+        // shouldn't silently drop the less common ones.
+        return counts.sorted { $0.value > $1.value }.map { ($0.key, $0.value) }
     }
 
     private var adherence: Double {

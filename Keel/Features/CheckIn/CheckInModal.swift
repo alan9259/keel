@@ -360,8 +360,15 @@ struct CheckInModal: View {
             env.checkIns.update(entry, mood: mood, energy: (energy ?? .okay).percent,
                                 notes: notes, symptoms: picked)
         } else {
+            // Stamp the entry with the actual time of day, on the day being logged.
+            // The day selector hands us midnight (start of day), so without this
+            // every entry in a day would read as the same time and lose their order.
+            let cal = Calendar.current
+            let t = cal.dateComponents([.hour, .minute, .second], from: .now)
+            let stamp = cal.date(bySettingHour: t.hour ?? 0, minute: t.minute ?? 0,
+                                 second: t.second ?? 0, of: entryDate) ?? .now
             env.checkIns.create(mood: mood, energy: (energy ?? .okay).percent,
-                                notes: notes, symptoms: picked, date: entryDate)
+                                notes: notes, symptoms: picked, date: stamp)
         }
         saveSleepIfNeeded()
         env.speech.reset()
