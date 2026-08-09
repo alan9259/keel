@@ -1,6 +1,5 @@
 import SwiftUI
 import SwiftData
-import Charts
 
 struct DashboardView: View {
     @Environment(AppEnvironment.self) private var env
@@ -196,20 +195,18 @@ struct DashboardView: View {
                 }
             }
 
-            // Energy bar chart
+            // Energy (0–100%)
             barTrendCard(
                 title: "Energy",
                 trailing: energyAvg > 0 ? "avg \(energyAvg)%" : "No data yet",
-                series: energyBars, color: theme.accent, goal: nil,
-                emptyText: "No energy logged yet."
+                series: energyBars, color: theme.accent, maxValue: 100
             )
 
-            // Sleep bar chart
+            // Sleep (hours; ~10h fills the slot)
             barTrendCard(
                 title: "Sleep",
                 trailing: sleepAvgHours > 0 ? "score \(sleepScore)" : "No data yet",
-                series: sleepBars, color: theme.sage, goal: sleepGoalHours,
-                emptyText: "No sleep logged yet. Add it in Activities."
+                series: sleepBars, color: theme.sage, maxValue: 10
             )
 
         }
@@ -268,52 +265,37 @@ struct DashboardView: View {
         }
     }
 
-    /// A 7-day bar chart card (energy, sleep). `goal` draws a dashed reference line.
+    /// A 7-day bar strip. Every day keeps a faint placeholder track (like the mood
+    /// strip's empty circles) so real bars sit in their correct slot instead of
+    /// floating; a day with no data shows just the empty track (never a fake value).
     private func barTrendCard(title: String, trailing: String,
                               series: [(day: Date, value: Double?)],
-                              color: Color, goal: Double?, emptyText: String) -> some View {
-        StandardCard(padding: 16) {
+                              color: Color, maxValue: Double) -> some View {
+        let barHeight: CGFloat = 72
+        return StandardCard(padding: 16) {
             VStack(alignment: .leading, spacing: 10) {
                 HStack(alignment: .firstTextBaseline) {
                     Text(title).font(KeelFont.sans(12)).foregroundStyle(theme.muted)
                     Spacer()
                     Text(trailing).font(KeelFont.sans(12)).foregroundStyle(theme.text.opacity(0.6))
                 }
-                if series.allSatisfy({ $0.value == nil }) {
-                    Text(emptyText)
-                        .font(KeelFont.sans(12)).italic().foregroundStyle(theme.muted)
-                        .frame(maxWidth: .infinity, minHeight: 64, alignment: .leading)
-                } else {
-                    Chart {
-                        ForEach(series, id: \.day) { point in
-                            if let v = point.value {
-                                BarMark(
-                                    x: .value("Day", point.day, unit: .day),
-                                    y: .value(title, v),
-                                    width: .fixed(16)
-                                )
-                                .foregroundStyle(color.gradient)
-                                .cornerRadius(4)
+                HStack(alignment: .bottom, spacing: 4) {
+                    ForEach(series, id: \.day) { point in
+                        VStack(spacing: 6) {
+                            ZStack(alignment: .bottom) {
+                                RoundedRectangle(cornerRadius: 4, style: .continuous)
+                                    .fill(theme.track)
+                                    .frame(width: 16, height: barHeight)
+                                if let v = point.value, v > 0 {
+                                    RoundedRectangle(cornerRadius: 4, style: .continuous)
+                                        .fill(color.gradient)
+                                        .frame(width: 16, height: max(barHeight * CGFloat(min(v / maxValue, 1)), 4))
+                                }
                             }
+                            Text(letter(point.day)).font(KeelFont.sans(11)).foregroundStyle(theme.muted)
                         }
-                        if let goal {
-                            RuleMark(y: .value("Goal", goal))
-                                .foregroundStyle(theme.muted.opacity(0.5))
-                                .lineStyle(StrokeStyle(lineWidth: 1, dash: [4, 3]))
-                        }
+                        .frame(maxWidth: .infinity)
                     }
-                    .chartYAxis(.hidden)
-                    .chartXAxis {
-                        // `centered` puts each weekday label under the middle of its
-                        // day's bar; without it the label sits on the day boundary
-                        // (the bar's left edge) and reads as misaligned.
-                        AxisMarks(values: .stride(by: .day)) { value in
-                            AxisValueLabel(format: .dateTime.weekday(.narrow), centered: true)
-                                .font(KeelFont.sans(11))
-                                .foregroundStyle(theme.muted)
-                        }
-                    }
-                    .frame(height: 88)
                 }
             }
         }
