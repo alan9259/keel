@@ -183,9 +183,9 @@ struct DashboardView: View {
                         ForEach(last7, id: \.self) { day in
                             VStack(spacing: 6) {
                                 if let e = entry(for: day) {
-                                    EmojiGlyph(emoji: env.settings.emoji(for: e.mood), size: 18)
+                                    EmojiGlyph(emoji: env.settings.emoji(for: e.mood), size: 26)
                                 } else {
-                                    Circle().fill(theme.track).frame(width: 18, height: 18)
+                                    Circle().fill(theme.track).frame(width: 26, height: 26)
                                 }
                                 Text(letter(day)).font(KeelFont.sans(11)).foregroundStyle(theme.muted)
                             }
@@ -272,6 +272,7 @@ struct DashboardView: View {
                               series: [(day: Date, value: Double?)],
                               color: Color, maxValue: Double) -> some View {
         let barHeight: CGFloat = 72
+        let barWidth: CGFloat = 30
         return StandardCard(padding: 16) {
             VStack(alignment: .leading, spacing: 10) {
                 HStack(alignment: .firstTextBaseline) {
@@ -283,13 +284,13 @@ struct DashboardView: View {
                     ForEach(series, id: \.day) { point in
                         VStack(spacing: 6) {
                             ZStack(alignment: .bottom) {
-                                RoundedRectangle(cornerRadius: 4, style: .continuous)
+                                RoundedRectangle(cornerRadius: 5, style: .continuous)
                                     .fill(theme.track)
-                                    .frame(width: 16, height: barHeight)
+                                    .frame(width: barWidth, height: barHeight)
                                 if let v = point.value, v > 0 {
-                                    RoundedRectangle(cornerRadius: 4, style: .continuous)
+                                    RoundedRectangle(cornerRadius: 5, style: .continuous)
                                         .fill(color.gradient)
-                                        .frame(width: 16, height: max(barHeight * CGFloat(min(v / maxValue, 1)), 4))
+                                        .frame(width: barWidth, height: max(barHeight * CGFloat(min(v / maxValue, 1)), 5))
                                 }
                             }
                             Text(letter(point.day)).font(KeelFont.sans(11)).foregroundStyle(theme.muted)
@@ -349,20 +350,20 @@ struct DashboardView: View {
                                 .stroke(sel ? theme.accent : .clear, lineWidth: 1.5)
                         )
                     if let e {
-                        EmojiGlyph(emoji: env.settings.emoji(for: e.mood), size: 15)
+                        EmojiGlyph(emoji: env.settings.emoji(for: e.mood), size: 22)
                     } else {
                         Text("\(cal.component(.day, from: date))")
                             .font(KeelFont.sans(13))
                             .foregroundStyle(theme.text.opacity(isFuture ? 0.25 : 0.75))
                     }
                 }
-                .frame(height: 34)
+                .frame(height: 38)
             }
             .buttonStyle(.plain)
             .disabled(isFuture)
             .accessibilityHint(isFuture ? "Future date, not available" : "")
         } else {
-            Color.clear.frame(height: 34)
+            Color.clear.frame(height: 38)
         }
     }
 
