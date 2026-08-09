@@ -88,30 +88,33 @@ struct MedicationsView: View {
         }
     }
 
+    // The whole card opens the detail/edit sheet (remove lives in there now). The
+    // track tick is its own control: its taps don't fall through to the card.
     private func row(_ med: Medication) -> some View {
         HStack(spacing: Spacing.md) {
-            Button { editing = med } label: {
-                VStack(alignment: .leading, spacing: 4) {
-                    Text(med.name).font(KeelFont.serif(17, weight: .semibold)).foregroundStyle(theme.heading)
+            VStack(alignment: .leading, spacing: 4) {
+                Text(med.name).font(KeelFont.serif(17, weight: .semibold)).foregroundStyle(theme.heading)
+                    .multilineTextAlignment(.leading)
+                if !med.detailLine.isEmpty {
+                    Text(med.detailLine).font(KeelFont.caption).foregroundStyle(theme.muted)
                         .multilineTextAlignment(.leading)
-                    if !med.detailLine.isEmpty {
-                        Text(med.detailLine).font(KeelFont.caption).foregroundStyle(theme.muted)
-                            .multilineTextAlignment(.leading)
-                    }
-                    if med.autoLogDoses {
-                        HStack(spacing: 4) {
-                            Image(systemName: "checkmark.circle.fill").font(.system(size: 10))
-                            Text("Auto-logged").font(KeelFont.sans(11, weight: .medium))
-                        }
-                        .foregroundStyle(theme.sage)
-                        .padding(.top, 2)
-                        .accessibilityLabel("Doses are marked taken automatically")
-                    }
                 }
-                .frame(maxWidth: .infinity, alignment: .leading)
+                if med.autoLogDoses {
+                    HStack(spacing: 4) {
+                        Image(systemName: "checkmark.circle.fill").font(.system(size: 10))
+                        Text("Auto-logged").font(KeelFont.sans(11, weight: .medium))
+                    }
+                    .foregroundStyle(theme.sage)
+                    .padding(.top, 2)
+                    .accessibilityLabel("Doses are marked taken automatically")
+                }
             }
-            .buttonStyle(.plain)
-            .accessibilityLabel("\(med.name), edit")
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .accessibilityElement(children: .combine)
+            .accessibilityAddTraits(.isButton)
+            .accessibilityHint("Opens details")
+            .accessibilityAction { editing = med }
+
             // The tick decides whether this medicine shows in the home Medicines
             // log, where she records each day whether she took it. Not a dose tick.
             trackToggle(med)
@@ -120,20 +123,8 @@ struct MedicationsView: View {
         .background(theme.card)
         .clipShape(RoundedRectangle(cornerRadius: Radius.card, style: .continuous))
         .overlay(RoundedRectangle(cornerRadius: Radius.card, style: .continuous).stroke(theme.border, lineWidth: 1))
-        .contextMenu {
-            Button { editing = med } label: { Label("Edit", systemImage: "pencil") }
-            Button(role: .destructive) { remove(med) } label: { Label("Remove", systemImage: "trash") }
-        }
-    }
-
-    /// Remove a treatment/supplement: archives it (past logs keep their history)
-    /// and cancels any of its reminders.
-    private func remove(_ med: Medication) {
-        let id = med.id
-        env.medications.archive(med)
-        Task { await env.notifications.cancelMedicationReminders(medicationID: id) }
-        env.requestSync()
-        Haptics.success()
+        .contentShape(RoundedRectangle(cornerRadius: Radius.card, style: .continuous))
+        .onTapGesture { Haptics.selection(); editing = med }
     }
 
     /// The tick that includes this medicine in the home Medicines log. Filled
