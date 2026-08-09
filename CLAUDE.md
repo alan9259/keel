@@ -14,6 +14,16 @@ type, spacing tokens), and interaction principles (partial check-in beats none;
 one mood picker; she taps to add, never pre-selected). This is a binding
 requirement, not a suggestion.
 
+## No fake data. If you must fake, tag it.
+
+Never fabricate data, stats, or content and show it as real — prefer an honest
+empty state ("nothing logged yet") over invented numbers. A hardcoded fallback
+that stands in for missing real data is a **bug**. If you genuinely must add a
+mock/stub or a placeholder value, mark it with one consistent, greppable comment
+on the introducing line: `// FAKE: <what it stands in for> — remove before <cond>`.
+Always use this exact `// FAKE:` tag so `grep -rn "// FAKE:"` finds every stand-in.
+(`#if DEBUG` DebugHarness seeds/probes are exempt — they don't ship.)
+
 ## Verify your work — don't just reason
 
 Confirm the actual root cause before claiming a fix (trace the real code path;
