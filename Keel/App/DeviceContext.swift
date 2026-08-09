@@ -18,6 +18,11 @@ enum DeviceContext {
         return "\(short) (\(build))"
     }
 
+    /// Marketing version only (e.g. "1.0.1"), for the "Version …" line in About/More.
+    static var shortVersion: String {
+        Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String ?? "1.0"
+    }
+
     /// e.g. "iPhone17,1". The Simulator's uname reports the host arch, so prefer
     /// the modelled device identifier when running there.
     static var deviceModel: String {

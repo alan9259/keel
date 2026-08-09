@@ -61,7 +61,7 @@ struct MoreView: View {
                     }
                 }
 
-                Text("Keel · Version 1.0.0")
+                Text("Keel · Version \(DeviceContext.shortVersion)")
                     .font(KeelFont.caption).foregroundStyle(theme.muted)
                     .frame(maxWidth: .infinity)
             }

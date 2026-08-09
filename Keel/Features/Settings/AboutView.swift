@@ -43,7 +43,7 @@ struct AboutView: View {
 
                 VStack(spacing: 6) {
                     HStack {
-                        Text("Keel · Version 1.0.0")
+                        Text("Keel · Version \(DeviceContext.shortVersion)")
                         Spacer()
                         Text("© 2026 Keel Health Ltd.")
                     }
