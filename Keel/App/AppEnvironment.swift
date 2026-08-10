@@ -206,9 +206,20 @@ final class AppEnvironment {
         Task {
             guard await notifications.requestAuthorization() else { return }
             if enabled.contains("dailyCheckIn") { notifications.scheduleDailyCheckInReminder(hour: c.checkInHour, minute: c.checkInMinute) }
-            if enabled.contains("hydration") { notifications.scheduleHydration(startHour: c.hydrationStartHour, endHour: c.hydrationEndHour, everyHours: c.hydrationIntervalHours) }
-            if enabled.contains("movement") { notifications.scheduleMovement(hour: c.movementHour, minute: c.movementMinute, weekdaysOnly: c.movementWeekdaysOnly) }
-            if enabled.contains("winddown") { notifications.scheduleWindDown(hour: c.windDownHour, minute: c.windDownMinute) }
+            // Each recurring lifestyle nudge gets a fresh Apple-Intelligence tip in
+            // its area when the device can make one; otherwise the static copy stands.
+            if enabled.contains("hydration") {
+                let tip = await LifestyleTipWriter.tip(for: .hydration)
+                notifications.scheduleHydration(startHour: c.hydrationStartHour, endHour: c.hydrationEndHour, everyHours: c.hydrationIntervalHours, tip: tip)
+            }
+            if enabled.contains("movement") {
+                let tip = await LifestyleTipWriter.tip(for: .movement)
+                notifications.scheduleMovement(hour: c.movementHour, minute: c.movementMinute, weekdaysOnly: c.movementWeekdaysOnly, tip: tip)
+            }
+            if enabled.contains("winddown") {
+                let tip = await LifestyleTipWriter.tip(for: .windDown)
+                notifications.scheduleWindDown(hour: c.windDownHour, minute: c.windDownMinute, tip: tip)
+            }
         }
     }
 

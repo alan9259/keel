@@ -340,6 +340,10 @@ enum DebugHarness {
             runMedReminderProbe(env: env)
         }
 
+        if args.contains("-uitTipProbe") {
+            runTipProbe(env: env)
+        }
+
         if args.contains("-uitSupportRegion") {
             let cur = CrisisResources.matching().map(\.name).joined(separator: ",")
             let forced = CrisisResources.matching(
@@ -366,6 +370,31 @@ enum DebugHarness {
             let ids = await UNUserNotificationCenter.current().pendingNotificationRequests().map(\.identifier)
             func c(_ p: String) -> Int { ids.filter { $0.hasPrefix(p) }.count }
             print("KEEL_REMINDERDUMP total=\(ids.count) dailyCheckIn=\(c("keel.dailyCheckIn")) hydration=\(c("keel.hydration.")) movement=\(c("keel.movement.")) winddown=\(c("keel.winddown"))")
+            fflush(stdout)
+        }
+    }
+
+    /// Verifies the lifestyle-tip plumbing: a passed tip is woven into the body
+    /// (deterministic, no model needed), and the on-device writer returns nil on
+    /// the simulator so the static copy stands. Live tip generation needs a real
+    /// Apple-Intelligence device on iOS 26 and can't be exercised here.
+    @MainActor
+    private static func runTipProbe(env: AppEnvironment) {
+        let n = env.notifications
+        Task {
+            _ = await n.requestAuthorization()
+            n.scheduleHydration(startHour: 8, endHour: 8, everyHours: 2, tip: "Keep a glass by your desk.")
+            n.scheduleMovement(hour: 14, minute: 0, weekdaysOnly: false, tip: "Try a slow lap of the garden.")
+            n.scheduleWindDown(hour: 21, minute: 30, tip: "Dim the lights an hour before bed.")
+            try? await Task.sleep(for: .milliseconds(500))
+            let reqs = await UNUserNotificationCenter.current().pendingNotificationRequests()
+            func body(_ prefix: String) -> String {
+                reqs.first { $0.identifier.hasPrefix(prefix) }?.content.body ?? "nil"
+            }
+            let modelTip = await LifestyleTipWriter.tip(for: .hydration) // nil on the simulator
+            print("KEEL_TIPPROBE hydration='\(body("keel.hydration."))'")
+            print("KEEL_TIPPROBE movement='\(body("keel.movement."))'")
+            print("KEEL_TIPPROBE winddown='\(body("keel.winddown"))' modelTipOnSim=\(modelTip ?? "nil")")
             fflush(stdout)
         }
     }

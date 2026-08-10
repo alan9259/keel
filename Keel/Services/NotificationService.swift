@@ -164,24 +164,27 @@ final class NotificationService {
     /// Hydration nudges every `everyHours` across a waking window only, so it goes
     /// quiet overnight. Each hour is its own daily-repeating trigger (a plain
     /// interval trigger would fire around the clock).
-    func scheduleHydration(startHour: Int = 8, endHour: Int = 21, everyHours: Int = 2) {
+    /// `tip`, when present, is a fresh Apple-Intelligence line woven in place of the
+    /// generic second sentence (see `LifestyleTipWriter`); nil keeps the static copy.
+    func scheduleHydration(startHour: Int = 8, endHour: Int = 21, everyHours: Int = 2, tip: String? = nil) {
         remove(hydrationIDs)
+        let body = "A small sip counts. " + (tip ?? "Staying hydrated can help with energy and headaches.")
         var hour = startHour
         while hour <= endHour {
             var when = DateComponents()
             when.hour = hour
             add(id: "\(hydrationPrefix)\(hour)", title: "A glass of water?",
-                body: "A small sip counts. Staying hydrated can help with energy and headaches.",
+                body: body,
                 trigger: UNCalendarNotificationTrigger(dateMatching: when, repeats: true))
             hour += everyHours
         }
     }
 
     /// A gentle daily movement nudge, weekdays by default.
-    func scheduleMovement(hour: Int = 14, minute: Int = 0, weekdaysOnly: Bool = true) {
+    func scheduleMovement(hour: Int = 14, minute: Int = 0, weekdaysOnly: Bool = true, tip: String? = nil) {
         remove(movementIDs)
         let title = "A little movement?"
-        let body = "A short walk or a stretch. Whatever feels good today."
+        let body = "A short walk or a stretch. " + (tip ?? "Whatever feels good today.")
         if weekdaysOnly {
             for weekday in 2...6 { // Monday…Friday (1 = Sunday)
                 var when = DateComponents()
@@ -201,13 +204,13 @@ final class NotificationService {
     }
 
     /// A single evening wind-down nudge.
-    func scheduleWindDown(hour: Int = 21, minute: Int = 30) {
+    func scheduleWindDown(hour: Int = 21, minute: Int = 30, tip: String? = nil) {
         remove([windDownID])
         var when = DateComponents()
         when.hour = hour
         when.minute = minute
         add(id: windDownID, title: "Time to wind down",
-            body: "A calmer evening can make for a better night's sleep.",
+            body: tip ?? "A calmer evening can make for a better night's sleep.",
             trigger: UNCalendarNotificationTrigger(dateMatching: when, repeats: true))
     }
 
@@ -263,3 +266,78 @@ final class NotificationService {
         center.add(UNNotificationRequest(identifier: checkInID, content: content, trigger: trigger))
     }
 }
+
+// MARK: - Fun tips for recurring lifestyle reminders
+
+/// The everyday areas the recurring lifestyle nudges cover. Only lifestyle areas
+/// get a generated tip: medication reminders never do, so a "fun tip" can't drift
+/// into medical advice (the DESIGN_PRINCIPLES boundary: support and inform, never
+/// diagnose or prescribe).
+enum LifestyleTipArea {
+    case hydration, movement, windDown
+
+    /// The one-line request handed to the on-device model.
+    var prompt: String {
+        switch self {
+        case .hydration: "Give one gentle, fun tip about drinking water or staying hydrated through the day."
+        case .movement: "Give one gentle, fun tip about a little easy movement, like a short walk or a stretch."
+        case .windDown: "Give one gentle, fun tip about winding down in the evening for better sleep."
+        }
+    }
+}
+
+/// A short, warm tip for a recurring reminder, generated on-device by Apple
+/// Intelligence when available. Returns nil otherwise (older OS, ineligible
+/// device, simulator), so the caller keeps its static copy. Mirrors
+/// `AppleSummaryNarrator`: a single request, not a conversation.
+enum LifestyleTipWriter {
+    static func tip(for area: LifestyleTipArea) async -> String? {
+        #if canImport(FoundationModels)
+        if #available(iOS 26.0, *) {
+            return await AppleLifestyleTip.generate(for: area)
+        }
+        #endif
+        return nil
+    }
+}
+
+#if canImport(FoundationModels)
+import FoundationModels
+
+@available(iOS 26.0, macOS 26.0, *)
+enum AppleLifestyleTip {
+    @MainActor
+    static func generate(for area: LifestyleTipArea) async -> String? {
+        guard case .available = SystemLanguageModel.default.availability else { return nil }
+        let session = LanguageModelSession(instructions: instructions)
+        do {
+            let response = try await session.respond(to: area.prompt)
+            // Enforce the no-dashes rule deterministically, in case the model slips.
+            let text = response.content.trimmingCharacters(in: .whitespacesAndNewlines)
+                .replacingOccurrences(of: " — ", with: ", ")
+                .replacingOccurrences(of: " – ", with: ", ")
+                .replacingOccurrences(of: "—", with: ", ")
+                .replacingOccurrences(of: "–", with: ", ")
+            return text.isEmpty ? nil : text
+        } catch {
+            return nil
+        }
+    }
+
+    static let instructions = """
+    You write one short, fun notification tip for Keel, an app for a woman \
+    navigating perimenopause.
+
+    Rules you must not break:
+    - One sentence only, about twelve words, warm and a little playful.
+    - It is a lifestyle nudge, not medical advice. Never mention medication, \
+    hormones, symptoms, diagnosis, or treatment. Never claim a health outcome or \
+    cite any number or statistic.
+    - Australian and New Zealand spelling. Say "hot flushes", never "hot flashes".
+    - No dashes of any kind. Use full stops and commas.
+    - Gentle and encouraging, never bossy or alarming.
+
+    Return only the tip sentence, nothing else.
+    """
+}
+#endif
