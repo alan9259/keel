@@ -34,14 +34,18 @@ die() { printf 'error: %s\n' "$*" >&2; exit 1; }
 command -v xcrun >/dev/null 2>&1 || die "xcrun not found (install Xcode command line tools)."
 xcrun --find cktool >/dev/null 2>&1 || die "cktool not found (comes with Xcode)."
 
-# Pass --token only when the env var is set; otherwise rely on a keychain/file
-# token saved earlier via 'save-token'.
-token_args=()
-if [[ -n "${CLOUDKIT_MANAGEMENT_TOKEN:-}" ]]; then
-  token_args=(--token "$CLOUDKIT_MANAGEMENT_TOKEN")
-fi
-
-ck() { xcrun cktool "$@"; }
+# Run cktool, injecting --token after the subcommand when CLOUDKIT_MANAGEMENT_TOKEN
+# is set; otherwise rely on a token saved earlier via 'save-token' (keychain).
+# Done in the wrapper (not an array at the call site) so it works on macOS's
+# bash 3.2, where an empty "${array[@]}" under 'set -u' errors "unbound variable".
+ck() {
+  local sub="$1"; shift
+  if [[ -n "${CLOUDKIT_MANAGEMENT_TOKEN:-}" && "$sub" != "save-token" ]]; then
+    xcrun cktool "$sub" --token "$CLOUDKIT_MANAGEMENT_TOKEN" "$@"
+  else
+    xcrun cktool "$sub" "$@"
+  fi
+}
 
 need_schema() {
   [[ -f "$SCHEMA_FILE" ]] || die "no schema file at $SCHEMA_FILE — run '$0 export' first (after the Development schema exists)."
@@ -67,27 +71,27 @@ EOF
 case "${1:-help}" in
   export)
     mkdir -p "$(dirname "$SCHEMA_FILE")"
-    ck export-schema "${token_args[@]}" --team-id "$TEAM_ID" --container-id "$CONTAINER_ID" \
+    ck export-schema --team-id "$TEAM_ID" --container-id "$CONTAINER_ID" \
       --environment development --output-file "$SCHEMA_FILE"
     echo "Exported DEVELOPMENT schema -> $SCHEMA_FILE"
     echo "Review 'git diff -- $SCHEMA_FILE' and commit it as the schema of record."
     ;;
   validate)
     need_schema
-    ck validate-schema "${token_args[@]}" --team-id "$TEAM_ID" --container-id "$CONTAINER_ID" \
+    ck validate-schema --team-id "$TEAM_ID" --container-id "$CONTAINER_ID" \
       --environment production --file "$SCHEMA_FILE"
     echo "Committed schema validates against PRODUCTION."
     ;;
   deploy)
     need_schema
     echo "Deploying $SCHEMA_FILE -> PRODUCTION ($CONTAINER_ID) ..."
-    ck import-schema "${token_args[@]}" --team-id "$TEAM_ID" --container-id "$CONTAINER_ID" \
+    ck import-schema --team-id "$TEAM_ID" --container-id "$CONTAINER_ID" \
       --environment production --validate --file "$SCHEMA_FILE"
     echo "Deployed to PRODUCTION."
     ;;
   apply-dev)
     need_schema
-    ck import-schema "${token_args[@]}" --team-id "$TEAM_ID" --container-id "$CONTAINER_ID" \
+    ck import-schema --team-id "$TEAM_ID" --container-id "$CONTAINER_ID" \
       --environment development --validate --file "$SCHEMA_FILE"
     echo "Applied committed schema to DEVELOPMENT."
     ;;
@@ -95,7 +99,7 @@ case "${1:-help}" in
     need_schema
     tmp="$(mktemp -t keel-ck-dev)"
     trap 'rm -f "$tmp"' EXIT
-    ck export-schema "${token_args[@]}" --team-id "$TEAM_ID" --container-id "$CONTAINER_ID" \
+    ck export-schema --team-id "$TEAM_ID" --container-id "$CONTAINER_ID" \
       --environment development --output-file "$tmp"
     if diff -u "$SCHEMA_FILE" "$tmp"; then
       echo "DEVELOPMENT matches the committed schema."
