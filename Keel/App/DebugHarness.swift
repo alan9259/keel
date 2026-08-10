@@ -344,6 +344,10 @@ enum DebugHarness {
             runTipProbe(env: env)
         }
 
+        if args.contains("-uitSeedSchema") {
+            runSchemaSeed(env: env)
+        }
+
         if args.contains("-uitSupportRegion") {
             let cur = CrisisResources.matching().map(\.name).joined(separator: ",")
             let forced = CrisisResources.matching(
@@ -372,6 +376,97 @@ enum DebugHarness {
             print("KEEL_REMINDERDUMP total=\(ids.count) dailyCheckIn=\(c("keel.dailyCheckIn")) hydration=\(c("keel.hydration.")) movement=\(c("keel.movement.")) winddown=\(c("keel.winddown"))")
             fflush(stdout)
         }
+    }
+
+    /// Inserts one fully-populated, tombstoned record of every one of the 12
+    /// entities, with relationships linked, so SwiftData's CloudKit mirroring
+    /// creates every record type AND every field in the Development schema in a
+    /// single signed run (an unpopulated field never appears, and Production can't
+    /// JIT-create later). The records carry `deletedAt` (so they're invisible in
+    /// the app and every entity's `deletedAt` field is created) and an
+    /// `ownerID` of "schema-seed" so they're easy to find and delete afterwards.
+    /// Only mirrors on a signed build signed into iCloud; a no-op to the schema
+    /// otherwise (still writes locally, harmlessly).
+    @MainActor
+    private static func runSchemaSeed(env: AppEnvironment) {
+        let ctx = env.context
+        let now = Date()
+        let owner = "schema-seed"
+
+        // Catalog + a check-in that links to it (populates both relationship sides).
+        let symptom = Symptom(name: "Schema seed", category: .body, isCustom: true,
+                              isArchived: true, isDefaultChip: true, ownerID: owner,
+                              createdAt: now, updatedAt: now, deletedAt: now, syncStatus: .synced)
+        ctx.insert(symptom)
+
+        let checkIn = CheckIn(date: now, mood: .okay, energy: 55, notes: "Schema seed",
+                              ownerID: owner, createdAt: now, updatedAt: now, deletedAt: now, syncStatus: .synced)
+        ctx.insert(checkIn)
+
+        let link = CheckInSymptom(checkIn: checkIn, symptom: symptom, severity: 2, source: .healthKit,
+                                  ownerID: owner, createdAt: now, updatedAt: now, deletedAt: now, syncStatus: .synced)
+        ctx.insert(link)
+
+        let cycle = CycleEntry(date: now, type: .periodStart, source: .healthKit, ownerID: owner,
+                               createdAt: now, updatedAt: now, deletedAt: now, syncStatus: .synced)
+        ctx.insert(cycle)
+
+        // Medication with a cycle schedule (populates every schedule-derived field)
+        // + a log linked to it.
+        let slot = DoseSlot(weekdays: [2, 4, 6], hour: 8, minute: 30)
+        let schedule = DoseSchedule(kind: .cycle, slots: [slot], cycleLength: 28, pauseDays: 7, anchor: now)
+        let med = Medication(name: "Schema seed", dosage: "50 mg", doseAmount: 50, doseUnit: .mg,
+                             timing: "8:30 am", method: .tablet, isActive: true, isTracked: true,
+                             autoLogDoses: true, kind: .treatment, catalogGroupID: "seed", schedule: schedule,
+                             date: now, doseChangedAt: now, note: "seed", isOffLabel: true, isCompounded: true,
+                             ownerID: owner, createdAt: now, updatedAt: now, deletedAt: now, syncStatus: .synced)
+        med.frequencyRaw = DoseFrequency.daily.rawValue   // legacy fields, not set by init
+        med.timeOfDayRaw = TimeOfDay.morning.rawValue
+        ctx.insert(med)
+
+        let medLog = MedicationLog(date: now, slot: "seed-slot", taken: true, medication: med, ownerID: owner,
+                                   createdAt: now, updatedAt: now, deletedAt: now, syncStatus: .synced)
+        ctx.insert(medLog)
+
+        let insight = Insight(title: "Schema seed", detail: "Seed detail", timeframe: "This week",
+                              iconKey: "sparkles", accent: .terracotta, generatedAt: now, ownerID: owner,
+                              createdAt: now, updatedAt: now, deletedAt: now, syncStatus: .synced)
+        ctx.insert(insight)
+
+        let activity = ActivityLog(date: now, activityID: "water", amount: 4, ownerID: owner,
+                                   createdAt: now, updatedAt: now, deletedAt: now, syncStatus: .synced)
+        ctx.insert(activity)
+
+        let chat = ChatMessage(role: .user, text: "Schema seed", ownerID: owner,
+                               createdAt: now, updatedAt: now, deletedAt: now, syncStatus: .synced)
+        ctx.insert(chat)
+
+        let daily = DailySummary(day: now, text: "Schema seed", source: .deterministic, signalsJSON: "[]",
+                                 generatedAt: now, ownerID: owner, createdAt: now, updatedAt: now,
+                                 deletedAt: now, syncStatus: .synced)
+        ctx.insert(daily)
+
+        let sample = HealthSample(typeID: "heartRate", day: now, value: 72, unit: "bpm", source: .healthKit,
+                                  ownerID: owner, createdAt: now, updatedAt: now, deletedAt: now, syncStatus: .synced)
+        ctx.insert(sample)
+
+        let profile = UserProfile(firstName: "Schema seed", email: "seed@example.com",
+                                  appleUserID: "seed-apple-id", pathway: .both, healthKitAuthorized: true,
+                                  trackingStartDate: now, ownerID: owner, createdAt: now, updatedAt: now,
+                                  deletedAt: now, syncStatus: .synced)
+        profile.region = "AU"; profile.localeID = "en_AU"; profile.timeZoneID = "Australia/Sydney"
+        profile.appVersion = "1.0.1"; profile.deviceModel = "Simulator"; profile.osVersion = "26.5"
+        ctx.insert(profile)
+
+        do {
+            try ctx.save()
+            let count = (try? ctx.fetchCount(FetchDescriptor<HealthSample>(predicate: #Predicate { $0.ownerID == owner }))) ?? -1
+            print("KEEL_SCHEMASEED inserted one of each of \(KeelSchema.models.count) entities (tombstoned, owner=schema-seed). "
+                + "On a signed build signed into iCloud these mirror to CloudKit Development and create every record type + field. sampleCheck=\(count)")
+        } catch {
+            print("KEEL_SCHEMASEED save error: \(error)")
+        }
+        fflush(stdout)
     }
 
     /// Verifies the lifestyle-tip plumbing: a passed tip is woven into the body
