@@ -36,6 +36,15 @@ behaviour — a screenshot for UI, or a small `#if DEBUG` launch-arg probe
 paths only work on a real signed device (Sign in with Apple, notification
 delivery/taps, HealthKit, CloudKit, entitlement-gated features) — say so plainly.
 
+## Always bump the build number for a build
+
+When you produce a build meant to run on a device or go to TestFlight/distribution
+(an archive or a signed device build), **bump `CURRENT_PROJECT_VERSION` first,
+without being asked** — increment the integer in `Keel.xcodeproj/project.pbxproj`
+(it appears in **both** the Debug and Release configs; keep them equal) and commit
+it. Every shippable build must carry a fresh, higher build number.
+(Iterative simulator compile-checks during development don't each need a bump.)
+
 ## Architecture (brief)
 
 - SwiftUI (iOS 17+), `@Observable`, SwiftData as local source of truth.
