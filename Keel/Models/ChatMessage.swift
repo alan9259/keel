@@ -9,24 +9,24 @@ enum ChatRole: String, Codable {
 /// A single message in the AI companion conversation.
 @Model
 final class ChatMessage: Syncable {
-    @Attribute(.unique) var id: UUID
-    var roleRaw: String
-    var text: String
-    var createdAt: Date
+    var id: UUID = UUID()
+    var roleRaw: String = ""
+    var text: String = ""
+    var createdAt: Date = Date.now
 
     // Syncable
-    var ownerID: String
-    var updatedAt: Date
+    var ownerID: String = ""
+    var updatedAt: Date = Date.now
     var deletedAt: Date?
-    var syncStatusRaw: String
+    var syncStatusRaw: String = SyncStatus.pendingUpload.rawValue
 
     init(
         id: UUID = UUID(),
         role: ChatRole,
         text: String,
         ownerID: String,
-        createdAt: Date = .now,
-        updatedAt: Date = .now,
+        createdAt: Date = Date.now,
+        updatedAt: Date = Date.now,
         deletedAt: Date? = nil,
         syncStatus: SyncStatus = .pendingUpload
     ) {

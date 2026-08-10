@@ -35,13 +35,13 @@ extension Syncable {
     var isTombstoned: Bool { deletedAt != nil }
 
     /// Mark the record dirty so the next sync pass uploads it.
-    func touch(_ now: Date = .now) {
+    func touch(_ now: Date = Date.now) {
         updatedAt = now
         syncStatusRaw = SyncStatus.pendingUpload.rawValue
     }
 
     /// Soft-delete: write a tombstone and queue it for upload.
-    func softDelete(_ now: Date = .now) {
+    func softDelete(_ now: Date = Date.now) {
         deletedAt = now
         touch(now)
     }

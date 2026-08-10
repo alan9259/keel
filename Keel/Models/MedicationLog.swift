@@ -4,21 +4,21 @@ import SwiftData
 /// A per-day "taken / not taken" record for a medication.
 @Model
 final class MedicationLog: Syncable {
-    @Attribute(.unique) var id: UUID
+    var id: UUID = UUID()
     /// Start-of-day the log applies to.
-    var date: Date
+    var date: Date = Date.now
     /// Which dose of that day, as the `ScheduledTime` id. Nil is the whole day,
     /// which is what an entry with no set times has.
     var slot: String?
-    var taken: Bool
+    var taken: Bool = false
     var medication: Medication?
 
     // Syncable
-    var ownerID: String
-    var createdAt: Date
-    var updatedAt: Date
+    var ownerID: String = ""
+    var createdAt: Date = Date.now
+    var updatedAt: Date = Date.now
     var deletedAt: Date?
-    var syncStatusRaw: String
+    var syncStatusRaw: String = SyncStatus.pendingUpload.rawValue
 
     init(
         id: UUID = UUID(),
@@ -27,8 +27,8 @@ final class MedicationLog: Syncable {
         taken: Bool,
         medication: Medication?,
         ownerID: String,
-        createdAt: Date = .now,
-        updatedAt: Date = .now,
+        createdAt: Date = Date.now,
+        updatedAt: Date = Date.now,
         deletedAt: Date? = nil,
         syncStatus: SyncStatus = .pendingUpload
     ) {

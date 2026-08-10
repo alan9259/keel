@@ -7,23 +7,23 @@ import SwiftData
 /// available. Maps to a `daily_summaries` row.
 @Model
 final class DailySummary: Syncable {
-    @Attribute(.unique) var id: UUID
+    var id: UUID = UUID()
     /// The calendar day this summary is for (start of day). One per day.
-    var day: Date
+    var day: Date = Date.now
     /// The reflection shown to her.
-    var text: String
+    var text: String = ""
     /// "ai" (Apple Intelligence narrated) or "deterministic" (plain fallback).
-    var sourceRaw: String
+    var sourceRaw: String = ""
     /// The grounded facts it was built from, JSON-encoded, kept for the record.
     var signalsJSON: String?
-    var generatedAt: Date
+    var generatedAt: Date = Date.now
 
     // Syncable
-    var ownerID: String
-    var createdAt: Date
-    var updatedAt: Date
+    var ownerID: String = ""
+    var createdAt: Date = Date.now
+    var updatedAt: Date = Date.now
     var deletedAt: Date?
-    var syncStatusRaw: String
+    var syncStatusRaw: String = SyncStatus.pendingUpload.rawValue
 
     init(
         id: UUID = UUID(),
@@ -31,10 +31,10 @@ final class DailySummary: Syncable {
         text: String,
         source: DailySummarySource,
         signalsJSON: String? = nil,
-        generatedAt: Date = .now,
+        generatedAt: Date = Date.now,
         ownerID: String,
-        createdAt: Date = .now,
-        updatedAt: Date = .now,
+        createdAt: Date = Date.now,
+        updatedAt: Date = Date.now,
         deletedAt: Date? = nil,
         syncStatus: SyncStatus = .pendingUpload
     ) {

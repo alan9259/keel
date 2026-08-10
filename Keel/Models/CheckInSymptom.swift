@@ -5,7 +5,7 @@ import SwiftData
 /// Postgres `check_in_symptoms` table (columns `check_in_id`, `symptom_id`).
 @Model
 final class CheckInSymptom: Syncable {
-    @Attribute(.unique) var id: UUID
+    var id: UUID = UUID()
     var checkIn: CheckIn?
     /// Nullify (not cascade) — removing a link must never delete the shared
     /// catalog `Symptom`.
@@ -17,11 +17,11 @@ final class CheckInSymptom: Syncable {
     var sourceRaw: String = DataSource.manual.rawValue
 
     // Syncable
-    var ownerID: String
-    var createdAt: Date
-    var updatedAt: Date
+    var ownerID: String = ""
+    var createdAt: Date = Date.now
+    var updatedAt: Date = Date.now
     var deletedAt: Date?
-    var syncStatusRaw: String
+    var syncStatusRaw: String = SyncStatus.pendingUpload.rawValue
 
     init(
         id: UUID = UUID(),
@@ -30,8 +30,8 @@ final class CheckInSymptom: Syncable {
         severity: Int = 1,
         source: DataSource = .manual,
         ownerID: String,
-        createdAt: Date = .now,
-        updatedAt: Date = .now,
+        createdAt: Date = Date.now,
+        updatedAt: Date = Date.now,
         deletedAt: Date? = nil,
         syncStatus: SyncStatus = .pendingUpload
     ) {

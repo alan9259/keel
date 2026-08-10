@@ -7,21 +7,27 @@ import SwiftData
 /// many-to-many via `CheckInSymptom`.
 @Model
 final class Symptom: Syncable {
-    @Attribute(.unique) var id: UUID
-    var name: String
-    var categoryRaw: String
-    var isCustom: Bool
+    var id: UUID = UUID()
+    var name: String = ""
+    var categoryRaw: String = ""
+    var isCustom: Bool = false
     /// Hidden from pickers without deleting history.
-    var isArchived: Bool
+    var isArchived: Bool = false
     /// Part of the small set shown straight away in the check-in, before "more".
     var isDefaultChip: Bool = false
 
+    /// Inverse of `CheckInSymptom.symptom`. Present only because CloudKit
+    /// mirroring requires every relationship to have an inverse; nullify (never
+    /// cascade) so removing a link never deletes this shared catalog entry.
+    @Relationship(deleteRule: .nullify, inverse: \CheckInSymptom.symptom)
+    var checkInLinks: [CheckInSymptom] = []
+
     // Syncable
-    var ownerID: String
-    var createdAt: Date
-    var updatedAt: Date
+    var ownerID: String = ""
+    var createdAt: Date = Date.now
+    var updatedAt: Date = Date.now
     var deletedAt: Date?
-    var syncStatusRaw: String
+    var syncStatusRaw: String = SyncStatus.pendingUpload.rawValue
 
     init(
         id: UUID = UUID(),
@@ -31,8 +37,8 @@ final class Symptom: Syncable {
         isArchived: Bool = false,
         isDefaultChip: Bool = false,
         ownerID: String,
-        createdAt: Date = .now,
-        updatedAt: Date = .now,
+        createdAt: Date = Date.now,
+        updatedAt: Date = Date.now,
         deletedAt: Date? = nil,
         syncStatus: SyncStatus = .pendingUpload
     ) {

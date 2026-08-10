@@ -12,27 +12,27 @@ import SwiftData
 /// natural key. Maps to a `health_samples` row.
 @Model
 final class HealthSample: Syncable {
-    @Attribute(.unique) var id: UUID
+    var id: UUID = UUID()
     /// Stable metric key, e.g. "heartRate", "hrv", "restingHeartRate",
     /// "respiratoryRate", "oxygenSaturation", "bodyMass", "bodyTemperature",
     /// "activeEnergy", "flights", or "symptom.hotFlushes".
-    var typeID: String
+    var typeID: String = ""
     /// The calendar day this value is for (start of day).
-    var day: Date
+    var day: Date = Date.now
     /// The aggregated value (average for vitals, sum for workload, severity 1–3
     /// for a symptom occurrence).
-    var value: Double
+    var value: Double = 0
     /// Display unit, e.g. "bpm", "ms", "kcal", "count", "kg", "°C", "severity".
-    var unit: String
+    var unit: String = ""
     /// Always "healthKit" for now; kept for provenance and future sources.
-    var sourceRaw: String
+    var sourceRaw: String = ""
 
     // Syncable
-    var ownerID: String
-    var createdAt: Date
-    var updatedAt: Date
+    var ownerID: String = ""
+    var createdAt: Date = Date.now
+    var updatedAt: Date = Date.now
     var deletedAt: Date?
-    var syncStatusRaw: String
+    var syncStatusRaw: String = SyncStatus.pendingUpload.rawValue
 
     init(
         id: UUID = UUID(),
@@ -42,8 +42,8 @@ final class HealthSample: Syncable {
         unit: String,
         source: DataSource = .healthKit,
         ownerID: String,
-        createdAt: Date = .now,
-        updatedAt: Date = .now,
+        createdAt: Date = Date.now,
+        updatedAt: Date = Date.now,
         deletedAt: Date? = nil,
         syncStatus: SyncStatus = .synced
     ) {

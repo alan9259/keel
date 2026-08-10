@@ -3,18 +3,18 @@ import SwiftData
 
 @Model
 final class CycleEntry: Syncable {
-    @Attribute(.unique) var id: UUID
-    var date: Date
-    var typeRaw: String
+    var id: UUID = UUID()
+    var date: Date = Date.now
+    var typeRaw: String = ""
     /// Where this entry came from: "manual" (she logged it) or "healthKit".
     var sourceRaw: String = DataSource.manual.rawValue
 
     // Syncable
-    var ownerID: String
-    var createdAt: Date
-    var updatedAt: Date
+    var ownerID: String = ""
+    var createdAt: Date = Date.now
+    var updatedAt: Date = Date.now
     var deletedAt: Date?
-    var syncStatusRaw: String
+    var syncStatusRaw: String = SyncStatus.pendingUpload.rawValue
 
     init(
         id: UUID = UUID(),
@@ -22,8 +22,8 @@ final class CycleEntry: Syncable {
         type: CycleEntryType,
         source: DataSource = .manual,
         ownerID: String,
-        createdAt: Date = .now,
-        updatedAt: Date = .now,
+        createdAt: Date = Date.now,
+        updatedAt: Date = Date.now,
         deletedAt: Date? = nil,
         syncStatus: SyncStatus = .pendingUpload
     ) {

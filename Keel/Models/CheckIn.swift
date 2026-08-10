@@ -3,34 +3,34 @@ import SwiftData
 
 @Model
 final class CheckIn: Syncable {
-    @Attribute(.unique) var id: UUID
-    var date: Date
-    var moodRaw: String
+    var id: UUID = UUID()
+    var date: Date = Date.now
+    var moodRaw: String = ""
     /// Energy 0–100.
-    var energy: Int
+    var energy: Int = 0
     var notes: String?
 
     /// Join rows to the shared symptom catalog. Cascades so deleting a check-in
     /// removes its links (but never the `Symptom` catalog entries themselves).
     @Relationship(deleteRule: .cascade, inverse: \CheckInSymptom.checkIn)
-    var symptomLinks: [CheckInSymptom]
+    var symptomLinks: [CheckInSymptom] = []
 
     // Syncable
-    var ownerID: String
-    var createdAt: Date
-    var updatedAt: Date
+    var ownerID: String = ""
+    var createdAt: Date = Date.now
+    var updatedAt: Date = Date.now
     var deletedAt: Date?
-    var syncStatusRaw: String
+    var syncStatusRaw: String = SyncStatus.pendingUpload.rawValue
 
     init(
         id: UUID = UUID(),
-        date: Date = .now,
+        date: Date = Date.now,
         mood: Mood,
         energy: Int,
         notes: String? = nil,
         ownerID: String,
-        createdAt: Date = .now,
-        updatedAt: Date = .now,
+        createdAt: Date = Date.now,
+        updatedAt: Date = Date.now,
         deletedAt: Date? = nil,
         syncStatus: SyncStatus = .pendingUpload
     ) {

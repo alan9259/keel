@@ -6,22 +6,22 @@ import SwiftData
 /// (no invented statistics); this is the stored, displayable form.
 @Model
 final class Insight: Syncable {
-    @Attribute(.unique) var id: UUID
-    var title: String
-    var detail: String
-    var timeframe: String
+    var id: UUID = UUID()
+    var title: String = ""
+    var detail: String = ""
+    var timeframe: String = ""
     /// SF Symbol name for the leading icon.
-    var iconKey: String
+    var iconKey: String = ""
     /// Accent key: "terracotta" | "sage" | "warmGrey".
-    var accentRaw: String
-    var generatedAt: Date
+    var accentRaw: String = ""
+    var generatedAt: Date = Date.now
 
     // Syncable
-    var ownerID: String
-    var createdAt: Date
-    var updatedAt: Date
+    var ownerID: String = ""
+    var createdAt: Date = Date.now
+    var updatedAt: Date = Date.now
     var deletedAt: Date?
-    var syncStatusRaw: String
+    var syncStatusRaw: String = SyncStatus.pendingUpload.rawValue
 
     init(
         id: UUID = UUID(),
@@ -30,10 +30,10 @@ final class Insight: Syncable {
         timeframe: String,
         iconKey: String,
         accent: InsightAccent,
-        generatedAt: Date = .now,
+        generatedAt: Date = Date.now,
         ownerID: String,
-        createdAt: Date = .now,
-        updatedAt: Date = .now,
+        createdAt: Date = Date.now,
+        updatedAt: Date = Date.now,
         deletedAt: Date? = nil,
         syncStatus: SyncStatus = .pendingUpload
     ) {

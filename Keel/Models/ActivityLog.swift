@@ -27,17 +27,17 @@ enum ActivityCatalog {
 /// Per-day amount logged for one activity. `amount > 0` means completed.
 @Model
 final class ActivityLog: Syncable {
-    @Attribute(.unique) var id: UUID
-    var date: Date
-    var activityID: String
-    var amount: Double
+    var id: UUID = UUID()
+    var date: Date = Date.now
+    var activityID: String = ""
+    var amount: Double = 0
 
     // Syncable
-    var ownerID: String
-    var createdAt: Date
-    var updatedAt: Date
+    var ownerID: String = ""
+    var createdAt: Date = Date.now
+    var updatedAt: Date = Date.now
     var deletedAt: Date?
-    var syncStatusRaw: String
+    var syncStatusRaw: String = SyncStatus.pendingUpload.rawValue
 
     init(
         id: UUID = UUID(),
@@ -45,8 +45,8 @@ final class ActivityLog: Syncable {
         activityID: String,
         amount: Double,
         ownerID: String,
-        createdAt: Date = .now,
-        updatedAt: Date = .now,
+        createdAt: Date = Date.now,
+        updatedAt: Date = Date.now,
         deletedAt: Date? = nil,
         syncStatus: SyncStatus = .pendingUpload
     ) {

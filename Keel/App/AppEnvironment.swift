@@ -284,15 +284,13 @@ final class AppEnvironment {
         Task { await sync.syncNow() }
     }
 
-    /// Chooses the live backend. CloudKit needs entitlements + a signed build, so
-    /// until a team is configured we fall back to a local no-op provider. Swapping
-    /// this line to `SupabaseSyncProvider(...)` is the entire backend migration.
+    /// Sync now runs through SwiftData's automatic CloudKit mirroring (see
+    /// `KeelSchema.makeContainer`), so the custom `SyncProvider` path is disabled:
+    /// a no-op provider everywhere means `SyncEngine`/`requestSync()` stay wired
+    /// but do nothing, and nothing double-writes to CloudKit. (The old
+    /// `CloudKitSyncProvider` was what logged the `NOT_FOUND` query errors.)
     static func makeProvider() -> SyncProvider {
-        #if targetEnvironment(simulator)
-        return NoopSyncProvider()
-        #else
-        return CloudKitSyncProvider(containerIdentifier: cloudContainerID)
-        #endif
+        NoopSyncProvider()
     }
 
     /// The private CloudKit container, shared by the sync provider and iCloud

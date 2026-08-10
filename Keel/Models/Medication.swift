@@ -5,18 +5,18 @@ import SwiftData
 /// what she tells us she takes. It never suggests, doses, or compares products.
 @Model
 final class Medication: Syncable {
-    @Attribute(.unique) var id: UUID
-    var name: String
+    var id: UUID = UUID()
+    var name: String = ""
     /// Rendered dose, e.g. "400mg". Kept as the readable form for reports, the GP
     /// summary and sync; `doseAmount` + `doseUnit` are what she edits.
-    var dosage: String
+    var dosage: String = ""
     var doseAmount: Double?
     var doseUnitRaw: String?
     /// Rendered timing, e.g. "8:00 am". Mirrors the schedule's time, and holds
     /// free text from entries made before schedules existed.
-    var timing: String
+    var timing: String = ""
     var methodRaw: String?
-    var isActive: Bool
+    var isActive: Bool = true
     /// Whether this medicine appears in the home "Medicines" log. It's the tick on
     /// the Medications screen: on means "track this, show it in the log", where she
     /// records each day whether she took it. It is NOT a record of a dose taken.
@@ -72,14 +72,14 @@ final class Medication: Syncable {
     var isCompounded: Bool = false
 
     @Relationship(deleteRule: .cascade, inverse: \MedicationLog.medication)
-    var logs: [MedicationLog]
+    var logs: [MedicationLog] = []
 
     // Syncable
-    var ownerID: String
-    var createdAt: Date
-    var updatedAt: Date
+    var ownerID: String = ""
+    var createdAt: Date = Date.now
+    var updatedAt: Date = Date.now
     var deletedAt: Date?
-    var syncStatusRaw: String
+    var syncStatusRaw: String = SyncStatus.pendingUpload.rawValue
 
     init(
         id: UUID = UUID(),
@@ -101,8 +101,8 @@ final class Medication: Syncable {
         isOffLabel: Bool = false,
         isCompounded: Bool = false,
         ownerID: String,
-        createdAt: Date = .now,
-        updatedAt: Date = .now,
+        createdAt: Date = Date.now,
+        updatedAt: Date = Date.now,
         deletedAt: Date? = nil,
         syncStatus: SyncStatus = .pendingUpload
     ) {

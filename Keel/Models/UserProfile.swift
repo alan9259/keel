@@ -3,14 +3,18 @@ import SwiftData
 
 @Model
 final class UserProfile: Syncable {
-    @Attribute(.unique) var id: UUID
-    var firstName: String
+    // CloudKit mirroring (SwiftData `.automatic`) forbids unique constraints and
+    // requires every attribute to be optional or carry a default. `id` keeps its
+    // app-level uniqueness by always being set in `init`; the default just
+    // satisfies CloudKit. The same applies to every model.
+    var id: UUID = UUID()
+    var firstName: String = ""
     var email: String?
     /// Stable Sign in with Apple user identifier — this is also the `ownerID`.
     var appleUserID: String?
     var pathwayRaw: String?
-    var healthKitAuthorized: Bool
-    var trackingStartDate: Date
+    var healthKitAuthorized: Bool = false
+    var trackingStartDate: Date = Date.now
 
     // Non-identifying environment context (see `DeviceContext`). Recorded so we
     // can tailor content and help support; never used to identify the person.
@@ -22,11 +26,11 @@ final class UserProfile: Syncable {
     var osVersion: String? = nil
 
     // Syncable
-    var ownerID: String
-    var createdAt: Date
-    var updatedAt: Date
+    var ownerID: String = ""
+    var createdAt: Date = Date.now
+    var updatedAt: Date = Date.now
     var deletedAt: Date?
-    var syncStatusRaw: String
+    var syncStatusRaw: String = SyncStatus.pendingUpload.rawValue
 
     init(
         id: UUID = UUID(),
@@ -35,10 +39,10 @@ final class UserProfile: Syncable {
         appleUserID: String? = nil,
         pathway: Pathway? = nil,
         healthKitAuthorized: Bool = false,
-        trackingStartDate: Date = .now,
+        trackingStartDate: Date = Date.now,
         ownerID: String,
-        createdAt: Date = .now,
-        updatedAt: Date = .now,
+        createdAt: Date = Date.now,
+        updatedAt: Date = Date.now,
         deletedAt: Date? = nil,
         syncStatus: SyncStatus = .pendingUpload
     ) {

@@ -32,17 +32,16 @@ enum KeelSchema {
     /// and a destructive change gets a `MigrationStage` in `KeelMigrationPlan`
     /// rather than a data-losing reset.
     static func makeContainer(inMemory: Bool = false) -> ModelContainer {
-        // `cloudKitDatabase: .none` is load-bearing: the default is `.automatic`,
-        // which turns on SwiftData's CloudKit mirroring whenever the app carries the
-        // CloudKit entitlement (it does, on a signed build). CloudKit then validates
-        // the schema against its rules and rejects it — every model has an
-        // `@Attribute(.unique) id`, which CloudKit forbids — so the container fails
-        // to open and the app traps on launch. We sync through `SyncProvider`, not
-        // SwiftData's mirroring, so we disable it explicitly. (This only bit on
-        // device: the unsigned simulator has no entitlement, so `.automatic` stayed
-        // off there and hid it.)
+        // Sync is SwiftData's automatic CloudKit mirroring (private database). It
+        // activates only when the app carries the CloudKit entitlement — a signed
+        // device build — and stays inert on the unsigned simulator and for the
+        // in-memory store (tests/previews), which can't use CloudKit. Every model
+        // is CloudKit-shaped for this: no `@Attribute(.unique)`, every attribute
+        // optional or defaulted, and every relationship optional with an inverse.
+        // The old backend-agnostic `SyncProvider`/`SyncEngine` path is left inert
+        // (the provider is a no-op) so nothing double-syncs.
         let configuration = ModelConfiguration(schema: schema, isStoredInMemoryOnly: inMemory,
-                                               cloudKitDatabase: .none)
+                                               cloudKitDatabase: inMemory ? .none : .automatic)
         do {
             return try ModelContainer(for: schema, migrationPlan: KeelMigrationPlan.self,
                                       configurations: configuration)
