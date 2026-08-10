@@ -48,7 +48,7 @@ struct MedicationsView: View {
         .sheet(isPresented: $showAdd) {
             TreatmentPickerSheet { draft in
                 let med = env.medications.add(draft)
-                reschedule(med)
+                env.refreshMedicationReminders()
                 env.autoLogTodaysDoses() // if she added it with auto-log on, tick today now
                 env.requestSync()
             }
@@ -68,7 +68,7 @@ struct MedicationsView: View {
                 onCancel: { editing = nil },
                 onSave: { updated in
                     env.medications.update(med, with: updated)
-                    reschedule(med)
+                    env.refreshMedicationReminders()
                     env.autoLogTodaysDoses() // enabling auto-log ticks today's log straight away
                     editing = nil
                     env.requestSync()
@@ -150,14 +150,10 @@ struct MedicationsView: View {
         .accessibilityValue(med.isTracked ? "Tracked" : "Not tracked")
     }
 
-    private func reschedule(_ med: Medication) {
-        let (id, name, schedule) = (med.id, med.name, med.schedule)
-        let horizon = NotificationService.cycleHorizon(activeMedications: medications.count)
-        Task {
-            await env.notifications.rescheduleMedication(id: id, name: name, schedule: schedule,
-                                                         cycleHorizon: horizon)
-        }
-    }
+    // Reminders are (re)scheduled through env.refreshMedicationReminders(), which
+    // reschedules every med with the correct auto-log wording and skips a dose
+    // that's already been logged today — a per-med reschedule here would re-add a
+    // reminder she's already logged.
 
     private var emptyState: some View {
         VStack(spacing: Spacing.md) {

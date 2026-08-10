@@ -348,6 +348,10 @@ enum DebugHarness {
             runSchemaSeed(env: env)
         }
 
+        if args.contains("-uitMedCancelFlow") {
+            runMedCancelFlow(env: env)
+        }
+
         if args.contains("-uitSupportRegion") {
             let cur = CrisisResources.matching().map(\.name).joined(separator: ",")
             let forced = CrisisResources.matching(
@@ -374,6 +378,58 @@ enum DebugHarness {
             let ids = await UNUserNotificationCenter.current().pendingNotificationRequests().map(\.identifier)
             func c(_ p: String) -> Int { ids.filter { $0.hasPrefix(p) }.count }
             print("KEEL_REMINDERDUMP total=\(ids.count) dailyCheckIn=\(c("keel.dailyCheckIn")) hydration=\(c("keel.hydration.")) movement=\(c("keel.movement.")) winddown=\(c("keel.winddown"))")
+            fflush(stdout)
+        }
+    }
+
+    /// Drives the REAL "log a med from home" path end to end and checks the
+    /// reminder is gone: schedule a dose an hour out, log it via
+    /// `toggleMedicationFromHome` (cancel-on-log), then reschedule as a later
+    /// launch would (skip-on-reschedule). Expect pending 1 -> 0 -> 0.
+    /// Launch WITHOUT -uitNoPrompt (that suppresses reminder scheduling).
+    @MainActor
+    private static func runMedCancelFlow(env: AppEnvironment) {
+        let n = env.notifications
+        let ctx = env.context
+        env.settings.pushNotifications = true // refreshMedicationReminders early-returns otherwise
+        (try? ctx.fetch(FetchDescriptor<MedicationLog>()))?.forEach { ctx.delete($0) }
+        env.medications.active().forEach { env.medications.archive($0) }
+        try? ctx.save()
+
+        let cal = Calendar.current
+        let future = cal.date(byAdding: .hour, value: 1, to: Date())!
+        let h = cal.component(.hour, from: future), m = cal.component(.minute, from: future)
+        let slot = DoseSlot(weekdays: Set(1...7), hour: h, minute: m)
+        let sched = DoseSchedule(kind: .weekly, slots: [slot])
+        let med = Medication(name: "CancelFlow", dosage: "1 tab", timing: "\(h):\(m)", isTracked: true,
+                             schedule: sched, ownerID: "cancelflow", syncStatus: .synced)
+        ctx.insert(med)
+        try? ctx.save()
+        let medID = med.id
+
+        Task {
+            _ = await n.requestAuthorization()
+            // Count TODAY's occurrence specifically (id ends in .d<todayKey>), not
+            // the whole horizon — future days are supposed to stay scheduled.
+            let dc = Calendar.current.dateComponents([.year, .month, .day], from: Date())
+            let suffix = String(format: ".d%04d%02d%02d", dc.year ?? 0, dc.month ?? 0, dc.day ?? 0)
+            func todayForMed() async -> Int {
+                let reqs = await UNUserNotificationCenter.current().pendingNotificationRequests()
+                return reqs.filter { $0.identifier.hasPrefix("keel.med.\(medID.uuidString)") && $0.identifier.hasSuffix(suffix) }.count
+            }
+            env.refreshMedicationReminders()
+            try? await Task.sleep(for: .milliseconds(2500))
+            let scheduledToday = await todayForMed()
+
+            env.toggleMedicationFromHome(med, on: Date(), currentlyTaken: false) // log it (home path)
+            try? await Task.sleep(for: .milliseconds(2500))
+            let afterLogToday = await todayForMed()
+
+            env.refreshMedicationReminders() // a later launch's reschedule
+            try? await Task.sleep(for: .milliseconds(2500))
+            let afterRescheduleToday = await todayForMed()
+
+            print("KEEL_MEDCANCEL today: scheduled=\(scheduledToday) afterLog=\(afterLogToday) afterReschedule=\(afterRescheduleToday) (expect 1, 0, 0)")
             fflush(stdout)
         }
     }
