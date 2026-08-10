@@ -1,34 +1,28 @@
 #if DEBUG
 import Foundation
-import CloudKit
 import CoreData
 
 /// DEBUG-only console tracing for SwiftData's automatic CloudKit mirroring, so a
 /// signed run (a device, or a signed simulator signed into iCloud) shows whether
-/// sync is actually happening. Logs the iCloud account status once at launch,
-/// then every `NSPersistentCloudKitContainer` setup / import / export event. It
-/// observes the global Core Data notification, so it needs no reference to the
-/// container SwiftData owns. No-op in Release (whole file behind `#if DEBUG`).
+/// sync is actually happening. It observes `NSPersistentCloudKitContainer`'s
+/// setup / import / export events — a global Core Data notification that needs no
+/// CloudKit container reference. No-op in Release (whole file behind `#if DEBUG`).
 ///
-/// Filter the console with `KEEL_CLOUDKIT`. What to expect:
-///   • `account=available` — signed into iCloud and the container is reachable.
-///   • a `setup succeeded`, then `import`/`export` events as data mirrors.
-///   • nothing but the account line means mirroring isn't active (unsigned or
-///     unentitled build, or `.automatic` off).
+/// It deliberately does **not** touch `CKContainer`: initialising a container the
+/// app isn't entitled to (e.g. an unsigned simulator build) is a hard crash via
+/// CloudKit's `_os_crash`, which can't be caught — so an account-status check
+/// would crash every unsigned build on launch. The mirroring events, plus the
+/// system's `NSCloudKitMirroringDelegate` logs, already show whether sync works.
+///
+/// Filter the console with `KEEL_CLOUDKIT`. On a signed + iCloud run you'll see a
+/// `setup succeeded`, then `import`/`export` events as data mirrors. Nothing but
+/// the "observing" line means mirroring isn't active (unsigned/unentitled build,
+/// or no iCloud account).
 enum CloudKitDebugProbe {
     private static var token: NSObjectProtocol?
 
     @MainActor
-    static func start(containerID: String) {
-        Task {
-            do {
-                let status = try await CKContainer(identifier: containerID).accountStatus()
-                NSLog("KEEL_CLOUDKIT account=%@ container=%@", describe(status), containerID)
-            } catch {
-                NSLog("KEEL_CLOUDKIT accountStatus error=%@", String(describing: error))
-            }
-        }
-
+    static func start() {
         guard token == nil else { return }
         token = NotificationCenter.default.addObserver(
             forName: NSPersistentCloudKitContainer.eventChangedNotification,
@@ -51,17 +45,6 @@ enum CloudKitDebugProbe {
             }
         }
         NSLog("KEEL_CLOUDKIT observing mirroring events (DEBUG)")
-    }
-
-    private static func describe(_ status: CKAccountStatus) -> String {
-        switch status {
-        case .available: "available"
-        case .noAccount: "noAccount (not signed into iCloud)"
-        case .restricted: "restricted"
-        case .couldNotDetermine: "couldNotDetermine (often: build not entitled)"
-        case .temporarilyUnavailable: "temporarilyUnavailable"
-        @unknown default: "unknown"
-        }
     }
 }
 #endif

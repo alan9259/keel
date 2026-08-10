@@ -99,7 +99,7 @@ final class AppEnvironment {
         #if DEBUG
         // Console tracing (KEEL_CLOUDKIT) so a signed run shows whether SwiftData's
         // CloudKit mirroring is active and syncing.
-        CloudKitDebugProbe.start(containerID: Self.cloudContainerID)
+        CloudKitDebugProbe.start()
         #endif
         symptoms.syncBuiltIns()
         insights.refreshDerived()
