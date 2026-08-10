@@ -108,6 +108,13 @@ enum DebugHarness {
         return nil
     }
 
+    /// A multi-level push for testing nested navigation and the back-swipe
+    /// following the hierarchy, e.g. Home -> More -> About.
+    static var initialRouteStack: [MainRoute] {
+        if args.contains("-uitRouteMoreAbout") { return [.more, .about] }
+        return []
+    }
+
     @MainActor
     static func apply(env: AppEnvironment) {
         let args = self.args

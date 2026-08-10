@@ -136,7 +136,11 @@ struct MainView: View {
         }
         .onAppear {
             #if DEBUG
-            if path.isEmpty, let route = DebugHarness.initialRoute { path.append(route) }
+            if path.isEmpty {
+                let stack = DebugHarness.initialRouteStack
+                if !stack.isEmpty { stack.forEach { path.append($0) } }
+                else if let route = DebugHarness.initialRoute { path.append(route) }
+            }
             if DebugHarness.showCheckIn { showEntrySheet = true }
             // Simulate the entry-slide handoff (mood picked → detail screen).
             if DebugHarness.entryHandoff { checkInRequest = CheckInRequest(mood: .good) }

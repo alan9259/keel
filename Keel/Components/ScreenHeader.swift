@@ -57,28 +57,36 @@ extension View {
 
 /// Re-enables the system's left-edge swipe-to-go-back on screens that hide the
 /// navigation bar. SwiftUI disables `interactivePopGestureRecognizer` when the
-/// bar is hidden; we reach the enclosing `UINavigationController` and install a
-/// delegate that lets the pop gesture fire whenever there is a screen to return
-/// to (never on the root, so navigation can't get wedged).
-private struct InteractivePopEnabler: UIViewControllerRepresentable {
-    func makeCoordinator() -> Coordinator { Coordinator() }
+/// bar is hidden; we reach the enclosing `UINavigationController` and point its
+/// pop gesture at one shared, app-lifetime delegate that lets the swipe fire
+/// whenever there is a screen to return to (never on the root, so navigation
+/// can't get wedged).
+///
+/// The delegate is a singleton on purpose: `UIGestureRecognizer.delegate` is a
+/// weak reference, so a per-screen delegate could be deallocated mid-transition
+/// (e.g. swiping back twice quickly), leaving the recognizer with a nil delegate
+/// and falling back to its disabled-when-bar-hidden default. A stable singleton
+/// never has that gap; each screen just re-points the recognizer at it and
+/// refreshes the (shared) navigation controller reference.
+private final class InteractivePopDelegate: NSObject, UIGestureRecognizerDelegate {
+    static let shared = InteractivePopDelegate()
+    weak var navigationController: UINavigationController?
 
+    func gestureRecognizerShouldBegin(_ gesture: UIGestureRecognizer) -> Bool {
+        (navigationController?.viewControllers.count ?? 0) > 1
+    }
+}
+
+private struct InteractivePopEnabler: UIViewControllerRepresentable {
     func makeUIViewController(context: Context) -> UIViewController { UIViewController() }
 
     func updateUIViewController(_ vc: UIViewController, context: Context) {
         // Defer so the view is in the hierarchy and `navigationController` resolves.
         DispatchQueue.main.async {
             guard let nav = vc.navigationController else { return }
-            context.coordinator.nav = nav
-            nav.interactivePopGestureRecognizer?.delegate = context.coordinator
+            InteractivePopDelegate.shared.navigationController = nav
+            nav.interactivePopGestureRecognizer?.delegate = InteractivePopDelegate.shared
             nav.interactivePopGestureRecognizer?.isEnabled = true
-        }
-    }
-
-    final class Coordinator: NSObject, UIGestureRecognizerDelegate {
-        weak var nav: UINavigationController?
-        func gestureRecognizerShouldBegin(_ gesture: UIGestureRecognizer) -> Bool {
-            (nav?.viewControllers.count ?? 0) > 1
         }
     }
 }
