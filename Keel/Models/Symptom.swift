@@ -20,7 +20,7 @@ final class Symptom: Syncable {
     /// mirroring requires every relationship to have an inverse; nullify (never
     /// cascade) so removing a link never deletes this shared catalog entry.
     @Relationship(deleteRule: .nullify, inverse: \CheckInSymptom.symptom)
-    var checkInLinks: [CheckInSymptom] = []
+    var checkInLinks: [CheckInSymptom]?
 
     // Syncable
     var ownerID: String = ""

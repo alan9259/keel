@@ -70,7 +70,7 @@ final class CompanionProposals {
         let owner = ownerID()
         if let checkIn = checkIn(on: date) {
             // Don't double-log the same symptom on the same check-in.
-            let already = checkIn.symptomLinks.contains { !$0.isTombstoned && $0.symptom?.id == symptom.id }
+            let already = (checkIn.symptomLinks ?? []).contains { !$0.isTombstoned && $0.symptom?.id == symptom.id }
             guard !already else { return }
             context.insert(CheckInSymptom(checkIn: checkIn, symptom: symptom, severity: severity, ownerID: owner))
         } else {

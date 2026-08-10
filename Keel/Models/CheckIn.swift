@@ -12,8 +12,10 @@ final class CheckIn: Syncable {
 
     /// Join rows to the shared symptom catalog. Cascades so deleting a check-in
     /// removes its links (but never the `Symptom` catalog entries themselves).
+    // Optional array: CloudKit requires every relationship (to-many included) to
+    // be optional, so `[X]?` not `[X] = []`. Read it with `?? []`.
     @Relationship(deleteRule: .cascade, inverse: \CheckInSymptom.checkIn)
-    var symptomLinks: [CheckInSymptom] = []
+    var symptomLinks: [CheckInSymptom]?
 
     // Syncable
     var ownerID: String = ""
@@ -54,6 +56,6 @@ final class CheckIn: Syncable {
 
     /// Active (non-tombstoned) symptoms attached to this check-in.
     var symptoms: [Symptom] {
-        symptomLinks.compactMap { $0.isTombstoned ? nil : $0.symptom }
+        (symptomLinks ?? []).compactMap { $0.isTombstoned ? nil : $0.symptom }
     }
 }

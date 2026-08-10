@@ -153,7 +153,7 @@ final class HealthIngestor {
             let mapped = Self.symptomMap[occ.hkID] ?? (name: Self.humanize(occ.hkID), category: .body)
             if let checkIn = checkIn(on: occ.day) {
                 let symptom = symptoms.findOrCreateCustom(name: mapped.name, category: mapped.category)
-                let already = checkIn.symptomLinks.contains { $0.deletedAt == nil && $0.symptom?.id == symptom.id }
+                let already = (checkIn.symptomLinks ?? []).contains { $0.deletedAt == nil && $0.symptom?.id == symptom.id }
                 guard !already else { continue }
                 context.insert(CheckInSymptom(checkIn: checkIn, symptom: symptom, severity: occ.severity,
                                               source: .healthKit, ownerID: ownerID()))

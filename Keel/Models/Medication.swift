@@ -71,8 +71,9 @@ final class Medication: Syncable {
     var isOffLabel: Bool = false
     var isCompounded: Bool = false
 
+    // Optional array: CloudKit requires to-many relationships to be optional.
     @Relationship(deleteRule: .cascade, inverse: \MedicationLog.medication)
-    var logs: [MedicationLog] = []
+    var logs: [MedicationLog]?
 
     // Syncable
     var ownerID: String = ""

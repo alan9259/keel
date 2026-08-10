@@ -574,9 +574,9 @@ enum DebugHarness {
         let samples = (try? env.context.fetch(FetchDescriptor<HealthSample>())) ?? []
         let archived = samples.filter { $0.typeID.hasPrefix("symptom.") }
         let todayCheckIn = (try? env.context.fetch(FetchDescriptor<CheckIn>()))?.first { $0.date.isSameDay(as: today) }
-        let hotFlushesTagged = todayCheckIn?.symptomLinks.contains {
+        let hotFlushesTagged = (todayCheckIn?.symptomLinks ?? []).contains {
             $0.source == .healthKit && $0.symptom?.name == "Hot flushes"
-        } ?? false
+        }
 
         print("KEEL_HKIMPORT activityLogs=\(afterFirst.activity) healthSamples=\(afterFirst.samples) hkSymptomLinks=\(hkLinks.count) hkCycleEntries=\(hkCycles.count) archivedSymptomSamples=\(archived.count) todayHotFlushesTagged=\(hotFlushesTagged) secondRunAddedNothing=\(afterFirst == afterSecond) stepsUpdated=\(stepsUpdated) sleepPreserved=\(sleepPreserved)")
         fflush(stdout)

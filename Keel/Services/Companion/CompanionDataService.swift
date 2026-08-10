@@ -63,7 +63,7 @@ struct CompanionDataService {
 
     /// Severity of a symptom on one check-in (via its join row).
     private func severity(of symptom: Symptom, on checkIn: CheckIn) -> Int {
-        checkIn.symptomLinks.first { !$0.isTombstoned && $0.symptom?.id == symptom.id }?.severity ?? 1
+        (checkIn.symptomLinks ?? []).first { !$0.isTombstoned && $0.symptom?.id == symptom.id }?.severity ?? 1
     }
 
     // MARK: Symptom trends

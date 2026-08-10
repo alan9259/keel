@@ -457,7 +457,7 @@ struct DashboardView: View {
 
     /// Active symptom links for a check-in, with their name + severity.
     private func loggedSymptoms(_ entry: CheckIn) -> [(id: UUID, name: String, severity: Int)] {
-        entry.symptomLinks
+        (entry.symptomLinks ?? [])
             .filter { !$0.isTombstoned }
             .compactMap { link in link.symptom.map { (link.id, $0.name, link.severity) } }
     }

@@ -365,7 +365,7 @@ struct CheckInModal: View {
         energy = EnergyLevel.from(percent: entry.energy)
         notes = entry.notes ?? ""
         selected = Dictionary(uniqueKeysWithValues:
-            entry.symptomLinks.filter { !$0.isTombstoned }.compactMap { link in
+            (entry.symptomLinks ?? []).filter { !$0.isTombstoned }.compactMap { link in
                 link.symptom.map { ($0.id, link.severity) }
             })
         sleepHours = existingSleep(for: entry.date)

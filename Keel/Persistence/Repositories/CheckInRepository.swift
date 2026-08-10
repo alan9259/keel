@@ -57,7 +57,7 @@ struct CheckInRepository: CheckInRepositoring {
             byID[item.symptom.id] = item.symptom
         }
         // Update or remove the links already on the entry.
-        for link in checkIn.symptomLinks where !link.isTombstoned {
+        for link in (checkIn.symptomLinks ?? []) where !link.isTombstoned {
             guard let id = link.symptom?.id else { continue }
             if let severity = wanted[id] {
                 if link.severity != severity { link.severity = severity; link.touch() }
@@ -79,7 +79,7 @@ struct CheckInRepository: CheckInRepositoring {
     /// Remove an entry: soft-delete it and tombstone its symptom links, so it drops
     /// out of every view but the deletion still syncs (history isn't hard-erased).
     func delete(_ checkIn: CheckIn) {
-        for link in checkIn.symptomLinks where !link.isTombstoned { link.softDelete() }
+        for link in (checkIn.symptomLinks ?? []) where !link.isTombstoned { link.softDelete() }
         checkIn.softDelete()
         try? context.save()
     }
