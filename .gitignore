@@ -16,3 +16,7 @@ Config/.secrets/
 *.key
 *.env
 .env.local
+
+# CloudKit management/user tokens
+*.token
+cloudkit/*.token
