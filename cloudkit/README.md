@@ -46,11 +46,20 @@ locally). Debug is configured to sign the simulator too
 
 ## 3. First-time setup
 
-1. Create a **management token** in the CloudKit Console (Settings → Tokens), then:
+1. **Create a management token.** In the CloudKit Console
+   (icloud.developer.apple.com/dashboard) → select the `iCloud.com.keel`
+   container → **Tokens & Keys** → create a **Management Token** and copy it.
+   (Management scope is what `cktool`'s schema commands need — not a *user* token
+   or a *server-to-server* key.)
+2. **Save it to your keychain** (secure interactive prompt — hidden input):
    ```sh
-   ./scripts/cloudkit-schema.sh save-token   # paste at the prompt
+   ./scripts/cloudkit-schema.sh save-token       # or: xcrun cktool save-token --type management
    ```
-2. Boot a simulator and **sign it into iCloud** (Settings → Apple ID). Any Apple
+   Paste the token at the prompt; **never put it on the command line** (it would
+   land in shell history). It's stored in the keychain so later commands don't
+   need it. For a one-off you can instead prefix a command with the env var:
+   `CLOUDKIT_MANAGEMENT_TOKEN=… ./scripts/cloudkit-schema.sh deploy`.
+3. Boot a simulator and **sign it into iCloud** (Settings → Apple ID). Any Apple
    ID works for Development.
 
 ---
