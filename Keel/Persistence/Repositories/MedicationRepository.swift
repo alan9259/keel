@@ -263,12 +263,13 @@ struct MedicationRepository: MedicationRepositoring {
     /// Auto-log today's already-due doses for every medicine set to auto-log, so a
     /// day she opens the app has its doses ticked without tapping. Only today, only
     /// doses whose time has passed, only if not already logged — never the future,
-    /// never a backfill of earlier days. Returns the number of doses logged.
+    /// never a backfill of earlier days. Returns the `(medication, slot)` doses it
+    /// logged, so their now-redundant reminders can be cancelled.
     @discardableResult
-    func autoLogTodaysDueDoses(now: Date = .now) -> Int {
+    func autoLogTodaysDueDoses(now: Date = .now) -> [(medID: UUID, slot: String?)] {
         let cal = Calendar.current
         let nowMinutes = cal.component(.hour, from: now) * 60 + cal.component(.minute, from: now)
-        var logged = 0
+        var logged: [(medID: UUID, slot: String?)] = []
         for med in active() where med.autoLogDoses {
             let slots = med.schedule.dueSlots(on: now)
             let ids: [String?] = slots.isEmpty ? [nil] : slots.compactMap { slot in
@@ -279,7 +280,7 @@ struct MedicationRepository: MedicationRepositoring {
             }
             for slot in ids where !isTaken(med, on: now, slot: slot) {
                 setTaken(med, on: now, slot: slot, taken: true)
-                logged += 1
+                logged.append((med.id, slot))
             }
         }
         return logged

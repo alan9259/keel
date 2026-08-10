@@ -17,6 +17,9 @@ final class NotificationService {
     static let medCategoryID = "keel.med.reminder"
     static let markTakenActionID = "keel.med.markTaken"
     static let alwaysTakenActionID = "keel.med.alwaysTaken"
+    // Auto-logged medicines get their own category with no "mark taken" actions:
+    // there is nothing to tap, since Keel logs the dose for her automatically.
+    static let medAutoCategoryID = "keel.med.auto"
 
     @discardableResult
     func requestAuthorization() async -> Bool {
@@ -42,7 +45,17 @@ final class NotificationService {
         let category = UNNotificationCategory(identifier: Self.medCategoryID,
                                               actions: [markTaken, alwaysTaken],
                                               intentIdentifiers: [], options: [])
-        center.setNotificationCategories([category])
+        // Auto-log reminders are informational, so their category carries no actions.
+        let autoCategory = UNNotificationCategory(identifier: Self.medAutoCategoryID,
+                                                  actions: [], intentIdentifiers: [], options: [])
+        center.setNotificationCategories([category, autoCategory])
+    }
+
+    /// Stable per-day key ("20260731") used in reminder identifiers so a single
+    /// day's occurrence can be cancelled once she's logged the dose.
+    static func dayKey(_ date: Date, calendar: Calendar = .current) -> String {
+        let c = calendar.dateComponents([.year, .month, .day], from: date)
+        return String(format: "%04d%02d%02d", c.year ?? 0, c.month ?? 0, c.day ?? 0)
     }
 
     /// iOS keeps at most 64 pending notifications per app and silently drops the
@@ -56,11 +69,22 @@ final class NotificationService {
     /// Bring a medication's reminders in line with its schedule. No time set
     /// means no reminder: she asked for a schedule, not a nudge.
     ///
-    /// A repeating calendar trigger can't express "21 days on, 7 off", so a
-    /// cycle's active days are laid out individually up to `cycleHorizon` and
-    /// topped up whenever the app opens.
+    /// Reminders are laid out as individual, dated occurrences (not a repeating
+    /// trigger) up to `cycleHorizon`, topped up whenever the app opens. That lets
+    /// us cancel or skip a single day once she's logged the dose, which a
+    /// repeating calendar trigger can't express, and it's the only way a cycle's
+    /// "21 days on, 7 off" pause can be honoured too.
+    ///
+    /// - Parameters:
+    ///   - autoLog: this medicine logs its own doses, so its reminders are
+    ///     informational (different wording, no "mark taken" actions).
+    ///   - loggedTodayWholeDay / loggedTodaySlots: doses already logged *today*
+    ///     (the only day that can be, since the future isn't logged yet); their
+    ///     reminder for today is skipped so she isn't nudged for something done.
     func rescheduleMedication(id: UUID, name: String, schedule: DoseSchedule,
-                              cycleHorizon: Int = 24) async {
+                              autoLog: Bool = false, cycleHorizon: Int = 24,
+                              loggedTodayWholeDay: Bool = false,
+                              loggedTodaySlots: Set<String> = []) async {
         await cancelMedicationReminders(medicationID: id)
         // Only doses with a time raise anything: a day pattern on its own is a
         // record of what she takes, not a request to be nudged.
@@ -68,44 +92,45 @@ final class NotificationService {
         guard schedule.kind != .asNeeded, !timed.isEmpty else { return }
         // Split the budget across the doses, since each needs its own run.
         let perSlot = max(cycleHorizon / timed.count, 2)
+        let now = Date()
+        let cal = Calendar.current
 
         for dose in timed {
             let key = dose.id.uuidString.prefix(8)
-            switch schedule.kind {
-            case .weekly:
-                let days = dose.weekdays.isEmpty ? Set(1...7) : dose.weekdays
-                for weekday in days.sorted() {
-                    var when = DateComponents()
-                    when.weekday = weekday
-                    when.hour = dose.hour
-                    when.minute = dose.minute ?? 0
-                    add(id: "\(medPrefix)\(id.uuidString).\(key).w\(weekday)", name: name,
-                        medicationID: id, slot: dose.id.uuidString,
-                        trigger: UNCalendarNotificationTrigger(dateMatching: when, repeats: true))
-                }
-            case .cycle:
-                let days = schedule.upcomingDueDates(for: dose, from: .now, count: perSlot)
-                for (index, day) in days.enumerated() {
-                    var when = Calendar.current.dateComponents([.year, .month, .day], from: day)
-                    when.hour = dose.hour
-                    when.minute = dose.minute ?? 0
-                    add(id: "\(medPrefix)\(id.uuidString).\(key).c\(index)", name: name,
-                        medicationID: id, slot: dose.id.uuidString,
-                        trigger: UNCalendarNotificationTrigger(dateMatching: when, repeats: false))
-                }
-            case .asNeeded:
-                break
+            // Ask for a few extra candidates so days we skip (already past today,
+            // or already logged) don't eat into the horizon.
+            let days = schedule.upcomingDueDates(for: dose, from: now, count: perSlot + 3)
+            var scheduled = 0
+            for day in days where scheduled < perSlot {
+                var when = cal.dateComponents([.year, .month, .day], from: day)
+                when.hour = dose.hour
+                when.minute = dose.minute ?? 0
+                // Can't schedule a moment that has already passed (today, earlier).
+                guard let fire = cal.date(from: when), fire > now else { continue }
+                // Already logged today? Don't nudge her for a dose she's done.
+                if cal.isDateInToday(day),
+                   loggedTodayWholeDay || loggedTodaySlots.contains(dose.id.uuidString) { continue }
+                add(id: "\(medPrefix)\(id.uuidString).\(key).d\(Self.dayKey(day))", name: name,
+                    medicationID: id, slot: dose.id.uuidString, autoLog: autoLog,
+                    trigger: UNCalendarNotificationTrigger(dateMatching: when, repeats: false))
+                scheduled += 1
             }
         }
     }
 
     private func add(id: String, name: String, medicationID: UUID, slot: String?,
-                     trigger: UNNotificationTrigger) {
+                     autoLog: Bool, trigger: UNNotificationTrigger) {
         let content = UNMutableNotificationContent()
         content.title = "Time for \(name)"
-        content.body = "A gentle reminder. Tap to mark it taken."
+        if autoLog {
+            // Nothing to tap: the dose is logged for her next time she opens Keel.
+            content.body = "A gentle reminder to take it. Keel logs this one for you."
+            content.categoryIdentifier = Self.medAutoCategoryID
+        } else {
+            content.body = "A gentle reminder. Tap to mark it taken."
+            content.categoryIdentifier = Self.medCategoryID
+        }
         content.sound = .default
-        content.categoryIdentifier = Self.medCategoryID
         // Carried back to the tap handler so it knows which dose to log.
         content.userInfo = ["medicationID": medicationID.uuidString, "slot": slot ?? ""]
         center.add(UNNotificationRequest(identifier: id, content: content, trigger: trigger))
@@ -203,6 +228,24 @@ final class NotificationService {
         let prefix = "\(medPrefix)\(medicationID.uuidString)"
         let pending = await center.pendingNotificationRequests()
         let ids = pending.map(\.identifier).filter { $0.hasPrefix(prefix) }
+        guard !ids.isEmpty else { return }
+        center.removePendingNotificationRequests(withIdentifiers: ids)
+    }
+
+    /// Cancel a medication's pending reminder(s) for a single day, once she's
+    /// logged the dose. `slot` nil clears the whole day (a home-log "took it
+    /// today" tick); a slot clears just that dose, so a later dose that day still
+    /// reminds her.
+    func cancelMedicationReminders(medicationID: UUID, on day: Date, slot: String? = nil) async {
+        let base = "\(medPrefix)\(medicationID.uuidString)"
+        let daySuffix = ".d\(Self.dayKey(day))"
+        let slotKey = slot.map { String($0.prefix(8)) }
+        let pending = await center.pendingNotificationRequests()
+        let ids = pending.map(\.identifier).filter { id in
+            guard id.hasPrefix(base), id.hasSuffix(daySuffix) else { return false }
+            if let slotKey { return id.contains(".\(slotKey).") }
+            return true
+        }
         guard !ids.isEmpty else { return }
         center.removePendingNotificationRequests(withIdentifiers: ids)
     }

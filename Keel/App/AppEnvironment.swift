@@ -3,6 +3,17 @@ import SwiftData
 import SwiftUI
 import UIKit
 
+/// A main-actor snapshot of one medicine's reminder inputs, taken up front so the
+/// async scheduling Task never touches SwiftData models across the actor hop.
+private struct MedReminderPlan: Sendable {
+    let id: UUID
+    let name: String
+    let schedule: DoseSchedule
+    let autoLog: Bool
+    let wholeDayLogged: Bool
+    let loggedSlots: Set<String>
+}
+
 /// Composition root. Owns the container, services, and repositories, and injects
 /// the current `ownerID` (from `AuthService`) into every repository so all
 /// writes are stamped for row ownership. Views read collaborators from here via
@@ -92,8 +103,10 @@ final class AppEnvironment {
         // notification slots before a stack of medication reminders can fill iOS's
         // 64-pending budget and starve them out.
         refreshLifestyleReminders()
-        refreshMedicationReminders()
+        // Auto-log today's due doses BEFORE scheduling medication reminders, so the
+        // scheduler sees them as logged and skips today's now-redundant nudge.
         autoLogTodaysDoses()
+        refreshMedicationReminders()
         if users.currentProfile()?.healthKitAuthorized == true {
             syncHealthData()
         }
@@ -154,12 +167,27 @@ final class AppEnvironment {
         if DebugHarness.suppressReminders { return }
         #endif
         guard settings.pushNotifications else { return }
-        let pending = medications.active().map { ($0.id, $0.name, $0.schedule) }
-        let horizon = NotificationService.cycleHorizon(activeMedications: pending.count)
+        let today = Date()
+        let meds = medications.active()
+        let horizon = NotificationService.cycleHorizon(activeMedications: meds.count)
+        // Snapshot everything the scheduler needs on the main actor up front (incl.
+        // which of today's doses are already logged), so the async scheduling Task
+        // never reads SwiftData models across the actor hop.
+        let plans: [MedReminderPlan] = meds.map { med in
+            let timedSlots = med.schedule.sortedSlots.filter(\.hasTime)
+            let wholeDay = medications.isTaken(med, on: today, slot: nil)
+            let loggedSlots = Set(timedSlots.map(\.id.uuidString)
+                .filter { medications.isTaken(med, on: today, slot: $0) })
+            return MedReminderPlan(id: med.id, name: med.name, schedule: med.schedule,
+                                   autoLog: med.autoLogDoses, wholeDayLogged: wholeDay,
+                                   loggedSlots: loggedSlots)
+        }
         Task {
-            for (id, name, schedule) in pending {
-                await notifications.rescheduleMedication(id: id, name: name, schedule: schedule,
-                                                        cycleHorizon: horizon)
+            for p in plans {
+                await notifications.rescheduleMedication(
+                    id: p.id, name: p.name, schedule: p.schedule, autoLog: p.autoLog,
+                    cycleHorizon: horizon,
+                    loggedTodayWholeDay: p.wholeDayLogged, loggedTodaySlots: p.loggedSlots)
             }
         }
     }
@@ -190,6 +218,8 @@ final class AppEnvironment {
     func markMedicationTaken(medicationID: UUID, slot: String?, on day: Date) {
         guard let med = medications.active(id: medicationID) else { return }
         medications.setTaken(med, on: day, slot: slot, taken: true)
+        // She's logged it, so don't nudge her again for this dose today.
+        Task { await notifications.cancelMedicationReminders(medicationID: medicationID, on: day, slot: slot) }
         Haptics.success()
         requestSync()
     }
@@ -199,6 +229,25 @@ final class AppEnvironment {
         guard let med = medications.active(id: medicationID) else { return }
         medications.setAutoLog(med, true)
         medications.setTaken(med, on: day, slot: slot, taken: true)
+        // Auto-log is now on, so rebuild this medicine's reminders with the
+        // informational wording (and skip today's just-logged dose).
+        refreshMedicationReminders()
+        Haptics.success()
+        requestSync()
+    }
+
+    /// Log or un-log a medicine for a day from the home Medicines log (a whole-day
+    /// tick). Cancels that day's remaining reminders when ticked; rebuilds them
+    /// when un-ticked, so a still-upcoming dose can nudge her again.
+    func toggleMedicationFromHome(_ med: Medication, on day: Date, currentlyTaken: Bool) {
+        if currentlyTaken {
+            medications.clearTaken(med, on: day)
+            refreshMedicationReminders()
+        } else {
+            medications.setTaken(med, on: day, slot: nil, taken: true)
+            let id = med.id
+            Task { await notifications.cancelMedicationReminders(medicationID: id, on: day) }
+        }
         Haptics.success()
         requestSync()
     }
@@ -207,8 +256,16 @@ final class AppEnvironment {
     /// app opens (foreground) — the only time we can, since iOS won't run us at the
     /// dose time while closed. Today only; never past days, never the future.
     func autoLogTodaysDoses() {
-        let count = medications.autoLogTodaysDueDoses()
-        if count > 0 { requestSync() }
+        let logged = medications.autoLogTodaysDueDoses()
+        guard !logged.isEmpty else { return }
+        // Their reminders are now redundant; drop today's for each logged dose.
+        let today = Date()
+        Task {
+            for dose in logged {
+                await notifications.cancelMedicationReminders(medicationID: dose.medID, on: today, slot: dose.slot)
+            }
+        }
+        requestSync()
     }
 
     /// Fire-and-forget sync (offline-friendly; failures are logged, not fatal).

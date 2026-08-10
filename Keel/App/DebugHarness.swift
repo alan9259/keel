@@ -336,6 +336,10 @@ enum DebugHarness {
             runReminderDump(env: env)
         }
 
+        if args.contains("-uitMedReminderProbe") {
+            runMedReminderProbe(env: env)
+        }
+
         if args.contains("-uitSupportRegion") {
             let cur = CrisisResources.matching().map(\.name).joined(separator: ",")
             let forced = CrisisResources.matching(
@@ -366,6 +370,52 @@ enum DebugHarness {
         }
     }
 
+    /// Drives the real medication scheduler for three cases and reports what
+    /// actually lands in the pending queue: an auto-log dose (informational
+    /// wording + no-action category), a manual dose (tap-to-log category), and a
+    /// dose already logged today (skipped). Then cancels the manual one for the
+    /// day and confirms it's gone. A dose one hour out keeps every occurrence in
+    /// the future so nothing is dropped for being past.
+    @MainActor
+    private static func runMedReminderProbe(env: AppEnvironment) {
+        let n = env.notifications
+        let cal = Calendar.current
+        let now = Date()
+        let future = cal.date(byAdding: .hour, value: 1, to: now)!
+        let h = cal.component(.hour, from: future), m = cal.component(.minute, from: future)
+        let slot = DoseSlot(hour: h, minute: m)
+        let sched = DoseSchedule(kind: .weekly, slots: [slot])
+        let autoID = UUID(), manualID = UUID(), loggedID = UUID()
+
+        Task {
+            // The simulator only surfaces pending requests once auth is granted.
+            _ = await n.requestAuthorization()
+            // Small horizon so three meds stay well under iOS's 64-pending cap.
+            await n.rescheduleMedication(id: autoID, name: "AutoMed", schedule: sched, autoLog: true, cycleHorizon: 3)
+            await n.rescheduleMedication(id: manualID, name: "ManualMed", schedule: sched, autoLog: false, cycleHorizon: 3)
+            await n.rescheduleMedication(id: loggedID, name: "LoggedMed", schedule: sched, autoLog: false,
+                                         cycleHorizon: 3, loggedTodaySlots: [slot.id.uuidString])
+            try? await Task.sleep(for: .milliseconds(500)) // let center.add register
+            let todaySuffix = ".d\(NotificationService.dayKey(now))"
+            var reqs = await UNUserNotificationCenter.current().pendingNotificationRequests()
+            func todayReq(_ id: UUID) -> UNNotificationRequest? {
+                reqs.first { $0.identifier.hasPrefix("keel.med.\(id.uuidString)") && $0.identifier.hasSuffix(todaySuffix) }
+            }
+            func hasAny(_ id: UUID) -> Bool { reqs.contains { $0.identifier.hasPrefix("keel.med.\(id.uuidString)") } }
+            let a = todayReq(autoID), man = todayReq(manualID), lg = todayReq(loggedID)
+            print("KEEL_MEDREMINDER autoTodayCat=\(a?.content.categoryIdentifier ?? "nil") "
+                + "autoBody='\(a?.content.body ?? "nil")' manualTodayCat=\(man?.content.categoryIdentifier ?? "nil") "
+                + "manualBody='\(man?.content.body ?? "nil")' loggedTodaySkipped=\(lg == nil) loggedHasFuture=\(hasAny(loggedID))")
+
+            await n.cancelMedicationReminders(medicationID: manualID, on: now, slot: slot.id.uuidString)
+            try? await Task.sleep(for: .milliseconds(300))
+            reqs = await UNUserNotificationCenter.current().pendingNotificationRequests()
+            print("KEEL_MEDREMINDER afterCancel manualTodayGone=\(todayReq(manualID) == nil) "
+                + "manualFutureKept=\(hasAny(manualID)) autoTodayKept=\(todayReq(autoID) != nil)")
+            fflush(stdout)
+        }
+    }
+
     /// Exercises the medication-reminder handlers the notification delegate calls:
     /// `markMedicationTaken` (the "Mark taken" tap) and `autoLogTodaysDueDoses`
     /// (auto-log on app open). Proves the reminder actually logs a dose.
@@ -386,7 +436,7 @@ enum DebugHarness {
         // 2) Auto-log: enable it and run today's fill; expect ≥1 past-due timed dose.
         wipeLogs()
         env.medications.setAutoLog(med, true)
-        let autoLogged = env.medications.autoLogTodaysDueDoses()
+        let autoLogged = env.medications.autoLogTodaysDueDoses().count
         print("KEEL_MEDNOTIF med='\(med.name)' markTaken=\(markTaken) autoLogged=\(autoLogged) flag=\(med.autoLogDoses)")
         fflush(stdout)
     }

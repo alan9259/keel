@@ -430,13 +430,7 @@ struct DashboardView: View {
     /// Records whether she took a medicine on the selected day. Taking it writes a
     /// whole-day log; untaking clears every log for it that day.
     private func toggleTaken(_ med: Medication, taken: Bool) {
-        if taken {
-            env.medications.clearTaken(med, on: selDate)
-        } else {
-            env.medications.setTaken(med, on: selDate, slot: nil, taken: true)
-        }
-        env.requestSync()
-        Haptics.success()
+        env.toggleMedicationFromHome(med, on: selDate, currentlyTaken: taken)
     }
 
     private var last7: [Date] {
