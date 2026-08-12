@@ -20,16 +20,6 @@ struct AboutView: View {
             VStack(alignment: .leading, spacing: 20) {
                 ScreenHeader(title: "About Keel", titleSize: 28) { dismiss() }
 
-                VStack(spacing: 12) {
-                    Text("Keel")
-                        .font(KeelFont.sans(44, weight: .regular)).tracking(8).textCase(.uppercase)
-                        .foregroundStyle(theme.heading.opacity(0.5))
-                    Text("Find your even keel, whatever that means to you.")
-                        .font(KeelFont.body).italic().foregroundStyle(theme.muted)
-                }
-                .frame(maxWidth: .infinity)
-                .padding(.vertical, 16)
-
                 Text(lead)
                     .font(KeelFont.bodyLarge).foregroundStyle(theme.text.opacity(0.75)).lineSpacing(4)
 
