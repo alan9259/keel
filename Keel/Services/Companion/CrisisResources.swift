@@ -31,9 +31,9 @@ enum CrisisResources {
         name: "Australia",
         emergency: "000",
         contacts: [
-            SupportContact(name: "Lifeline", contact: "13 11 14", note: "call or text, 24 hours"),
-            SupportContact(name: "Beyond Blue", contact: "1300 22 4636", note: nil),
-            SupportContact(name: "13YARN", contact: "13 92 76", note: "for First Nations people"),
+            SupportContact(name: "Lifeline", contact: "13 11 14", note: "Crisis support · call, text or chat · 24/7"),
+            SupportContact(name: "Beyond Blue", contact: "1300 22 4636", note: "Mental health support · 24/7"),
+            SupportContact(name: "13YARN", contact: "13 92 76", note: "Aboriginal & Torres Strait Islander crisis support · 24/7"),
         ]
     )
 
@@ -42,8 +42,8 @@ enum CrisisResources {
         name: "New Zealand",
         emergency: "111",
         contacts: [
-            SupportContact(name: "Need to talk?", contact: "1737", note: "free call or text"),
-            SupportContact(name: "Healthline", contact: "0800 611 116", note: nil),
+            SupportContact(name: "Need to talk?", contact: "1737", note: "Free call or text · 24/7"),
+            SupportContact(name: "Healthline", contact: "0800 611 116", note: "Health advice · 24/7"),
         ]
     )
 

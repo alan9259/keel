@@ -14,6 +14,13 @@ struct AboutView: View {
         ]),
         ("Why we do it", [
             "Because the years of perimenopause and menopause deserve more than a pamphlet and a pat on the back. Every woman navigating this transition deserves a tool that meets her where she is.",
+            "You deserve to understand what's changing, recognise your own patterns, and feel better equipped to ask questions and advocate for yourself.",
+        ]),
+        ("Built from lived experience", [
+            "I built Keel while navigating perimenopause myself, and wishing I'd had something like this when the changes first began. Something to help connect the dots and make conversations with healthcare professionals a little easier.",
+        ]),
+        ("What Keel isn't", [
+            "Keel notices patterns and helps you describe them. It doesn't diagnose, prescribe or replace your doctor. That's deliberate. The person who can act on what you're seeing is the one sitting across from you at your appointment.",
         ]),
     ]
 

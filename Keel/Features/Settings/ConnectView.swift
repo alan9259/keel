@@ -9,23 +9,21 @@ struct ConnectView: View {
             VStack(alignment: .leading, spacing: 20) {
                 ScreenHeader(title: "Connect with Us", titleSize: 28, subtitle: "We'd love to hear from you") { dismiss() }
 
-                Text("Keel is built by a small team who care deeply about this community. Follow us for updates, share your experience, or just say hello.")
+                Text("Keel is built by a very small team who care deeply about this community. Follow along for updates, or just say hello.")
                     .font(KeelFont.bodyLarge).foregroundStyle(theme.text.opacity(0.7)).lineSpacing(4)
 
                 VStack(spacing: 12) {
-                    socialCard(color: Color(hex: 0x2563EB), emoji: "📘", name: "Facebook", handle: "@keelapp",
-                               blurb: "Community, stories and support from people who get it.")
                     socialCard(color: Color(hex: 0xEC4899), emoji: "📷", name: "Instagram", handle: "@keel.app",
                                blurb: "Gentle reminders, tips and a glimpse behind the product.")
-                    socialCard(color: Color(hex: 0x111111), emoji: "𝕏", name: "X (Twitter)", handle: "@keelapp",
-                               blurb: "Updates, thoughts and the occasional honest take.")
+                    socialCard(color: Color(hex: 0x2563EB), emoji: "📘", name: "Facebook", handle: "@keelapp",
+                               blurb: "Updates, stories and a look at what we're building.")
                 }
 
                 VStack(alignment: .leading, spacing: 8) {
                     Text("Get in touch directly").font(KeelFont.bodyLarge).foregroundStyle(theme.text)
-                    Text("\(Text("For support, feedback or anything else, reach us at ").foregroundColor(theme.muted))\(Text("hello@keelapp.com").foregroundColor(theme.accent))")
+                    Text("\(Text("For support, feedback or anything else, reach us at ").foregroundColor(theme.muted))\(Text("keel@therecalibrationyears.com").foregroundColor(theme.accent))")
                         .font(KeelFont.body).lineSpacing(3)
-                    Text("We read every message and aim to reply within 48 hours.")
+                    Text("We read every message and reply as soon as we can.")
                         .font(KeelFont.caption).foregroundStyle(theme.muted)
                 }
                 .frame(maxWidth: .infinity, alignment: .leading)

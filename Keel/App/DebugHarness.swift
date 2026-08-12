@@ -105,6 +105,7 @@ enum DebugHarness {
         if args.contains("-uitRouteSettings") { return .settings }
         if args.contains("-uitRouteConnect") { return .connect }
         if args.contains("-uitRouteAbout") { return .about }
+        if args.contains("-uitRouteSupport") { return .support }
         return nil
     }
 

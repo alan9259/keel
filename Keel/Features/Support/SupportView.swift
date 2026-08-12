@@ -11,17 +11,32 @@ struct SupportView: View {
 
     private var regions: [SupportRegion] { CrisisResources.matching() }
 
+    /// Names the local emergency number when the region is unambiguous (AU or NZ);
+    /// stays generic when both regions are shown, so no wrong number is implied.
+    private var footerText: String {
+        let base = "Keel is a companion, not a crisis service. If you or someone else is in immediate danger, "
+        if regions.count == 1 {
+            return base + "call \(regions[0].emergency) or go to your nearest emergency department."
+        }
+        return base + "call your local emergency number or go to your nearest emergency department."
+    }
+
     var body: some View {
         ScrollView {
             VStack(alignment: .leading, spacing: 20) {
                 ScreenHeader(title: "Get support",
-                             subtitle: "You are not alone. These lines are free, confidential, and there for you.") { dismiss() }
+                             subtitle: "You don't have to handle this alone. Free, confidential support is available.") { dismiss() }
 
                 ForEach(regions) { region in
+                    // A country label only when more than one region shows (the
+                    // non-AU/NZ fallback), so a single-region user sees a clean card.
+                    if regions.count > 1 {
+                        Text(region.name).keelEyebrow().padding(.top, 4)
+                    }
                     regionCard(region)
                 }
 
-                Text("Keel is a companion, not a crisis service. If you or someone else is in immediate danger, please call your local emergency number now.")
+                Text(footerText)
                     .font(KeelFont.caption).foregroundStyle(theme.muted)
                     .frame(maxWidth: .infinity).multilineTextAlignment(.center)
                     .fixedSize(horizontal: false, vertical: true)
@@ -36,7 +51,8 @@ struct SupportView: View {
     private func regionCard(_ region: SupportRegion) -> some View {
         VStack(spacing: 0) {
             callRow(name: "Emergency", contact: region.emergency,
-                    note: region.name, tint: theme.accent, emphasised: true)
+                    note: "If you or someone else is in immediate danger",
+                    tint: theme.accent, emphasised: true)
             ForEach(region.contacts) { contact in
                 Divider().background(theme.border)
                 callRow(name: contact.name, contact: contact.contact,
