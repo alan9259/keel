@@ -17,6 +17,14 @@ struct WelcomeView: View {
                 .tracking(3)
                 .foregroundStyle(theme.heading)
 
+            // Brand lockup descriptor (guidelines s2): shown where a user meets
+            // Keel cold. Mist blue, uppercase, letter-spaced.
+            Text("Perimenopause companion")
+                .font(KeelFont.sans(10, weight: .regular))
+                .tracking(2).textCase(.uppercase)
+                .foregroundStyle(theme.secondary)
+                .padding(.top, 6)
+
             VStack(spacing: 0) {
                 Text("You're not imagining it.")
                     .onboardingTitle()
