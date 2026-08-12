@@ -34,7 +34,7 @@ extension View {
 
     /// Floating-action-button elevation.
     func keelFabShadow() -> some View {
-        shadow(color: Color(hex: 0xC8866B, alpha: 0.30), radius: 12, x: 0, y: 8)
+        shadow(color: Color(hex: 0x8C4A45, alpha: 0.30), radius: 12, x: 0, y: 8)
     }
 
     /// Cream page background that fills the safe area.

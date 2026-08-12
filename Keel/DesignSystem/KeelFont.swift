@@ -1,21 +1,29 @@
 import SwiftUI
 import UIKit
 
-/// Typography for Keel — elegant serif headlines (Cormorant) paired with a
-/// humanist sans (DM Sans) for body/UI, per KEEL_DESIGN_SPEC.md.
-///
-/// The `.ttf` files are not bundled yet. Until they are dropped into
-/// `Keel/Resources/Fonts/` and registered in Info.plist's `UIAppFonts`, these
-/// helpers fall back to the system serif / sans faces, which preserve the
-/// intended serif-vs-sans contrast. Once the fonts exist, `isAvailable` flips to
-/// true automatically and the custom faces are used — no call-site changes.
+/// Typography for Keel — the brand faces from the v1 guidelines: **Literata**
+/// (serif) for the wordmark, screen titles, section headings and editorial copy,
+/// paired with **Poppins** (sans) for buttons, labels, navigation, body and
+/// captions. Both are SIL OFL, bundled under `Keel/Resources/Fonts/` and
+/// registered in `Info.plist` `UIAppFonts`. If a face somehow fails to load the
+/// helpers fall back to the matching system design, so nothing goes blank.
 enum KeelFont {
-    // Adjust these PostScript names to match whatever font files you bundle.
-    private static let serifName = "Cormorant"
-    private static let sansName = "DMSans-Regular"
-
+    // Literata ships as a variable font (default instance "Literata-Regular");
+    // SwiftUI's `.weight()` interpolates the weight axis.
+    private static let serifName = "Literata-Regular"
     private static let serifAvailable = UIFont(name: serifName, size: 12) != nil
-    private static let sansAvailable = UIFont(name: sansName, size: 12) != nil
+
+    // Poppins ships as static instances, so pick the file that matches the
+    // requested weight rather than synthesising bold (which looks wrong).
+    private static func poppinsName(for weight: Font.Weight) -> String? {
+        let name: String
+        switch weight {
+        case .ultraLight, .thin, .light: name = "Poppins-Light"
+        case .medium, .semibold, .bold, .heavy, .black: name = "Poppins-Medium"
+        default: name = "Poppins-Regular"
+        }
+        return UIFont(name: name, size: 12) != nil ? name : nil
+    }
 
     static func serif(_ size: CGFloat, weight: Font.Weight = .semibold, relativeTo style: Font.TextStyle = .body) -> Font {
         if serifAvailable {
@@ -25,8 +33,8 @@ enum KeelFont {
     }
 
     static func sans(_ size: CGFloat, weight: Font.Weight = .regular, relativeTo style: Font.TextStyle = .body) -> Font {
-        if sansAvailable {
-            return .custom(sansName, size: size, relativeTo: style).weight(weight)
+        if let name = poppinsName(for: weight) {
+            return .custom(name, size: size, relativeTo: style)
         }
         return .system(size: size, weight: weight, design: .default)
     }

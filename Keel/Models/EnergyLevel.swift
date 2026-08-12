@@ -22,13 +22,15 @@ enum EnergyLevel: Int, CaseIterable, Identifiable {
         }
     }
 
+    /// Warm brand ramp: rosewood (drained) through amber and sand to soft sage
+    /// (charged). No red (the brand rule is that red competes with rosewood).
     var color: Color {
         switch self {
-        case .drained: Color(hex: 0xEF4444)
-        case .low: Color(hex: 0xF97316)
-        case .okay: Color(hex: 0xCA8A04)
-        case .good: Color(hex: 0xC8866B)
-        case .charged: Color(hex: 0x16A34A)
+        case .drained: Color(hex: 0x8C4A45) // rosewood
+        case .low: Color(hex: 0xB87333)     // copper
+        case .okay: Color(hex: 0xC4A882)    // warm sand
+        case .good: Color(hex: 0x9BB58F)    // sage-green
+        case .charged: Color(hex: 0x7A9A7E) // soft sage
         }
     }
 

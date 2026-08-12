@@ -8,57 +8,75 @@ import SwiftUI
 /// `light` and `dark` are the base palettes; `resolve(themeID:isDark:)` picks the
 /// right one for the active theme and colour scheme (see `ThemedRoot`).
 struct KeelTheme: Equatable, Sendable {
-    var background: Color        // page background (cream)
-    var heading: Color           // Cormorant headlines
-    var text: Color              // primary body text
+    var background: Color        // page background (off-white)
+    var heading: Color           // Literata headlines (charcoal)
+    var text: Color              // primary body text (charcoal, never pure black)
     var muted: Color             // secondary/labels
-    var accent: Color            // terracotta — primary actions
-    var sage: Color              // secondary accent
-    var plum: Color
+    var accent: Color            // rosewood — primary actions, active states
+    var sage: Color              // soft sage — success states ONLY (never identity)
+    var plum: Color              // mist blue — secondary / links / TRY-adjacent
     var card: Color              // card surface
     var inputBackground: Color
     var border: Color            // hairline borders
-    var track: Color             // slider/progress track, empty dots
+    var track: Color             // slider/progress track, empty dots (warm sand)
+    var attention: Color         // amber — warnings & errors. NEVER red (brand rule)
     var toastBackground: Color
     var toastText: Color
+
+    /// Mist blue secondary, named for the brand role (alias of `plum`).
+    var secondary: Color { plum }
 
     // Convenience translucent fills.
     var sageTint: Color { sage.opacity(0.12) }
     var sageBorder: Color { sage.opacity(0.30) }
     var accentTint: Color { accent.opacity(0.10) }
     var accentBorder: Color { accent.opacity(0.30) }
+    var attentionTint: Color { attention.opacity(0.12) }
+
+    // Brand palette (guidelines v1.0, section 3).
+    static let rosewood = Color(hex: 0x8C4A45)   // brand/primary
+    static let mistBlue = Color(hex: 0x426070)   // brand/secondary
+    static let warmSand = Color(hex: 0xC4A882)   // accent/sand
+    static let softSage = Color(hex: 0x7A9A7E)   // state/positive
+    static let offWhite = Color(hex: 0xF7F5F0)   // surface/base
+    static let charcoal = Color(hex: 0x444444)   // text/primary
+    static let amber    = Color(hex: 0xA9762F)   // state/attention
 
     static let light = KeelTheme(
-        background: Color(hex: 0xFAF7F2),
-        heading: Color(hex: 0x5C4F47),
-        text: Color(hex: 0x3C3731),
-        muted: Color(hex: 0x6B635C),
-        accent: Color(hex: 0xC8866B),
-        sage: Color(hex: 0xA8B5A4),
-        plum: Color(hex: 0x6B5B7B),
+        background: offWhite,
+        heading: charcoal,
+        text: charcoal,
+        muted: Color(hex: 0x827A70),
+        accent: rosewood,
+        sage: softSage,
+        plum: mistBlue,
         card: .white,
-        inputBackground: Color(hex: 0xF3F0EB),
-        border: Color(hex: 0x3C3731, alpha: 0.12),
-        track: Color(hex: 0xE8E3DA),
-        toastBackground: Color(hex: 0x2A2420),
-        toastText: Color(hex: 0xEDE8E0)
+        inputBackground: Color(hex: 0xEFEBE3),
+        border: Color(hex: 0x444444, alpha: 0.12),
+        track: Color(hex: 0xE6DFD2),
+        attention: amber,
+        toastBackground: charcoal,
+        toastText: offWhite
     )
 
-    /// Warm dark base (Colour Mode → Dark / System-dark).
+    /// Brand-aligned warm dark base (Colour Mode → Dark / System-dark). The
+    /// identity colours are lightened just enough to hold contrast on a dark
+    /// surface while staying recognisably rosewood, mist and sage.
     static let dark = KeelTheme(
-        background: Color(hex: 0x211D19),
-        heading: Color(hex: 0xEDE3D6),
-        text: Color(hex: 0xE8E1D8),
-        muted: Color(hex: 0xA79E95),
-        accent: Color(hex: 0xC8866B),
-        sage: Color(hex: 0xA8B5A4),
-        plum: Color(hex: 0x9B8BB0),
-        card: Color(hex: 0x2C2621),
-        inputBackground: Color(hex: 0x332C26),
+        background: Color(hex: 0x24211E),
+        heading: Color(hex: 0xF1ECE4),
+        text: Color(hex: 0xE9E3DA),
+        muted: Color(hex: 0xA79E93),
+        accent: Color(hex: 0xBD7469),   // lightened rosewood
+        sage: Color(hex: 0x8FAE92),
+        plum: Color(hex: 0x6E93A8),      // lightened mist blue
+        card: Color(hex: 0x322D28),
+        inputBackground: Color(hex: 0x3A342E),
         border: Color(hex: 0xFFFFFF, alpha: 0.10),
-        track: Color(hex: 0x3A342E),
-        toastBackground: Color(hex: 0xEDE8E0),
-        toastText: Color(hex: 0x2A2420)
+        track: Color(hex: 0x443E37),
+        attention: Color(hex: 0xC99348),  // lightened amber
+        toastBackground: Color(hex: 0xF1ECE4),
+        toastText: Color(hex: 0x24211E)
     )
 
     /// Resolve the active theme from the selected theme id + dark/light mode.
@@ -94,11 +112,11 @@ enum ThemeCatalog {
     static let defaultID = "earthy"
 
     static let all: [KeelThemeOption] = [
-        KeelThemeOption(id: "earthy", name: "Earthy Warm",
-                        detail: "Warm cream, sage, terracotta and plum. The default.",
+        KeelThemeOption(id: "earthy", name: "Keel",
+                        detail: "Rosewood, mist blue and soft sage on off-white. The brand palette.",
                         price: nil, ownedByDefault: true, forcesDark: false, tag: nil,
-                        swatches: [0xF5F0E8, 0x6B8F6B, 0xC4724A, 0x7C5C7C, 0xE8DDD0].map { Color(hex: $0) },
-                        accent: Color(hex: 0xC8866B), sage: Color(hex: 0xA8B5A4), plum: Color(hex: 0x6B5B7B)),
+                        swatches: [0xF7F5F0, 0x8C4A45, 0x426070, 0x7A9A7E, 0xC4A882].map { Color(hex: $0) },
+                        accent: KeelTheme.rosewood, sage: KeelTheme.softSage, plum: KeelTheme.mistBlue),
         KeelThemeOption(id: "slate", name: "Slate & Stone",
                         detail: "Cool blue-grey tones with warm stone accents.",
                         price: nil, ownedByDefault: true, forcesDark: false, tag: nil,

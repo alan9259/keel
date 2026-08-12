@@ -307,14 +307,15 @@ struct CheckInModal: View {
     }
 
     /// Only on an existing entry: remove the whole check-in (with a confirmation).
+    /// Uses the brand attention colour (amber), never red (brand rule).
     private var removeButton: some View {
-        let red = Color(hex: 0xEF4444)
-        return Button(role: .destructive) { showDeleteConfirm = true } label: {
+        let warn = theme.attention
+        return Button { showDeleteConfirm = true } label: {
             Label("Remove entry", systemImage: "trash")
-                .font(KeelFont.body).foregroundStyle(red)
+                .font(KeelFont.body).foregroundStyle(warn)
                 .frame(maxWidth: .infinity).padding(.vertical, 12)
                 .overlay(RoundedRectangle(cornerRadius: Radius.input, style: .continuous)
-                    .stroke(red.opacity(0.4), lineWidth: 1))
+                    .stroke(warn.opacity(0.4), lineWidth: 1))
         }
         .buttonStyle(.plain)
         .padding(.top, 6)

@@ -1,8 +1,8 @@
 import SwiftUI
 
 /// How strongly a symptom is felt on a given check-in. Chosen by tapping the
-/// chip: one tap mild (yellow), two moderate (red), three severe (purple), a
-/// fourth clears it. Stored as an Int on `CheckInSymptom.severity`.
+/// chip: one tap mild, two moderate, three severe, a fourth clears it. Stored as
+/// an Int on `CheckInSymptom.severity`.
 enum SymptomSeverity: Int, CaseIterable, Identifiable {
     case mild = 1
     case moderate = 2
@@ -18,11 +18,13 @@ enum SymptomSeverity: Int, CaseIterable, Identifiable {
         }
     }
 
+    /// A warm brand ramp: sand → copper → rosewood. No red (the brand rule is that
+    /// red competes with rosewood).
     var color: Color {
         switch self {
-        case .mild: Color(hex: 0xE0A81C)     // yellow
-        case .moderate: Color(hex: 0xDC2626) // red
-        case .severe: Color(hex: 0x7C3AED)   // purple
+        case .mild: Color(hex: 0xC4A882)     // warm sand
+        case .moderate: Color(hex: 0xB87333) // copper
+        case .severe: Color(hex: 0x8C4A45)   // rosewood
         }
     }
 

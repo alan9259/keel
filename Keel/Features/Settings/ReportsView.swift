@@ -391,7 +391,7 @@ struct ReportsView: View {
         case .good: Color(hex: 0x8BC34A)
         case .okay: Color(hex: 0xCA8A04)
         case .low: Color(hex: 0xF97316)
-        case .difficult: Color(hex: 0xEF4444)
+        case .difficult: Color(hex: 0xA9762F)
         }
     }
 

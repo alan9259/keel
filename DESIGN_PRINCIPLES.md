@@ -45,30 +45,48 @@ is busy, often half-awake or on the move.
 Defined in `Keel/DesignSystem/`. Always use the tokens, never hard-code raw
 values in views.
 
-**Palette** (`KeelColor` / `KeelTheme`). Cream and warm-brown base, sage and
-terracotta accents. Terracotta is the primary accent; sage is the calm
-secondary; plum is a rare tertiary accent.
+**Palette** (`KeelColor` / `KeelTheme`) — the brand guidelines v1.0. Off-white
+surfaces and charcoal text, with **rosewood** as the primary/identity colour,
+mist blue as secondary, and soft sage reserved for success only. Rosewood is the
+most distinctive asset the brand owns; it reads as confidence and warmth, not
+pink.
 
 | Token | Hex | Use |
 |---|---|---|
-| cream | `#FAF7F2` | page background |
-| warmGrey | `#3C3731` | body text |
-| heading | `#5C4F47` | serif headlines |
-| terracotta | `#C8866B` | primary accent, buttons, active state |
-| sage | `#A8B5A4` | secondary / calm accent |
-| plum | `#6B5B7B` | rare tertiary accent |
+| rosewood (accent) | `#8C4A45` | app icon tile, primary buttons, active states, key accents |
+| mist blue (plum/secondary) | `#426070` | links, secondary buttons, TRY-adjacent |
+| warm sand | `#C4A882` | dividers, quiet accents, tracks |
+| soft sage | `#7A9A7E` | success states ONLY, never in the identity |
+| off-white (background/card) | `#F7F5F0` | backgrounds, knockout mark |
+| charcoal (text/heading) | `#444444` | body text and headings. Never pure black |
+| amber (attention) | `#A9762F` | warnings and errors |
+
+**Critical: no red for errors or alerts.** Red would compete with rosewood and
+dilute the identity. Use `theme.attention` (amber `#A9762F`) for validation
+errors, destructive-action confirmations and alert styling, or charcoal for
+neutral system messages. Mood, severity and energy scales are warm ramps (sand →
+copper → rosewood / amber), never red. (Native system action sheets and context
+menus still render their destructive item red — that is Apple's, not ours.)
 
 Colour is resolved through `KeelTheme.resolve(themeID:isDark:)`, injected as
 `\.keelTheme`. Read colours from the environment theme (`theme.background`,
-`theme.accent`, `theme.card`, `theme.text`, `theme.muted`, `theme.border`) so
-light/dark and the theme packs all work. Do not reference `KeelColor.*` directly
-inside feature views.
+`theme.accent`, `theme.secondary`, `theme.sage`, `theme.attention`, `theme.card`,
+`theme.text`, `theme.muted`, `theme.border`) so light/dark works. Do not
+reference `KeelColor.*` directly inside feature views.
 
-**Type** (`KeelFont`). Elegant serif headlines (Cormorant) paired with a
-humanist sans (DM Sans) for body and UI. Use the semantic helpers
-(`KeelFont.serif(_:)`, `.sans(_:)`, `.body`, `.caption`, `.eyebrow`, etc.), which
-are Dynamic-Type aware. Serif carries warmth and headlines; sans carries clarity
-and everything functional.
+**Type** (`KeelFont`). The brand faces, bundled (SIL OFL) under
+`Keel/Resources/Fonts/`: **Literata** (serif) for the wordmark, screen titles,
+section headings and editorial copy; **Poppins** (sans) for buttons, labels,
+navigation, body and captions. Use the semantic helpers (`KeelFont.serif(_:)`,
+`.sans(_:)`, `.body`, `.caption`, `.eyebrow`, etc.), which are Dynamic-Type aware.
+Serif carries warmth and headlines; sans carries clarity and everything
+functional.
+
+**The mark** (`KeelMark`, and the app icon). A rosewood disc holding water
+settled to level, with the letter **K knocked through** it (the K is always
+upright; the waterline crosses its lower leg). Never the old sailboat: the
+guidelines forbid sails, anchors, wheels, compass roses, and anything resembling
+anatomy or a wellness/meditation icon.
 
 **Spacing** (`Spacing`, 8pt scale) and **radius** (`Radius`). Cards and primary
 buttons use `Radius.card` (18). Inputs use `Radius.input` (12). Chips and toggles

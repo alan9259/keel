@@ -13,38 +13,38 @@ extension Color {
     }
 }
 
-/// Keel palette — earthy, muted. Values from KEEL_DESIGN_SPEC.md.
-///
-/// Defined in code for now so the app is fully self-contained. To add dark mode
-/// later, promote these to Asset-Catalog color sets with light/dark variants and
-/// swap the references — nothing else needs to change.
+/// Keel palette — the v1 brand guidelines (section 3). Most views read colours
+/// from the injected `\.keelTheme`; these static tokens back the few call sites
+/// (onboarding title/eyebrow, mood dots) that predate the theme and are the
+/// light-mode brand values.
 enum KeelColor {
-    // Primary
-    static let cream = Color(hex: 0xFAF7F2)         // background
-    static let warmGrey = Color(hex: 0x3C3731)      // body text
-    static let heading = Color(hex: 0x5C4F47)       // warm-brown headlines
-    static let sage = Color(hex: 0xA8B5A4)
-    static let terracotta = Color(hex: 0xC8866B)    // accent
-    static let plum = Color(hex: 0x6B5B7B)          // subtle accent
+    // Brand
+    static let cream = Color(hex: 0xF7F5F0)         // surface/base (off-white)
+    static let warmGrey = Color(hex: 0x444444)      // text/primary (charcoal)
+    static let heading = Color(hex: 0x444444)       // headlines (charcoal)
+    static let sage = Color(hex: 0x7A9A7E)          // state/positive
+    static let terracotta = Color(hex: 0x8C4A45)    // brand/primary (rosewood)
+    static let plum = Color(hex: 0x426070)          // brand/secondary (mist blue)
 
     // Secondary / utility
-    static let lightWarmGrey = Color(hex: 0xE8E3DA)
-    static let mutedForeground = Color(hex: 0x6B635C)
-    static let inputBackground = Color(hex: 0xF3F0EB)
+    static let lightWarmGrey = Color(hex: 0xE6DFD2)
+    static let mutedForeground = Color(hex: 0x827A70)
+    static let inputBackground = Color(hex: 0xEFEBE3)
     static let cardBackground = Color.white
-    static let border = Color(hex: 0x3C3731, alpha: 0.12)
+    static let border = Color(hex: 0x444444, alpha: 0.12)
 
-    // Semantic mood colors
-    static let moodGreat = Color(hex: 0x4CAF50)
-    static let moodGood = Color(hex: 0x8BC34A)
-    static let moodOkay = Color(hex: 0xFFC107)
-    static let moodLow = Color(hex: 0xFF9800)
-    static let moodDifficult = Color(hex: 0xF44336)
+    // Mood spectrum — warm and muted, green through amber (no red: the brand rule
+    // is that red competes with rosewood).
+    static let moodGreat = Color(hex: 0x6E9A76)
+    static let moodGood = Color(hex: 0x9BB58F)
+    static let moodOkay = Color(hex: 0xC4A882)      // warm sand
+    static let moodLow = Color(hex: 0xC0894F)       // ochre
+    static let moodDifficult = Color(hex: 0xA9762F) // amber
 
     // Common translucent fills used across cards
-    static let sageTint = Color(hex: 0xA8B5A4, alpha: 0.10)
-    static let sageBorder = Color(hex: 0xA8B5A4, alpha: 0.30)
-    static let terracottaTint = Color(hex: 0xC8866B, alpha: 0.10)
-    static let terracottaBorder = Color(hex: 0xC8866B, alpha: 0.30)
-    static let warmGreyTint = Color(hex: 0x3C3731, alpha: 0.10)
+    static let sageTint = Color(hex: 0x7A9A7E, alpha: 0.10)
+    static let sageBorder = Color(hex: 0x7A9A7E, alpha: 0.30)
+    static let terracottaTint = Color(hex: 0x8C4A45, alpha: 0.10)
+    static let terracottaBorder = Color(hex: 0x8C4A45, alpha: 0.30)
+    static let warmGreyTint = Color(hex: 0x444444, alpha: 0.10)
 }

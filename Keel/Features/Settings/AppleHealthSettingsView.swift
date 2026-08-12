@@ -72,7 +72,7 @@ struct AppleHealthSettingsView: View {
             if connected {
                 HStack(spacing: 10) {
                     outlineButton("Sync now", tint: theme.sage) { env.syncHealthData(); Haptics.success() }
-                    outlineButton("Disconnect", tint: Color(hex: 0xDC2626)) { disconnect() }
+                    outlineButton("Disconnect", tint: Color(hex: 0xA9762F)) { disconnect() }
                 }
             } else if connecting {
                 Text("Connecting…").font(KeelFont.button).foregroundStyle(theme.background)

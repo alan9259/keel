@@ -44,6 +44,10 @@
 	<key>UIAppFonts</key>
 	<array>
 		<string>TwemojiMozilla.ttf</string>
+		<string>Literata.ttf</string>
+		<string>Poppins-Light.ttf</string>
+		<string>Poppins-Regular.ttf</string>
+		<string>Poppins-Medium.ttf</string>
 	</array>
 	<key>UIApplicationSceneManifest</key>
 	<dict>
