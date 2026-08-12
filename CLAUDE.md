@@ -36,6 +36,34 @@ behaviour — a screenshot for UI, or a small `#if DEBUG` launch-arg probe
 paths only work on a real signed device (Sign in with Apple, notification
 delivery/taps, HealthKit, CloudKit, entitlement-gated features) — say so plainly.
 
+## Cover new code with unit tests
+
+Every change to logic gets unit tests in the **`KeelTests`** target, added in the
+same change — not deferred. Run them and make them pass before saying a task is
+done:
+
+```
+xcodebuild test -project Keel.xcodeproj -scheme Keel \
+  -destination 'id=<booted-sim-udid>' -derivedDataPath build CODE_SIGNING_ALLOWED=NO
+```
+
+- **What to test:** the deterministic core especially — schedule/date rules,
+  computed values, repository reads/writes, parsing, any branchy decision. Cover
+  the happy path **and** the edges (empty, boundary, "already done", not-due,
+  past/future, timezone). Every bug you fix gets a test that fails before the fix
+  and passes after (a regression test), named for the bug.
+- **Make it testable:** if logic is trapped inside a view, a `@MainActor` type, or
+  interleaved with side effects (notifications, network), **extract the decision
+  into a pure, `nonisolated` function** and test that — as `NotificationService`'s
+  `plannedOccurrences` was split out from `rescheduleMedication`. Inject `now`/
+  `Calendar` (use a fixed UTC `Calendar` in tests) so nothing depends on the wall
+  clock or machine timezone. Use an **in-memory** store for SwiftData tests
+  (`KeelSchema.makeContainer(inMemory: true)`).
+- Tests complement the `DebugHarness` launch-arg probes (which exercise the real
+  app on the simulator); they don't replace them. Prefer a fast unit test when the
+  logic can be isolated. These bugs are why: unit tests caught two real auto-log
+  defects that manual probes had missed.
+
 ## Always bump the build number for a build
 
 When you produce a build meant to run on a device or go to TestFlight/distribution
