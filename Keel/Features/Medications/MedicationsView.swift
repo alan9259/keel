@@ -47,7 +47,7 @@ struct MedicationsView: View {
         .keelFeatureScreen()
         .sheet(isPresented: $showAdd) {
             TreatmentPickerSheet { draft in
-                let med = env.medications.add(draft)
+                _ = env.medications.add(draft)
                 env.refreshMedicationReminders()
                 env.autoLogTodaysDoses() // if she added it with auto-log on, tick today now
                 env.requestSync()

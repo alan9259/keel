@@ -271,16 +271,22 @@ struct MedicationRepository: MedicationRepositoring {
         let nowMinutes = cal.component(.hour, from: now) * 60 + cal.component(.minute, from: now)
         var logged: [(medID: UUID, slot: String?)] = []
         for med in active() where med.autoLogDoses {
-            let slots = med.schedule.dueSlots(on: now)
-            let ids: [String?] = slots.isEmpty ? [nil] : slots.compactMap { slot in
-                // Only once its time of day has arrived; an untimed dose counts as
-                // soon as the day is due.
-                guard slot.hasTime else { return slot.id.uuidString }
-                return slot.minutesIntoDay <= nowMinutes ? slot.id.uuidString : nil
-            }
-            for slot in ids where !isTaken(med, on: now, slot: slot) {
-                setTaken(med, on: now, slot: slot, taken: true)
-                logged.append((med.id, slot))
+            // Log each of today's due doses whose time has arrived. An untimed dose
+            // counts as soon as the day is due; a timed dose only once its time has
+            // passed (a still-future dose logs nothing). `dueSlots` is empty on a
+            // day the med isn't scheduled, so nothing is logged then either.
+            //
+            // Note: log by the dose's slot id, never a whole-day nil. The old code
+            // used `slots.isEmpty ? [nil] : slots.compactMap { … nil }`, which both
+            // (a) logged a whole day on days the med wasn't due, and (b) — because
+            // the ternary's nil landed in a `[String?]` compactMap — kept that nil
+            // as an element, wrongly whole-day-logging a still-future dose.
+            for slot in med.schedule.dueSlots(on: now)
+            where !slot.hasTime || slot.minutesIntoDay <= nowMinutes {
+                let id = slot.id.uuidString
+                guard !isTaken(med, on: now, slot: id) else { continue }
+                setTaken(med, on: now, slot: id, taken: true)
+                logged.append((med.id, id))
             }
         }
         return logged

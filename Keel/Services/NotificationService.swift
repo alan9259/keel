@@ -52,16 +52,71 @@ final class NotificationService {
     }
 
     /// Stable per-day key ("20260731") used in reminder identifiers so a single
-    /// day's occurrence can be cancelled once she's logged the dose.
-    static func dayKey(_ date: Date, calendar: Calendar = .current) -> String {
+    /// day's occurrence can be cancelled once she's logged the dose. `nonisolated`
+    /// so pure helpers (and tests) can call it off the main actor.
+    nonisolated static func dayKey(_ date: Date, calendar: Calendar = .current) -> String {
         let c = calendar.dateComponents([.year, .month, .day], from: date)
         return String(format: "%04d%02d%02d", c.year ?? 0, c.month ?? 0, c.day ?? 0)
+    }
+
+    /// One reminder occurrence the scheduler decided to create. Pure value, so the
+    /// "which days, skip-if-logged, past-time, horizon budget" decision can be unit
+    /// tested without `UNUserNotificationCenter`.
+    struct Occurrence: Equatable {
+        let slotID: String
+        let dayKey: String
+        let hour: Int
+        let minute: Int
+    }
+
+    /// The dated occurrences a medication's reminders should occupy, given its
+    /// schedule and what's already been logged today. This is the whole scheduling
+    /// decision, factored out of `rescheduleMedication` so it can be tested
+    /// deterministically: no side effects, `now`/`calendar` injected.
+    ///
+    /// Rules, all covered by tests:
+    /// - `asNeeded` or no timed dose → nothing.
+    /// - Only future moments (a dose time already past today is skipped).
+    /// - Today is skipped when the whole day, or that dose's slot, is already logged.
+    /// - Each dose gets its own slice of the horizon so several doses/meds stay
+    ///   under iOS's 64-pending cap.
+    nonisolated static func plannedOccurrences(
+        schedule: DoseSchedule,
+        cycleHorizon: Int = 24,
+        loggedTodayWholeDay: Bool = false,
+        loggedTodaySlots: Set<String> = [],
+        now: Date,
+        calendar: Calendar = .current
+    ) -> [Occurrence] {
+        let timed = schedule.sortedSlots.filter(\.hasTime)
+        guard schedule.kind != .asNeeded, !timed.isEmpty else { return [] }
+        let perSlot = max(cycleHorizon / timed.count, 2)
+        var out: [Occurrence] = []
+        for dose in timed {
+            // Extra candidates so days we skip (already past, or logged) don't eat
+            // into the per-dose budget.
+            let days = schedule.upcomingDueDates(for: dose, from: now, count: perSlot + 3, calendar: calendar)
+            var scheduled = 0
+            for day in days where scheduled < perSlot {
+                var when = calendar.dateComponents([.year, .month, .day], from: day)
+                when.hour = dose.hour
+                when.minute = dose.minute ?? 0
+                guard let fire = calendar.date(from: when), fire > now else { continue }
+                if calendar.isDateInToday(day),
+                   loggedTodayWholeDay || loggedTodaySlots.contains(dose.id.uuidString) { continue }
+                out.append(Occurrence(slotID: dose.id.uuidString,
+                                      dayKey: dayKey(day, calendar: calendar),
+                                      hour: dose.hour ?? 0, minute: dose.minute ?? 0))
+                scheduled += 1
+            }
+        }
+        return out
     }
 
     /// iOS keeps at most 64 pending notifications per app and silently drops the
     /// rest, so a cycle's individually-scheduled days get a budget rather than
     /// crowding everything else out.
-    static func cycleHorizon(activeMedications: Int) -> Int {
+    nonisolated static func cycleHorizon(activeMedications: Int) -> Int {
         let budget = 48 / max(activeMedications, 1)
         return min(max(budget, 4), 24)
     }
@@ -86,35 +141,24 @@ final class NotificationService {
                               loggedTodayWholeDay: Bool = false,
                               loggedTodaySlots: Set<String> = []) async {
         await cancelMedicationReminders(medicationID: id)
-        // Only doses with a time raise anything: a day pattern on its own is a
-        // record of what she takes, not a request to be nudged.
-        let timed = schedule.sortedSlots.filter(\.hasTime)
-        guard schedule.kind != .asNeeded, !timed.isEmpty else { return }
-        // Split the budget across the doses, since each needs its own run.
-        let perSlot = max(cycleHorizon / timed.count, 2)
-        let now = Date()
-        let cal = Calendar.current
-
-        for dose in timed {
-            let key = dose.id.uuidString.prefix(8)
-            // Ask for a few extra candidates so days we skip (already past today,
-            // or already logged) don't eat into the horizon.
-            let days = schedule.upcomingDueDates(for: dose, from: now, count: perSlot + 3)
-            var scheduled = 0
-            for day in days where scheduled < perSlot {
-                var when = cal.dateComponents([.year, .month, .day], from: day)
-                when.hour = dose.hour
-                when.minute = dose.minute ?? 0
-                // Can't schedule a moment that has already passed (today, earlier).
-                guard let fire = cal.date(from: when), fire > now else { continue }
-                // Already logged today? Don't nudge her for a dose she's done.
-                if cal.isDateInToday(day),
-                   loggedTodayWholeDay || loggedTodaySlots.contains(dose.id.uuidString) { continue }
-                add(id: "\(medPrefix)\(id.uuidString).\(key).d\(Self.dayKey(day))", name: name,
-                    medicationID: id, slot: dose.id.uuidString, autoLog: autoLog,
-                    trigger: UNCalendarNotificationTrigger(dateMatching: when, repeats: false))
-                scheduled += 1
-            }
+        // The whole "which occurrences" decision is the pure `plannedOccurrences`
+        // (unit-tested); here we just turn each into a scheduled request.
+        let occurrences = Self.plannedOccurrences(
+            schedule: schedule, cycleHorizon: cycleHorizon,
+            loggedTodayWholeDay: loggedTodayWholeDay, loggedTodaySlots: loggedTodaySlots,
+            now: Date())
+        for occ in occurrences {
+            let key = occ.slotID.prefix(8)
+            var when = DateComponents()
+            when.hour = occ.hour
+            when.minute = occ.minute
+            // The occurrence's dayKey (YYYYMMDD) pins the exact date.
+            when.year = Int(occ.dayKey.prefix(4))
+            when.month = Int(occ.dayKey.dropFirst(4).prefix(2))
+            when.day = Int(occ.dayKey.suffix(2))
+            add(id: "\(medPrefix)\(id.uuidString).\(key).d\(occ.dayKey)", name: name,
+                medicationID: id, slot: occ.slotID, autoLog: autoLog,
+                trigger: UNCalendarNotificationTrigger(dateMatching: when, repeats: false))
         }
     }
 
