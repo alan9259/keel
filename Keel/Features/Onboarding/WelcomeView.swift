@@ -8,11 +8,14 @@ struct WelcomeView: View {
         VStack(spacing: 0) {
             Spacer()
 
+            KeelMark()
+                .frame(width: 72, height: 72)
+                .padding(.bottom, Spacing.md)
+
             Text("Keel")
-                .font(KeelFont.sans(22, weight: .semibold))
-                .tracking(5)
-                .textCase(.uppercase)
-                .foregroundStyle(theme.heading.opacity(0.55))
+                .font(KeelFont.serif(24, weight: .medium))
+                .tracking(3)
+                .foregroundStyle(theme.heading)
 
             VStack(spacing: 0) {
                 Text("You're not imagining it.")
