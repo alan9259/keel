@@ -4,18 +4,9 @@ struct AboutView: View {
     @Environment(\.keelTheme) private var theme
     @Environment(\.dismiss) private var dismiss
 
+    private let lead = "You deserve to understand what's changing, recognise your own patterns, and feel better equipped to ask questions and advocate for yourself."
+
     private let sections: [(String, [String])] = [
-        ("You're not imagining it.", [
-            "Perimenopause and menopause affect millions of women, yet for too long the experience has been minimised, misunderstood or simply not talked about. The symptoms are real. The confusion is real.",
-            "Keel was built to change that: a calm, grounded companion for the years when your body stops feeling familiar.",
-        ]),
-        ("What we do", [
-            "Keel helps you track mood, energy, symptoms, sleep, cycle and medications, not to turn your body into a data project, but to build a picture over time that helps you and your healthcare team understand what's actually going on.",
-        ]),
-        ("Why we do it", [
-            "Because the years of perimenopause and menopause deserve more than a pamphlet and a pat on the back. Every woman navigating this transition deserves a tool that meets her where she is.",
-            "You deserve to understand what's changing, recognise your own patterns, and feel better equipped to ask questions and advocate for yourself.",
-        ]),
         ("Built from lived experience", [
             "I built Keel while navigating perimenopause myself, and wishing I'd had something like this when the changes first began. Something to help connect the dots and make conversations with healthcare professionals a little easier.",
         ]),
@@ -38,6 +29,9 @@ struct AboutView: View {
                 }
                 .frame(maxWidth: .infinity)
                 .padding(.vertical, 16)
+
+                Text(lead)
+                    .font(KeelFont.bodyLarge).foregroundStyle(theme.text.opacity(0.75)).lineSpacing(4)
 
                 ForEach(sections, id: \.0) { section in
                     VStack(alignment: .leading, spacing: 10) {
