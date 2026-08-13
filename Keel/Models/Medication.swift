@@ -51,7 +51,7 @@ final class Medication: Syncable {
 
     /// Treatment or supplement. Grouping only.
     var kindRaw: String = TreatmentKind.supplement.rawValue
-    /// Catalog group it was picked from, e.g. "oestrogen-patches". Empty when she
+    /// Catalog group it was picked from, e.g. "oestrogen". Empty when she
     /// typed her own.
     var catalogGroupID: String?
     /// Superseded by the schedule. Read once by the migration, then left alone.

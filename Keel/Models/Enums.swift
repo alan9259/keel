@@ -184,10 +184,11 @@ enum TreatmentKind: String, CaseIterable, Codable, Identifiable {
         }
     }
 
-    /// Heading for the picker's one-at-a-time toggle.
+    /// Heading for the picker's one-at-a-time toggle. "Prescriptions" rather than
+    /// "HRT" because not everything prescribed is HRT.
     var shortLabel: String {
         switch self {
-        case .treatment: "HRT & Medication"
+        case .treatment: "Prescriptions"
         case .supplement: "Supplements"
         }
     }

@@ -102,7 +102,10 @@ final class NotificationService {
                 when.hour = dose.hour
                 when.minute = dose.minute ?? 0
                 guard let fire = calendar.date(from: when), fire > now else { continue }
-                if calendar.isDateInToday(day),
+                // "Today" is relative to the injected `now`, not the wall clock:
+                // isDateInToday would compare to the real date and break the moment
+                // `now` differs from it (tests, or a capture that straddles midnight).
+                if calendar.isDate(day, inSameDayAs: now),
                    loggedTodayWholeDay || loggedTodaySlots.contains(dose.id.uuidString) { continue }
                 out.append(Occurrence(slotID: dose.id.uuidString,
                                       dayKey: dayKey(day, calendar: calendar),

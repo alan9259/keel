@@ -23,6 +23,9 @@ struct TreatmentPickerSheet: View {
     @State private var composingGroup: String?
     @State private var customName = ""
     @FocusState private var composerFocused: Bool
+    /// Filters the list for anyone who already knows what she's on (beats scrolling).
+    @State private var searchText = ""
+    @FocusState private var searchFocused: Bool
 
     var body: some View {
         Group {
@@ -79,13 +82,64 @@ struct TreatmentPickerSheet: View {
                 VStack(alignment: .leading, spacing: 22) {
                     KeelSegmented(options: TreatmentKind.allCases.map(\.shortLabel),
                                   selection: kindSelection)
-                    ForEach(groups) { group in
+                    searchField
+                    ForEach(visibleGroups) { group in
                         groupSection(group)
                     }
+                    if isSearching { addSearchedButton }
                 }
                 .padding(.horizontal, 20).padding(.top, 16).padding(.bottom, 32)
             }
         }
+    }
+
+    private var searchField: some View {
+        HStack(spacing: 8) {
+            Image(systemName: "magnifyingglass").font(.system(size: 14, weight: .medium))
+                .foregroundStyle(theme.muted)
+            TextField("Search what you're taking", text: $searchText)
+                .font(KeelFont.body).foregroundStyle(theme.text)
+                .textInputAutocapitalization(.never)
+                .autocorrectionDisabled()
+                .focused($searchFocused)
+                .submitLabel(.search)
+            if !searchText.isEmpty {
+                Button {
+                    searchText = ""
+                    searchFocused = false
+                } label: {
+                    Image(systemName: "xmark.circle.fill").font(.system(size: 15))
+                        .foregroundStyle(theme.muted)
+                }
+                .accessibilityLabel("Clear search")
+            }
+        }
+        .padding(.horizontal, 14).padding(.vertical, 10)
+        .background(theme.inputBackground)
+        .clipShape(Capsule())
+    }
+
+    /// When she's searched and it isn't in the list, let her add it by that name
+    /// (private to her). Also the only affordance when there are no matches.
+    private var addSearchedButton: some View {
+        let q = searchText.trimmingCharacters(in: .whitespaces)
+        return Button {
+            Haptics.selection()
+            guard let group = groups.first else { return }
+            draft = alreadyTaking(q).map(TreatmentDraft.init) ?? TreatmentDraft(
+                name: q, kind: kind, catalogGroupID: group.id, method: nil
+            )
+        } label: {
+            HStack(spacing: 6) {
+                Image(systemName: "plus").font(.system(size: 12, weight: .semibold))
+                Text("Add \u{201C}\(q)\u{201D}").font(KeelFont.body)
+            }
+            .foregroundStyle(theme.accent)
+            .padding(.horizontal, 14).padding(.vertical, 8)
+            .overlay(Capsule().stroke(theme.accent.opacity(0.5),
+                                      style: StrokeStyle(lineWidth: 1, dash: [4, 3])))
+        }
+        .buttonStyle(.plain)
     }
 
     private var header: some View {
@@ -122,7 +176,8 @@ struct TreatmentPickerSheet: View {
                 ForEach(group.sortedItems) { item in
                     itemChip(item, in: group)
                 }
-                addYourOwnChip(group)
+                // The searched "Add …" affordance sits once at the bottom instead.
+                if !isSearching { addYourOwnChip(group) }
             }
             if composingGroup == group.id {
                 composer(group)
@@ -134,7 +189,7 @@ struct TreatmentPickerSheet: View {
     /// The section heading only leads the first group that carries it, so
     /// "Oestrogen" isn't repeated above every form of it.
     private func showsSectionHeading(for group: TreatmentCatalog.Group) -> Bool {
-        groups.first { $0.section == group.section }?.id == group.id
+        visibleGroups.first { $0.section == group.section }?.id == group.id
     }
 
     private func itemChip(_ item: TreatmentCatalog.Item, in group: TreatmentCatalog.Group) -> some View {
@@ -219,6 +274,14 @@ struct TreatmentPickerSheet: View {
     // MARK: Logic
 
     private var groups: [TreatmentCatalog.Group] { env.treatments.groups(for: kind) }
+
+    private var isSearching: Bool { !searchText.trimmingCharacters(in: .whitespaces).isEmpty }
+
+    /// The list, filtered to the search. Groups with no matching item drop out, so
+    /// only sections that actually contain a match keep their heading.
+    private var visibleGroups: [TreatmentCatalog.Group] {
+        TreatmentCatalog.filter(groups, matching: searchText)
+    }
 
     private var kindSelection: Binding<Int> {
         Binding(

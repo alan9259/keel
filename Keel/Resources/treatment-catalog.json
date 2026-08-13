@@ -1,58 +1,20 @@
 {
-  "version": 1,
-  "updated": "2026-07-27",
-  "sourceNote": "Seed from docs/keel-treatment-supplement-list.md. A logging taxonomy, not clinical guidance. Brand availability and PBS status move during the year; confirm before shipping and refresh this file rather than editing code.",
+  "version": 2,
+  "updated": "2026-08-13",
+  "sourceNote": "A logging taxonomy, not clinical guidance. Entries describe WHAT she is taking (form), never WHY it is used, and carry no brand names or indications, so nothing here reads as treatment advice and there is no brand list to keep current. She personalises with 'Add your own' (private to her).",
   "groups": [
     {
-      "id": "oestrogen-patches",
+      "id": "oestrogen",
       "kind": "treatment",
       "section": "Oestrogen",
-      "title": "Patches (transdermal)",
+      "title": "Oestrogen",
       "defaultMethod": "patch",
       "items": [
-        { "name": "Estradot" },
-        { "name": "Estraderm MX" },
-        { "name": "Estramon" }
-      ]
-    },
-    {
-      "id": "oestrogen-gel",
-      "kind": "treatment",
-      "section": "Oestrogen",
-      "title": "Gel (transdermal)",
-      "defaultMethod": "gel",
-      "items": [
-        { "name": "Estrogel" },
-        { "name": "Estrogel Pro" }
-      ]
-    },
-    {
-      "id": "oestrogen-spray",
-      "kind": "treatment",
-      "section": "Oestrogen",
-      "title": "Spray (transdermal)",
-      "defaultMethod": "spray",
-      "items": []
-    },
-    {
-      "id": "oestrogen-tablet",
-      "kind": "treatment",
-      "section": "Oestrogen",
-      "title": "Tablet (oral)",
-      "defaultMethod": "tablet",
-      "items": []
-    },
-    {
-      "id": "oestrogen-vaginal",
-      "kind": "treatment",
-      "section": "Oestrogen",
-      "title": "Vaginal or local oestrogen",
-      "note": "For genitourinary symptoms, such as dryness or recurring UTIs.",
-      "defaultMethod": "vaginal",
-      "items": [
-        { "name": "Vaginal cream" },
-        { "name": "Vaginal pessary" },
-        { "name": "Vaginal ring" }
+        { "name": "Oestrogen patch", "method": "patch" },
+        { "name": "Oestrogen gel", "method": "gel" },
+        { "name": "Oestrogen spray", "method": "spray" },
+        { "name": "Oestrogen tablet", "method": "tablet" },
+        { "name": "Vaginal oestrogen", "method": "vaginal" }
       ]
     },
     {
@@ -62,31 +24,29 @@
       "title": "Progesterone and progestogen",
       "defaultMethod": "tablet",
       "items": [
-        { "name": "Oral micronised progesterone (e.g. Prometrium)" },
-        { "name": "Combined oestrogen and progestogen tablet (e.g. Femoston)" },
-        { "name": "Progestogen IUD (e.g. Mirena)", "method": "iud" }
+        { "name": "Oral micronised progesterone", "method": "tablet" },
+        { "name": "Progestogen IUD", "method": "iud" }
       ]
     },
     {
-      "id": "combined-patches",
+      "id": "combined",
       "kind": "treatment",
       "section": "Combined",
-      "title": "Combined patches",
-      "note": "Oestrogen and progestogen in one patch. Brands shift with the shortage, so add yours if it isn't listed.",
+      "title": "Combined",
       "defaultMethod": "patch",
-      "items": []
+      "items": [
+        { "name": "Combined patch (oestrogen and progestogen)", "method": "patch" },
+        { "name": "Combined tablet (oestrogen and progestogen)", "method": "tablet" }
+      ]
     },
     {
       "id": "testosterone",
       "kind": "treatment",
       "section": "Testosterone",
       "title": "Testosterone",
-      "note": "Testosterone is approved in Australia for one specific use, low sexual desire after menopause. Your GP will have discussed why it's part of your plan.",
       "defaultMethod": "cream",
       "items": [
-        { "name": "AndroFeme" },
-        { "name": "Testogel", "offLabel": true, "method": "gel" },
-        { "name": "Compounded testosterone", "compounded": true }
+        { "name": "Testosterone cream or gel", "method": "cream" }
       ]
     },
     {

@@ -71,6 +71,22 @@ struct TreatmentCatalog: Codable {
 
     static let empty = TreatmentCatalog(version: 0, groups: [])
 
+    /// Groups filtered to those with an item whose name contains `query`
+    /// (case-insensitive); each kept group carries only its matching items. A
+    /// blank query returns the groups unchanged. Pure, so the picker's search is
+    /// unit-testable.
+    static func filter(_ groups: [Group], matching query: String) -> [Group] {
+        let q = query.trimmingCharacters(in: .whitespaces)
+        guard !q.isEmpty else { return groups }
+        return groups.compactMap { group in
+            let matches = group.items.filter { $0.name.localizedCaseInsensitiveContains(q) }
+            guard !matches.isEmpty else { return nil }
+            var filtered = group
+            filtered.items = matches
+            return filtered
+        }
+    }
+
     struct Group: Codable, Identifiable {
         var id: String
         var kind: TreatmentKind

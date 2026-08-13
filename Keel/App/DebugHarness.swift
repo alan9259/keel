@@ -199,8 +199,8 @@ enum DebugHarness {
             ]
             _ = env.medications.add(daily)
 
-            var patch = TreatmentDraft(name: "Estradot", kind: .treatment,
-                                       catalogGroupID: "oestrogen-patches", method: .patch)
+            var patch = TreatmentDraft(name: "Oestrogen patch", kind: .treatment,
+                                       catalogGroupID: "oestrogen", method: .patch)
             patch.doseAmount = 50; patch.doseUnit = .mcg
             patch.schedule.slots = [DoseSlot(weekdays: [tomorrow])]
             _ = env.medications.add(patch)
