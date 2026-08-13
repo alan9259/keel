@@ -125,9 +125,10 @@ struct TreatmentPickerSheet: View {
         let q = searchText.trimmingCharacters(in: .whitespaces)
         return Button {
             Haptics.selection()
-            guard let group = groups.first else { return }
+            // A searched name isn't tied to a section, so record it as her own
+            // (no catalog group) rather than mis-bucketing it into the first group.
             draft = alreadyTaking(q).map(TreatmentDraft.init) ?? TreatmentDraft(
-                name: q, kind: kind, catalogGroupID: group.id, method: nil
+                name: q, kind: kind, catalogGroupID: nil, method: nil
             )
         } label: {
             HStack(spacing: 6) {
