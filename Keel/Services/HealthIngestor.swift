@@ -89,13 +89,20 @@ final class HealthIngestor {
 
     private func ingestActivity(_ activityID: String, _ byDay: [Date: Double]) -> Int {
         var wrote = 0
+        // One fetch for the whole type, indexed by day, rather than a fetch per day:
+        // this runs on the main actor on every sync, and per-day fetches over a year
+        // (times several metrics) froze the UI.
+        let descriptor = FetchDescriptor<ActivityLog>(
+            predicate: #Predicate { $0.deletedAt == nil && $0.activityID == activityID }
+        )
+        let existingByDay = Dictionary(
+            ((try? context.fetch(descriptor)) ?? []).map { ($0.date.startOfDay, $0) },
+            uniquingKeysWith: { first, _ in first }
+        )
         for (rawDay, rawValue) in byDay where rawValue > 0 {
             let day = rawDay.startOfDay
             let value = (rawValue * 10).rounded() / 10
-            let descriptor = FetchDescriptor<ActivityLog>(
-                predicate: #Predicate { $0.deletedAt == nil && $0.activityID == activityID && $0.date == day }
-            )
-            if let existing = (try? context.fetch(descriptor))?.first {
+            if let existing = existingByDay[day] {
                 // Steps/exercise/active-energy change through the day and Apple can
                 // revise recent days, so refresh the stored value to the latest.
                 // Sleep is left alone (backfill-only): it's the one activity she can
@@ -118,13 +125,19 @@ final class HealthIngestor {
     private func ingestVitals(_ series: HealthSnapshot.VitalSeries) -> Int {
         var wrote = 0
         let typeID = series.typeID
+        // One fetch per type, indexed by day (see ingestActivity): a year of vitals
+        // across several series is thousands of rows, and a fetch per day froze the UI.
+        let descriptor = FetchDescriptor<HealthSample>(
+            predicate: #Predicate { $0.deletedAt == nil && $0.typeID == typeID }
+        )
+        let existingByDay = Dictionary(
+            ((try? context.fetch(descriptor)) ?? []).map { ($0.day.startOfDay, $0) },
+            uniquingKeysWith: { first, _ in first }
+        )
         for (rawDay, rawValue) in series.byDay {
             let day = rawDay.startOfDay
-            let descriptor = FetchDescriptor<HealthSample>(
-                predicate: #Predicate { $0.deletedAt == nil && $0.typeID == typeID && $0.day == day }
-            )
             let value = (rawValue * 10).rounded() / 10
-            if let existing = (try? context.fetch(descriptor))?.first {
+            if let existing = existingByDay[day] {
                 // Vitals (heart rate, HRV, …) are Health-authored; refresh to the latest.
                 if existing.value != value { existing.value = value; existing.touch(); wrote += 1 }
             } else {

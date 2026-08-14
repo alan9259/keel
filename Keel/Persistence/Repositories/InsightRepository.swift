@@ -51,31 +51,19 @@ struct InsightRepository: InsightRepositoring {
         let accent: InsightAccent
     }
 
-    /// Cards come straight from the shared `PatternEngine`, so the Patterns page
-    /// and the daily summary always describe the same patterns. This layer only
-    /// adds the gentle "still learning" / "nothing stands out yet" bookends.
+    /// Cards come straight from the shared `PatternEngine`, so the Patterns page and
+    /// the daily summary always describe the same patterns.
+    ///
+    /// Only real findings become cards. The low-data and no-pattern states are told
+    /// once, accurately and live, by the Patterns screen's "Today's reflection"
+    /// placeholder (`DailySummaryService.placeholderReflection`). A "still learning"
+    /// card here just repeated that message, and its "N days logged so far" count
+    /// went stale between launches (it's only regenerated on launch), so it's gone.
     private func derive() -> [Draft] {
         let engine = PatternEngine.build(context: context)
-        let dayCount = engine.loggedDayCount
-
-        guard dayCount >= Self.minDays else {
-            return [Draft(
-                title: "Still learning your rhythm",
-                detail: "A few more check-ins and Keel can start to notice what tends to move together for you. There's no rush, and no wrong way to do this.",
-                timeframe: "\(dayCount) day\(dayCount == 1 ? "" : "s") logged so far",
-                icon: "sparkles", accent: .sage)]
-        }
-
-        let drafts = engine.findings().map {
+        guard engine.loggedDayCount >= Self.minDays else { return [] }
+        return engine.findings().map {
             Draft(title: $0.title, detail: $0.detail, timeframe: $0.timeframe, icon: $0.icon, accent: $0.accent)
         }
-        if drafts.isEmpty {
-            return [Draft(
-                title: "Nothing stands out yet",
-                detail: "Your check-ins don't show a strong pattern just now, which is completely normal. Keep going and Keel will keep looking with you.",
-                timeframe: "Across \(dayCount) days",
-                icon: "leaf", accent: .sage)]
-        }
-        return drafts
     }
 }

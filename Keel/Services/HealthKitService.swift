@@ -152,20 +152,29 @@ final class HealthKitService {
         return await withCheckedContinuation { continuation in
             let query = HKSampleQuery(sampleType: type, predicate: predicate,
                                       limit: HKObjectQueryNoLimit, sortDescriptors: nil) { [calendar] _, samples, _ in
-                var asleep: [Date: Double] = [:]
-                var inBed: [Date: Double] = [:]
+                // Collect the raw asleep and in-bed intervals per night. We must NOT
+                // sum sample durations: Apple Watch writes many overlapping stage
+                // samples (core/deep/REM), a source may also write a whole-night
+                // `asleepUnspecified` over the top, and a second app or manual entry
+                // can cover the same night again. Summing those double-counts and
+                // produces impossible totals (e.g. 13 hours). Merge overlapping
+                // intervals so each minute of the night is counted once.
+                var asleep: [Date: [ClosedRange<Date>]] = [:]
+                var inBed: [Date: [ClosedRange<Date>]] = [:]
                 let inBedValue = HKCategoryValueSleepAnalysis.inBed.rawValue
                 for sample in (samples as? [HKCategorySample]) ?? [] {
+                    guard sample.endDate > sample.startDate else { continue }
                     let day = calendar.startOfDay(for: sample.endDate)
-                    let hours = sample.endDate.timeIntervalSince(sample.startDate) / 3600
-                    if Self.isAsleep(sample.value) { asleep[day, default: 0] += hours }
-                    else if sample.value == inBedValue { inBed[day, default: 0] += hours }
+                    let interval = sample.startDate...sample.endDate
+                    if Self.isAsleep(sample.value) { asleep[day, default: []].append(interval) }
+                    else if sample.value == inBedValue { inBed[day, default: []].append(interval) }
                 }
                 // Prefer measured "asleep" time; fall back to "in bed" for days that
                 // only have that (e.g. sleep added by hand in the Health app), so
                 // those still count instead of vanishing.
-                var perDay = inBed
-                for (day, h) in asleep { perDay[day] = h }
+                var perDay: [Date: Double] = [:]
+                for (day, ranges) in inBed { perDay[day] = Self.mergedHours(ranges) }
+                for (day, ranges) in asleep { perDay[day] = Self.mergedHours(ranges) }
                 continuation.resume(returning: perDay)
             }
             store.execute(query)
@@ -176,6 +185,25 @@ final class HealthKitService {
     nonisolated private static func isAsleep(_ value: Int) -> Bool {
         [HKCategoryValueSleepAnalysis.asleepUnspecified,
          .asleepCore, .asleepDeep, .asleepREM].map(\.rawValue).contains(value)
+    }
+
+    /// Total hours covered by the union of the given time ranges: overlapping
+    /// samples are counted once, so multi-source or staged sleep isn't summed twice.
+    nonisolated static func mergedHours(_ ranges: [ClosedRange<Date>]) -> Double {
+        let sorted = ranges.sorted { $0.lowerBound < $1.lowerBound }
+        var total: TimeInterval = 0
+        var current: (start: Date, end: Date)?
+        for range in sorted {
+            if var open = current, range.lowerBound <= open.end {
+                if range.upperBound > open.end { open.end = range.upperBound }
+                current = open
+            } else {
+                if let open = current { total += open.end.timeIntervalSince(open.start) }
+                current = (range.lowerBound, range.upperBound)
+            }
+        }
+        if let open = current { total += open.end.timeIntervalSince(open.start) }
+        return total / 3600
     }
 
     // MARK: Quantity aggregation

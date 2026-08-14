@@ -88,11 +88,14 @@ struct PatternsView: View {
         }
     }
 
+    /// Distinct days she has checked in on, so the placeholder can be accurate
+    /// about how far along she is.
+    private var loggedDays: Int {
+        Set(checkIns.map { $0.date.startOfDay }).count
+    }
+
     private var placeholder: String {
-        if checkIns.isEmpty {
-            return "Check in for a little while and Keel will start writing you a short daily reflection here."
-        }
-        return "Keel is putting together today's reflection from your recent check-ins."
+        DailySummaryService.placeholderReflection(loggedDays: loggedDays)
     }
 
     private func refresh() {

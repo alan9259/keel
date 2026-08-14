@@ -32,7 +32,7 @@ extension ChatEngine {
         let earlier = recent.dropLast()
         var lines: [String] = []
         if !earlier.isEmpty {
-            lines.append("Earlier in this conversation:")
+            lines.append("Earlier in this conversation (for context only, do not repeat your own lines):")
             for turn in earlier {
                 lines.append("\(turn.role == .user ? "She" : "You"): \(turn.text)")
             }
@@ -40,7 +40,7 @@ extension ChatEngine {
         }
         lines.append("She just said: \(latest.text)")
         lines.append("")
-        lines.append("Reply as Keel.")
+        lines.append("Reply as Keel to what she just said. Do not repeat any earlier reply; respond fresh to this message.")
         return lines.joined(separator: "\n")
     }
 }

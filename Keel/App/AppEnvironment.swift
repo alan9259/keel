@@ -131,7 +131,19 @@ final class AppEnvironment {
     ///
     /// Requires the HealthKit capability on a signed build; a no-op otherwise
     /// (the authorization request fails on an unsigned build).
-    func syncHealthData() {
+    /// Throttle: this runs on every foreground (`scenePhase .active`), and a full
+    /// import (snapshot + merge) is heavy, so don't repeat it within a short
+    /// window. Today's steps/sleep don't change fast enough to need more often, and
+    /// this stops the app freezing each time it comes forward.
+    private var lastHealthSyncAt: Date?
+    private static let healthSyncMinInterval: TimeInterval = 30 * 60
+
+    func syncHealthData(force: Bool = false) {
+        if !force, let last = lastHealthSyncAt,
+           Date.now.timeIntervalSince(last) < Self.healthSyncMinInterval {
+            return
+        }
+        lastHealthSyncAt = .now
         Task {
             guard await health.requestAuthorization() else { return }
             let snapshot = await health.snapshot(lastDays: Self.healthImportDays)

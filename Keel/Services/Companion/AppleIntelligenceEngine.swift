@@ -39,8 +39,12 @@ final class AppleIntelligenceEngine: ChatEngine {
                     )
                     let prompt = recentPrompt(from: history)
                     var previous = ""
+                    // A little sampling temperature so a fresh session per turn can't
+                    // return a byte-identical greedy reply when two prompts are close
+                    // (the "same answer to different questions" repetition).
+                    let options = GenerationOptions(temperature: 0.7)
                     // `streamResponse` yields the cumulative reply; forward deltas.
-                    for try await partial in session.streamResponse(to: prompt) {
+                    for try await partial in session.streamResponse(to: prompt, options: options) {
                         let text = partial.content
                         let delta = text.hasPrefix(previous) ? String(text.dropFirst(previous.count)) : text
                         previous = text
