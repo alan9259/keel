@@ -29,6 +29,11 @@ struct CheckInModal: View {
 
     @State private var energy: EnergyLevel?
     @State private var notes = ""
+    /// Sleep hours for this day, if any. Editable only when it isn't Apple Health's
+    /// (`sleepFromHealth`): Health is the source of truth for nights it covers, so
+    /// those are read-only, while she can still type a value for a night it doesn't.
+    @State private var sleepHours: Double?
+    @State private var sleepFromHealth = false
     /// Symptom id → severity level (1…3). Absent means unselected.
     @State private var selected: [UUID: Int] = [:]
     /// The "more" picker, where the full grouped list lives.
@@ -64,6 +69,7 @@ struct CheckInModal: View {
                 VStack(alignment: .leading, spacing: 28) {
                     recap
                     energySection
+                    sleepSection
                     diarySection
                     symptomsSection
                     if editingID != nil { removeButton }
@@ -86,6 +92,7 @@ struct CheckInModal: View {
         .onAppear {
             defaultChipOrder = env.symptoms.defaultChips().map(\.id)
             prefillIfEditing()
+            loadSleep()
             #if DEBUG
             if DebugHarness.showSymptomPicker { showingPicker = true }
             #endif
@@ -161,6 +168,85 @@ struct CheckInModal: View {
                 }
             }
         }
+    }
+
+    // MARK: Sleep
+
+    /// Read-only when Apple Health provided this night's sleep (Health wins, no
+    /// competing); otherwise she can add or adjust it herself.
+    @ViewBuilder
+    private var sleepSection: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            HStack {
+                Text("Sleep last night").font(KeelFont.serif(16, weight: .semibold)).foregroundStyle(theme.text)
+                Spacer()
+                if sleepFromHealth {
+                    Label("Apple Health", systemImage: "heart.fill")
+                        .font(KeelFont.sans(12)).foregroundStyle(theme.muted).labelStyle(.titleAndIcon)
+                } else {
+                    Text("Optional").font(KeelFont.sans(12)).foregroundStyle(theme.muted)
+                }
+            }
+            if sleepFromHealth, let h = sleepHours {
+                HStack(spacing: 14) {
+                    Image(systemName: "moon.fill").font(.system(size: 15)).foregroundStyle(theme.sage)
+                    Text(sleepLabel(h)).font(KeelFont.sans(16, weight: .medium)).foregroundStyle(theme.text)
+                    Spacer()
+                }
+                .padding(.horizontal, 14).padding(.vertical, 12)
+                .background(theme.card)
+                .clipShape(RoundedRectangle(cornerRadius: Radius.card, style: .continuous))
+                .overlay(RoundedRectangle(cornerRadius: Radius.card, style: .continuous).stroke(theme.border, lineWidth: 1))
+            } else if let h = sleepHours {
+                HStack(spacing: 14) {
+                    Image(systemName: "moon.fill").font(.system(size: 15)).foregroundStyle(theme.sage)
+                    sleepStep("minus") { adjustSleep(-0.5) }
+                    Text(sleepLabel(h)).font(KeelFont.sans(16, weight: .medium))
+                        .foregroundStyle(theme.text).frame(minWidth: 68)
+                    sleepStep("plus") { adjustSleep(0.5) }
+                    Spacer()
+                    Button { withAnimation { sleepHours = nil } } label: {
+                        Text("Clear").font(KeelFont.sans(12)).foregroundStyle(theme.muted)
+                    }
+                }
+                .padding(.horizontal, 14).padding(.vertical, 10)
+                .background(theme.card)
+                .clipShape(RoundedRectangle(cornerRadius: Radius.card, style: .continuous))
+                .overlay(RoundedRectangle(cornerRadius: Radius.card, style: .continuous).stroke(theme.border, lineWidth: 1))
+            } else {
+                Button { Haptics.selection(); withAnimation { sleepHours = 7.5 } } label: {
+                    HStack(spacing: 6) {
+                        Image(systemName: "moon.fill").font(.system(size: 13))
+                        Text("Add hours").font(KeelFont.body)
+                    }
+                    .foregroundStyle(theme.accent)
+                    .padding(.horizontal, 14).padding(.vertical, 10)
+                    .overlay(Capsule().stroke(theme.accent.opacity(0.5),
+                                              style: StrokeStyle(lineWidth: 1, dash: [4, 3])))
+                }
+                .buttonStyle(.plain)
+            }
+        }
+    }
+
+    private func sleepStep(_ symbol: String, action: @escaping () -> Void) -> some View {
+        Button(action: action) {
+            Image(systemName: symbol).font(.system(size: 13, weight: .semibold))
+                .foregroundStyle(theme.text).frame(width: 30, height: 30)
+                .background(theme.track).clipShape(Circle())
+        }
+        .buttonStyle(.plain)
+    }
+
+    private func adjustSleep(_ delta: Double) {
+        Haptics.selection()
+        let next = (sleepHours ?? 7.5) + delta
+        sleepHours = min(14, max(0.5, next))
+    }
+
+    private func sleepLabel(_ h: Double) -> String {
+        let s = h.truncatingRemainder(dividingBy: 1) == 0 ? String(Int(h)) : String(h)
+        return "\(s) hrs"
     }
 
     private var diarySection: some View {
@@ -315,6 +401,22 @@ struct CheckInModal: View {
         return (try? env.context.fetch(descriptor))?.first
     }
 
+    /// Load this day's sleep from the store. Apple Health rows are shown read-only
+    /// (`sleepFromHealth`); a manual row (or none) stays editable.
+    private func loadSleep() {
+        let day = entryDate.startOfDay
+        let descriptor = FetchDescriptor<ActivityLog>(
+            predicate: #Predicate { $0.activityID == "sleep" && $0.date == day && $0.deletedAt == nil }
+        )
+        if let row = try? env.context.fetch(descriptor).first {
+            sleepHours = row.amount
+            sleepFromHealth = row.source == .healthKit
+        } else {
+            sleepHours = nil
+            sleepFromHealth = false
+        }
+    }
+
     private func save() {
         let byID = Dictionary(uniqueKeysWithValues: env.symptoms.allActive().map { ($0.id, $0) })
         let picked: [(symptom: Symptom, severity: Int)] = selected.compactMap { id, level in
@@ -335,8 +437,34 @@ struct CheckInModal: View {
             env.checkIns.create(mood: mood, energy: (energy ?? .okay).percent,
                                 notes: notes, symptoms: picked, date: stamp)
         }
+        saveSleepIfNeeded()
         env.speech.reset()
         Haptics.success()
         onClose(true)
+    }
+
+    /// Persist a MANUAL sleep entry (`ActivityLog` "sleep", source `.manual`), so it
+    /// feeds the dashboard. Skipped when Apple Health owns this night, so it never
+    /// overwrites Health; clearing her own entry removes it.
+    private func saveSleepIfNeeded() {
+        guard !sleepFromHealth else { return }
+        let day = entryDate.startOfDay
+        let descriptor = FetchDescriptor<ActivityLog>(
+            predicate: #Predicate { $0.activityID == "sleep" && $0.date == day && $0.deletedAt == nil }
+        )
+        let existing = try? env.context.fetch(descriptor).first
+        if let hours = sleepHours {
+            if let existing {
+                existing.amount = hours
+                existing.source = .manual
+                existing.touch()
+            } else {
+                env.context.insert(ActivityLog(date: day, activityID: "sleep", amount: hours,
+                                               source: .manual, ownerID: env.auth.ownerID))
+            }
+        } else if let existing, existing.source == .manual {
+            existing.softDelete() // she cleared her own entry
+        }
+        try? env.context.save()
     }
 }

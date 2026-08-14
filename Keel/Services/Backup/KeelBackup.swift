@@ -396,6 +396,8 @@ struct ActivityLogDTO: Codable {
     var date: Date
     var activityID: String
     var amount: Double
+    /// Optional so pre-source archives still decode (they restore as `.manual`).
+    var sourceRaw: String?
     // Syncable envelope (optional so pre-sync archives still decode).
     var ownerID: String?
     var createdAt: Date?
@@ -405,6 +407,7 @@ struct ActivityLogDTO: Codable {
 
     init(_ m: ActivityLog) {
         id = m.id; date = m.date; activityID = m.activityID; amount = m.amount
+        sourceRaw = m.sourceRaw
         ownerID = m.ownerID; createdAt = m.createdAt; updatedAt = m.updatedAt
         deletedAt = m.deletedAt; syncStatusRaw = m.syncStatusRaw
     }
@@ -412,6 +415,7 @@ struct ActivityLogDTO: Codable {
     func model() -> ActivityLog {
         let m = ActivityLog(
             id: id, date: date, activityID: activityID, amount: amount,
+            source: sourceRaw.flatMap(DataSource.init(rawValue:)) ?? .manual,
             ownerID: ownerID ?? "", createdAt: createdAt ?? .now,
             updatedAt: updatedAt ?? .now, deletedAt: deletedAt
         )

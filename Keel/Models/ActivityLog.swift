@@ -31,6 +31,12 @@ final class ActivityLog: Syncable {
     var date: Date = Date.now
     var activityID: String = ""
     var amount: Double = 0
+    /// Where this row came from. Lets Apple Health be the source of truth for a
+    /// metric like sleep (a `.healthKit` row is authoritative and shown read-only)
+    /// while she can still type a value for a day Health doesn't cover (`.manual`),
+    /// so the two never compete over the same day. Defaults to `.manual` so any
+    /// existing row reads as hers.
+    var sourceRaw: String = DataSource.manual.rawValue
 
     // Syncable
     var ownerID: String = ""
@@ -39,11 +45,17 @@ final class ActivityLog: Syncable {
     var deletedAt: Date?
     var syncStatusRaw: String = SyncStatus.pendingUpload.rawValue
 
+    var source: DataSource {
+        get { DataSource(rawValue: sourceRaw) ?? .manual }
+        set { sourceRaw = newValue.rawValue }
+    }
+
     init(
         id: UUID = UUID(),
         date: Date,
         activityID: String,
         amount: Double,
+        source: DataSource = .manual,
         ownerID: String,
         createdAt: Date = Date.now,
         updatedAt: Date = Date.now,
@@ -54,6 +66,7 @@ final class ActivityLog: Syncable {
         self.date = date.startOfDay
         self.activityID = activityID
         self.amount = amount
+        self.sourceRaw = source.rawValue
         self.ownerID = ownerID
         self.createdAt = createdAt
         self.updatedAt = updatedAt

@@ -177,6 +177,7 @@ extension ActivityLog: RemoteMappable {
             "date": .date(date),
             "activityID": .string(activityID),
             "amount": .double(amount),
+            "sourceRaw": .string(sourceRaw),
         ]
     }
 }
@@ -514,15 +515,17 @@ struct RemoteApplier {
         let date = r.fields["date"]?.asDate ?? r.createdAt
         let activityID = r.fields["activityID"]?.asString ?? ""
         let amount = r.fields["amount"]?.asDouble ?? 0
+        let source = r.fields["sourceRaw"]?.asString.flatMap(DataSource.init(rawValue:)) ?? .manual
         if let existing = fetchByID(FetchDescriptor<ActivityLog>(predicate: #Predicate { $0.id == id })) {
             guard !isStale(existing, r) else { return }
             existing.date = date
             existing.activityID = activityID
             existing.amount = amount
+            existing.source = source
             applyEnvelope(r, to: existing)
         } else {
             let m = ActivityLog(
-                id: id, date: date, activityID: activityID, amount: amount,
+                id: id, date: date, activityID: activityID, amount: amount, source: source,
                 ownerID: r.ownerID, createdAt: r.createdAt, updatedAt: r.updatedAt,
                 deletedAt: r.deletedAt, syncStatus: .synced
             )

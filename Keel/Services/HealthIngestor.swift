@@ -103,17 +103,19 @@ final class HealthIngestor {
             let day = rawDay.startOfDay
             let value = (rawValue * 10).rounded() / 10
             if let existing = existingByDay[day] {
-                // Refresh the stored value to the latest: steps/exercise/energy change
-                // through the day and Apple revises recent days. Sleep is included:
-                // Apple Health is the single source of truth for sleep now (she no
-                // longer types it by hand), so a corrected reading always wins.
-                if existing.amount != value {
+                // Never overwrite a value she typed by hand: Health and her manual
+                // entries own different days and don't compete. For Health-authored
+                // rows, refresh to the latest (steps/exercise/energy change through
+                // the day, Apple revises recent days, and a corrected sleep reading
+                // should win over the earlier inflated one).
+                if existing.source != .manual, existing.amount != value {
                     existing.amount = value
                     existing.touch()
                     wrote += 1
                 }
             } else {
-                context.insert(ActivityLog(date: day, activityID: activityID, amount: value, ownerID: ownerID()))
+                context.insert(ActivityLog(date: day, activityID: activityID, amount: value,
+                                           source: .healthKit, ownerID: ownerID()))
                 wrote += 1
             }
         }
