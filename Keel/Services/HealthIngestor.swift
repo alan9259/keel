@@ -103,11 +103,11 @@ final class HealthIngestor {
             let day = rawDay.startOfDay
             let value = (rawValue * 10).rounded() / 10
             if let existing = existingByDay[day] {
-                // Steps/exercise/active-energy change through the day and Apple can
-                // revise recent days, so refresh the stored value to the latest.
-                // Sleep is left alone (backfill-only): it's the one activity she can
-                // type by hand, and `ActivityLog` has no source tag to tell them apart.
-                if activityID != "sleep", existing.amount != value {
+                // Refresh the stored value to the latest: steps/exercise/energy change
+                // through the day and Apple revises recent days. Sleep is included:
+                // Apple Health is the single source of truth for sleep now (she no
+                // longer types it by hand), so a corrected reading always wins.
+                if existing.amount != value {
                     existing.amount = value
                     existing.touch()
                     wrote += 1

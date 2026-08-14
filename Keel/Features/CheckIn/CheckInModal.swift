@@ -28,7 +28,6 @@ struct CheckInModal: View {
     private var symptoms: [Symptom]
 
     @State private var energy: EnergyLevel?
-    @State private var sleepHours: Double?
     @State private var notes = ""
     /// Symptom id → severity level (1…3). Absent means unselected.
     @State private var selected: [UUID: Int] = [:]
@@ -65,7 +64,6 @@ struct CheckInModal: View {
                 VStack(alignment: .leading, spacing: 28) {
                     recap
                     energySection
-                    sleepSection
                     diarySection
                     symptomsSection
                     if editingID != nil { removeButton }
@@ -163,65 +161,6 @@ struct CheckInModal: View {
                 }
             }
         }
-    }
-
-    private var sleepSection: some View {
-        VStack(alignment: .leading, spacing: 12) {
-            HStack {
-                Text("Sleep last night").font(KeelFont.serif(16, weight: .semibold)).foregroundStyle(theme.text)
-                Spacer()
-                Text("Optional").font(KeelFont.sans(12)).foregroundStyle(theme.muted)
-            }
-            if let h = sleepHours {
-                HStack(spacing: 14) {
-                    Image(systemName: "moon.fill").font(.system(size: 15)).foregroundStyle(theme.sage)
-                    sleepStep("minus") { adjustSleep(-0.5) }
-                    Text(sleepLabel(h)).font(KeelFont.sans(16, weight: .medium))
-                        .foregroundStyle(theme.text).frame(minWidth: 68)
-                    sleepStep("plus") { adjustSleep(0.5) }
-                    Spacer()
-                    Button { withAnimation { sleepHours = nil } } label: {
-                        Text("Clear").font(KeelFont.sans(12)).foregroundStyle(theme.muted)
-                    }
-                }
-                .padding(.horizontal, 14).padding(.vertical, 10)
-                .background(theme.card)
-                .clipShape(RoundedRectangle(cornerRadius: Radius.card, style: .continuous))
-                .overlay(RoundedRectangle(cornerRadius: Radius.card, style: .continuous).stroke(theme.border, lineWidth: 1))
-            } else {
-                Button { Haptics.selection(); withAnimation { sleepHours = 7.5 } } label: {
-                    HStack(spacing: 6) {
-                        Image(systemName: "moon.fill").font(.system(size: 13))
-                        Text("Add hours").font(KeelFont.body)
-                    }
-                    .foregroundStyle(theme.accent)
-                    .padding(.horizontal, 14).padding(.vertical, 10)
-                    .overlay(Capsule().stroke(theme.accent.opacity(0.5),
-                                              style: StrokeStyle(lineWidth: 1, dash: [4, 3])))
-                }
-                .buttonStyle(.plain)
-            }
-        }
-    }
-
-    private func sleepStep(_ symbol: String, action: @escaping () -> Void) -> some View {
-        Button(action: action) {
-            Image(systemName: symbol).font(.system(size: 13, weight: .semibold))
-                .foregroundStyle(theme.text).frame(width: 30, height: 30)
-                .background(theme.track).clipShape(Circle())
-        }
-        .buttonStyle(.plain)
-    }
-
-    private func adjustSleep(_ delta: Double) {
-        Haptics.selection()
-        let next = (sleepHours ?? 7.5) + delta
-        sleepHours = min(14, max(0.5, next))
-    }
-
-    private func sleepLabel(_ h: Double) -> String {
-        let s = h.truncatingRemainder(dividingBy: 1) == 0 ? String(Int(h)) : String(h)
-        return "\(s) hrs"
     }
 
     private var diarySection: some View {
@@ -369,20 +308,11 @@ struct CheckInModal: View {
             (entry.symptomLinks ?? []).filter { !$0.isTombstoned }.compactMap { link in
                 link.symptom.map { ($0.id, link.severity) }
             })
-        sleepHours = existingSleep(for: entry.date)
     }
 
     private func fetchEntry(_ id: UUID) -> CheckIn? {
         let descriptor = FetchDescriptor<CheckIn>(predicate: #Predicate { $0.id == id })
         return (try? env.context.fetch(descriptor))?.first
-    }
-
-    private func existingSleep(for date: Date) -> Double? {
-        let day = date.startOfDay
-        let descriptor = FetchDescriptor<ActivityLog>(
-            predicate: #Predicate { $0.activityID == "sleep" && $0.date == day && $0.deletedAt == nil }
-        )
-        return (try? env.context.fetch(descriptor))?.first?.amount
     }
 
     private func save() {
@@ -405,25 +335,8 @@ struct CheckInModal: View {
             env.checkIns.create(mood: mood, energy: (energy ?? .okay).percent,
                                 notes: notes, symptoms: picked, date: stamp)
         }
-        saveSleepIfNeeded()
         env.speech.reset()
         Haptics.success()
         onClose(true)
-    }
-
-    /// Upsert this entry's sleep into an `ActivityLog` (activityID "sleep") so it
-    /// feeds the dashboard's sleep chart and ring. Only written if she added hours.
-    private func saveSleepIfNeeded() {
-        guard let hours = sleepHours else { return }
-        let day = entryDate.startOfDay
-        let descriptor = FetchDescriptor<ActivityLog>(
-            predicate: #Predicate { $0.activityID == "sleep" && $0.date == day }
-        )
-        if let existing = try? env.context.fetch(descriptor).first {
-            existing.amount = hours
-        } else {
-            env.context.insert(ActivityLog(date: day, activityID: "sleep", amount: hours, ownerID: env.auth.ownerID))
-        }
-        try? env.context.save()
     }
 }
