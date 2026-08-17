@@ -8,7 +8,7 @@ protocol CycleRepositoring {
     func flow(on date: Date) -> FlowLevel?
     func setFlow(_ level: FlowLevel?, on date: Date)
     func togglePeriodDay(_ date: Date)
-    func lastPeriodStart(before date: Date) -> Date?
+    func cycleStart(before date: Date) -> Date?
     func estimatedPhase(on date: Date) -> CyclePhase
     func stats(lookbackDays: Int, now: Date) -> CycleStats
 }
@@ -80,36 +80,29 @@ struct CycleRepository: CycleRepositoring {
     }
 
     /// Cycle arithmetic over her recent period starts (for the timeline, the
-    /// history and the gentle next-period estimate). Reads real entries only.
+    /// history, the gentle next-period estimate and the phase). Reads real entries
+    /// only. Cycle boundaries are defined by real menstruation, so isolated
+    /// `.spotting` days are excluded: a stray spotting day never starts a "cycle"
+    /// and so can't skew the phase or the estimate (spotting still shows on the
+    /// timeline, which reads entries separately).
     func stats(lookbackDays: Int = 400, now: Date = .now) -> CycleStats {
         let from = now.startOfDay.adding(days: -lookbackDays)
         let days = entries(from: from, to: now)
-            .filter { $0.type != .periodEnd }
+            .filter { $0.type != .periodEnd && $0.flowLevel != .spotting }
             .map { $0.date.startOfDay }
         return CycleStats(starts: CycleStats.periodStarts(fromDays: days))
     }
 
-    func lastPeriodStart(before date: Date) -> Date? {
-        let ceiling = date.startOfDay.adding(days: 1)
-        var descriptor = FetchDescriptor<CycleEntry>(
-            predicate: #Predicate { $0.deletedAt == nil && $0.date < ceiling },
-            sortBy: [SortDescriptor(\.date, order: .reverse)]
-        )
-        descriptor.fetchLimit = 1
-        return (try? context.fetch(descriptor))?.first?.date
+    /// The start of the current cycle (first day of the most recent menstruation
+    /// run on or before `date`), the anchor for "Day N", the estimate and the phase.
+    func cycleStart(before date: Date) -> Date? {
+        stats(now: date).currentCycleStart(on: date)
     }
 
-    /// Rough phase estimate. Perimenopausal cycles are irregular, so this is a
-    /// gentle heuristic, not a clinical prediction.
+    /// Gentle phase estimate, anchored to the cycle start and scaled to her own
+    /// length. Perimenopausal cycles are irregular, so this is a guide, not a
+    /// clinical prediction. Delegates to the pure `CycleStats.phase`.
     func estimatedPhase(on date: Date) -> CyclePhase {
-        guard let lastStart = lastPeriodStart(before: date) else { return .unknown }
-        let day = date.days(since: lastStart)
-        switch day {
-        case 0..<5: return .menstrual
-        case 5..<13: return .follicular
-        case 13..<16: return .ovulation
-        case 16..<40: return .luteal
-        default: return .unknown
-        }
+        stats(now: date).phase(on: date)
     }
 }

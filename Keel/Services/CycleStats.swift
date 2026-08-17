@@ -83,4 +83,54 @@ struct CycleStats {
               let to = calendar.date(byAdding: .day, value: hi, to: last) else { return nil }
         return from...to
     }
+
+    // MARK: - Phase
+
+    /// The start of the cycle that `date` falls in: the most recent period start on
+    /// or before it. Since `starts` already excludes isolated spotting (the caller
+    /// builds them from menstruation days), a stray spotting day or a backfilled
+    /// older cycle can't move this anchor.
+    func currentCycleStart(on date: Date) -> Date? {
+        let day = calendar.startOfDay(for: date)
+        return starts.last { $0 <= day }
+    }
+
+    /// Median of her recent cycle lengths, for scaling the phase to her own cycle
+    /// rather than a fixed 28 days. Nil until there's at least one full cycle.
+    var medianRecentLength: Int? {
+        let sorted = recentLengths.sorted()
+        guard !sorted.isEmpty else { return nil }
+        let mid = sorted.count / 2
+        return sorted.count.isMultiple(of: 2) ? (sorted[mid - 1] + sorted[mid]) / 2 : sorted[mid]
+    }
+
+    /// A gentle estimate of where she is in her cycle, anchored to the current
+    /// cycle start and scaled to her own length when there's enough history. This
+    /// is a guide, not a prediction: perimenopausal cycles are irregular, so it
+    /// stays `.unknown` before a start and once she's well past a plausible cycle.
+    func phase(on date: Date) -> CyclePhase {
+        guard let start = currentCycleStart(on: date) else { return .unknown }
+        let day = calendar.dateComponents([.day], from: start, to: calendar.startOfDay(for: date)).day ?? -1
+        guard day >= 0 else { return .unknown }
+
+        // Scale to her median length once there are a few cycles; otherwise use the
+        // textbook 28-day boundaries.
+        if cycleLengths.count >= Self.estimateBasisCount, let med = medianRecentLength, med >= 20 {
+            let ovulation = max(6, med - 14) // luteal phase runs ~14 days to the next period
+            switch day {
+            case 0..<5: return .menstrual
+            case 5..<(ovulation - 1): return .follicular
+            case (ovulation - 1)..<(ovulation + 2): return .ovulation
+            case (ovulation + 2)..<(med + 8): return .luteal
+            default: return .unknown
+            }
+        }
+        switch day {
+        case 0..<5: return .menstrual
+        case 5..<13: return .follicular
+        case 13..<16: return .ovulation
+        case 16..<40: return .luteal
+        default: return .unknown
+        }
+    }
 }

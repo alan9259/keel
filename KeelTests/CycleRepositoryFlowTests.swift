@@ -46,6 +46,27 @@ final class CycleRepositoryFlowTests: XCTestCase {
         XCTAssertEqual(stats.cycleLengths, [28, 28])
     }
 
+    func testSpottingDayDoesNotReanchorThePhase() {
+        let base = Date.now.startOfDay
+        repo.setFlow(.medium, on: base.adding(days: -28)) // a real period start 28 days ago
+        // A stray spotting day mid-cycle must not be mistaken for a new cycle start.
+        repo.setFlow(.spotting, on: base.adding(days: -3))
+        // Anchored to the real start (day 28 → luteal), not the spotting day (which
+        // would read menstrual if it counted).
+        XCTAssertEqual(repo.cycleStart(before: base), base.adding(days: -28))
+        XCTAssertEqual(repo.estimatedPhase(on: base), .luteal)
+    }
+
+    func testCatchingUpTheLatestPeriodReanchorsThePhase() {
+        let base = Date.now.startOfDay
+        repo.setFlow(.medium, on: base.adding(days: -40)) // old start; day 40 → unknown/overdue
+        XCTAssertEqual(repo.estimatedPhase(on: base), .unknown)
+        // She backfills the period she actually had 3 days ago → phase re-anchors.
+        repo.setFlow(.medium, on: base.adding(days: -3))
+        XCTAssertEqual(repo.cycleStart(before: base), base.adding(days: -3))
+        XCTAssertEqual(repo.estimatedPhase(on: base), .menstrual) // day 3
+    }
+
     func testHealthFlowPreservesManualAndFillsGaps() {
         let base = Date.now.startOfDay
         let manualDay = base.adding(days: -1)

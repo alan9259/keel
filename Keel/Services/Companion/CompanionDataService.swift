@@ -190,7 +190,7 @@ struct CompanionDataService {
         let start = windowStart(days: days)
         let events = cycle.entries(from: start, to: .now)
             .map { CycleEventSummary(date: label($0.date), type: $0.type.rawValue) }
-        let last = cycle.lastPeriodStart(before: .now)
+        let last = cycle.cycleStart(before: .now)
         return CycleSummary(
             events: events,
             lastPeriodStart: last.map(label),

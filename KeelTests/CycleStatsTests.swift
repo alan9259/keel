@@ -61,4 +61,38 @@ final class CycleStatsTests: XCTestCase {
         XCTAssertFalse(stats([0, 28, 56]).canEstimate)   // 2 cycle lengths
         XCTAssertFalse(stats([]).canEstimate)            // nothing logged
     }
+
+    // MARK: Phase (anchored to the cycle start, scaled to her length)
+
+    func testPhaseAnchorsToCycleStartNotTheLastPeriodDay() {
+        // Regular 28-day cycles; the most recent start is day 84.
+        let s = stats([0, 28, 56, 84])
+        XCTAssertEqual(s.phase(on: d(84)), .menstrual)        // day 0
+        XCTAssertEqual(s.phase(on: d(84 + 12)), .follicular)  // day 12
+        // Day 17 of the cycle must read luteal, not ovulation (the bug it fixes).
+        XCTAssertEqual(s.phase(on: d(84 + 17)), .luteal)
+    }
+
+    func testPhaseUnknownBeforeAnyStartAndWhenOverdue() {
+        let s = stats([0, 28, 56, 84])
+        XCTAssertEqual(s.phase(on: d(83)), .luteal)   // still the previous cycle's luteal
+        XCTAssertEqual(s.phase(on: d(-1)), .unknown)  // before the first start
+        XCTAssertEqual(s.phase(on: d(84 + 60)), .unknown) // long overdue → unknown
+    }
+
+    func testPhaseScalesToHerCycleLength() {
+        // Short 24-day cycles → ovulation ~ day 10, so day 12 is luteal.
+        let short = stats([0, 24, 48, 72])
+        XCTAssertEqual(short.phase(on: d(72 + 12)), .luteal)
+        // Long 32-day cycles → ovulation ~ day 18, so day 12 is still follicular.
+        let long = stats([0, 32, 64, 96])
+        XCTAssertEqual(long.phase(on: d(96 + 12)), .follicular)
+    }
+
+    func testCurrentCycleStartIgnoresOlderCyclesForToday() {
+        // Backfilling an older cycle doesn't move today's anchor (day 84 stays).
+        let s = stats([0, 28, 56, 84])
+        XCTAssertEqual(s.currentCycleStart(on: d(90)), d(84))
+        XCTAssertEqual(s.currentCycleStart(on: d(200)), d(84)) // most recent start, even far out
+    }
 }

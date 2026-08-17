@@ -34,16 +34,16 @@ final class CycleRepositoryTests: XCTestCase {
         XCTAssertFalse(repo.isPeriodDay(today.adding(days: 1)))
     }
 
-    func testLastPeriodStartReturnsMostRecentOnOrBefore() {
+    func testCycleStartReturnsMostRecentStartOnOrBefore() {
         let base = Date.now.startOfDay
         repo.togglePeriodDay(base.adding(days: -20))
         repo.togglePeriodDay(base.adding(days: -5))
-        let last = repo.lastPeriodStart(before: base)
+        let last = repo.cycleStart(before: base)
         XCTAssertEqual(last?.startOfDay, base.adding(days: -5).startOfDay)
     }
 
-    func testLastPeriodStartNilWhenNone() {
-        XCTAssertNil(repo.lastPeriodStart(before: .now))
+    func testCycleStartNilWhenNone() {
+        XCTAssertNil(repo.cycleStart(before: .now))
     }
 
     func testEstimatedPhaseUnknownWithoutHistory() {
