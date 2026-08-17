@@ -31,6 +31,8 @@ enum DebugHarness {
     static var startSelDate: Date? { args.contains("-uitYesterday") ? Date.now.startOfDay.adding(days: -1) : nil }
 
     static var showCheckIn: Bool { args.contains("-uitShowCheckIn") }
+    /// Auto-open the cycle day-log sheet, to screenshot it without a tap.
+    static var showCycleSheet: Bool { args.contains("-uitCycleSheet") }
 
     /// Simulate picking a mood in the entry slide → hands off to the detail step.
     static var entryHandoff: Bool { args.contains("-uitEntryHandoff") }
@@ -171,6 +173,25 @@ enum DebugHarness {
                 notes: "Slept poorly, a bit foggy today.",
                 symptoms: picks
             )
+        }
+
+        if args.contains("-uitSeedCycle") {
+            // Regular-ish recent cycles (28, 29, 27 days) plus a current period, so
+            // the timeline shows a cycle in progress and a next-period estimate.
+            let today = Date().startOfDay
+            let owner = env.auth.ownerID
+            // Past period starts (single days is enough to define a start).
+            for off in [-84, -56, -27] {
+                env.context.insert(CycleEntry(date: today.adding(days: off), type: .periodStart,
+                                              flowLevel: .medium, ownerID: owner))
+            }
+            // A current period, days 1-4 of this cycle, with varying flow.
+            let flows: [FlowLevel] = [.heavy, .medium, .light, .spotting]
+            for (i, level) in flows.enumerated() {
+                env.context.insert(CycleEntry(date: today.adding(days: -3 + i), type: .periodStart,
+                                              flowLevel: level, ownerID: owner))
+            }
+            try? env.context.save()
         }
 
         if args.contains("-uitSeedMed") {
