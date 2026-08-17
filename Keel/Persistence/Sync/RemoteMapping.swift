@@ -105,7 +105,10 @@ extension CheckInSymptom: RemoteMappable {
 extension CycleEntry: RemoteMappable {
     static var recordType: String { RecordType.cycleEntry }
     func remoteFields() -> [String: RemoteValue] {
-        ["date": .date(date), "typeRaw": .string(typeRaw), "sourceRaw": .string(sourceRaw)]
+        var f: [String: RemoteValue] = ["date": .date(date), "typeRaw": .string(typeRaw),
+                                        "sourceRaw": .string(sourceRaw)]
+        if let flowLevelRaw { f["flowLevelRaw"] = .string(flowLevelRaw) }
+        return f
     }
 }
 
@@ -384,15 +387,18 @@ struct RemoteApplier {
         let id = r.id
         let type = CycleEntryType(rawValue: r.fields["typeRaw"]?.asString ?? "") ?? .flow
         let source = DataSource(rawValue: r.fields["sourceRaw"]?.asString ?? "") ?? .manual
+        let flowLevel = r.fields["flowLevelRaw"]?.asString.flatMap(FlowLevel.init(rawValue:))
         if let existing = fetchByID(FetchDescriptor<CycleEntry>(predicate: #Predicate { $0.id == id })) {
             guard !isStale(existing, r) else { return }
             if let d = r.fields["date"]?.asDate { existing.date = d }
             existing.typeRaw = type.rawValue
+            existing.flowLevelRaw = flowLevel?.rawValue
             existing.source = source
             applyEnvelope(r, to: existing)
         } else {
             let e = CycleEntry(
-                id: id, date: r.fields["date"]?.asDate ?? r.createdAt, type: type, source: source,
+                id: id, date: r.fields["date"]?.asDate ?? r.createdAt, type: type,
+                flowLevel: flowLevel, source: source,
                 ownerID: r.ownerID, createdAt: r.createdAt, updatedAt: r.updatedAt,
                 deletedAt: r.deletedAt, syncStatus: .synced
             )

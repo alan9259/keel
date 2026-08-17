@@ -700,7 +700,7 @@ enum DebugHarness {
             .init(day: today, hkIdentifier: HKCategoryTypeIdentifier.moodChanges.rawValue, severity: 1),
             .init(day: noCheckInDay, hkIdentifier: HKCategoryTypeIdentifier.nightSweats.rawValue, severity: 3),
         ]
-        snap.menstrualFlowDays = [today.adding(days: -2)]
+        snap.menstrualFlow = [today.adding(days: -2): .medium]
 
         env.ingestHealthSnapshot(snap)
         let afterFirst = healthRowTotals(env)

@@ -20,7 +20,7 @@ enum TestStore {
 
     static let ownerID: OwnerIDProvider = { "test-owner" }
 
-    static var utcCalendar: Calendar {
+    nonisolated static var utcCalendar: Calendar {
         var c = Calendar(identifier: .gregorian)
         c.timeZone = TimeZone(identifier: "UTC")!
         return c

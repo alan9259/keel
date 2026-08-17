@@ -227,6 +227,7 @@ struct CycleEntryDTO: Codable {
     var id: UUID
     var date: Date
     var typeRaw: String
+    var flowLevelRaw: String? // optional so older archives (pre-level) still decode
     var sourceRaw: String?  // optional so older archives (pre-source) still decode
     var ownerID: String
     var createdAt: Date
@@ -235,7 +236,8 @@ struct CycleEntryDTO: Codable {
     var syncStatusRaw: String
 
     init(_ m: CycleEntry) {
-        id = m.id; date = m.date; typeRaw = m.typeRaw; sourceRaw = m.sourceRaw
+        id = m.id; date = m.date; typeRaw = m.typeRaw
+        flowLevelRaw = m.flowLevelRaw; sourceRaw = m.sourceRaw
         ownerID = m.ownerID; createdAt = m.createdAt; updatedAt = m.updatedAt
         deletedAt = m.deletedAt; syncStatusRaw = m.syncStatusRaw
     }
@@ -243,6 +245,7 @@ struct CycleEntryDTO: Codable {
     func model() -> CycleEntry {
         let m = CycleEntry(
             id: id, date: date, type: CycleEntryType(rawValue: typeRaw) ?? .flow,
+            flowLevel: flowLevelRaw.flatMap(FlowLevel.init(rawValue:)),
             source: DataSource(rawValue: sourceRaw ?? "") ?? .manual,
             ownerID: ownerID, createdAt: createdAt, updatedAt: updatedAt, deletedAt: deletedAt
         )

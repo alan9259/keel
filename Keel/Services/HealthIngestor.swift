@@ -79,7 +79,7 @@ final class HealthIngestor {
         summary.symptomsLinked = linked
         summary.symptomsArchived = archived
 
-        summary.flow = ingestFlow(snapshot.menstrualFlowDays)
+        summary.flow = ingestFlow(snapshot.menstrualFlow)
 
         try? context.save()
         return summary
@@ -194,17 +194,27 @@ final class HealthIngestor {
 
     // MARK: Menstrual flow → cycle entries
 
-    private func ingestFlow(_ days: [Date]) -> Int {
+    private func ingestFlow(_ byDay: [Date: FlowLevel]) -> Int {
         var wrote = 0
-        for rawDay in days {
+        for (rawDay, level) in byDay {
             let day = rawDay.startOfDay
             let end = day.adding(days: 1)
             let descriptor = FetchDescriptor<CycleEntry>(
                 predicate: #Predicate { $0.deletedAt == nil && $0.date >= day && $0.date < end }
             )
-            guard (try? context.fetch(descriptor))?.first == nil else { continue }
-            context.insert(CycleEntry(date: day, type: .periodStart, source: .healthKit, ownerID: ownerID()))
-            wrote += 1
+            if let existing = (try? context.fetch(descriptor))?.first {
+                // Health owns its own days and self-corrects, but never overwrites a
+                // period day she logged by hand (same rule as sleep and steps).
+                if existing.source != .manual, existing.flowLevel != level {
+                    existing.flowLevel = level
+                    existing.touch()
+                    wrote += 1
+                }
+            } else {
+                context.insert(CycleEntry(date: day, type: .periodStart, flowLevel: level,
+                                          source: .healthKit, ownerID: ownerID()))
+                wrote += 1
+            }
         }
         return wrote
     }

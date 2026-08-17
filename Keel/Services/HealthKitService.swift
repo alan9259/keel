@@ -14,7 +14,8 @@ struct HealthSnapshot {
     /// Symptom occurrences from Health's own Symptoms category.
     var symptoms: [SymptomOccurrence] = []
     /// Days Apple Health recorded menstrual flow (any level but "none").
-    var menstrualFlowDays: [Date] = []
+    /// Menstrual-flow days from Apple Health, keyed to the heaviness she recorded.
+    var menstrualFlow: [Date: FlowLevel] = [:]
 
     struct VitalSeries {
         let typeID: String
@@ -138,7 +139,7 @@ final class HealthKitService {
         }
 
         snapshot.symptoms = await symptomOccurrences(lastDays: lastDays)
-        snapshot.menstrualFlowDays = await menstrualFlowDays(lastDays: lastDays)
+        snapshot.menstrualFlow = await menstrualFlow(lastDays: lastDays)
         return snapshot
     }
 
@@ -293,20 +294,34 @@ final class HealthKitService {
 
     // MARK: Menstrual flow
 
-    private func menstrualFlowDays(lastDays: Int) async -> [Date] {
-        guard let type = HKObjectType.categoryType(forIdentifier: .menstrualFlow) else { return [] }
+    private func menstrualFlow(lastDays: Int) async -> [Date: FlowLevel] {
+        guard let type = HKObjectType.categoryType(forIdentifier: .menstrualFlow) else { return [:] }
         let predicate = HKQuery.predicateForSamples(withStart: floor(lastDays), end: Date(), options: [])
         return await withCheckedContinuation { continuation in
             let query = HKSampleQuery(sampleType: type, predicate: predicate,
                                       limit: HKObjectQueryNoLimit, sortDescriptors: nil) { [calendar] _, samples, _ in
-                var days = Set<Date>()
-                for sample in (samples as? [HKCategorySample]) ?? []
-                    where sample.value != HKCategoryValueVaginalBleeding.none.rawValue {
-                    days.insert(calendar.startOfDay(for: sample.startDate))
+                var byDay: [Date: FlowLevel] = [:]
+                for sample in (samples as? [HKCategorySample]) ?? [] {
+                    guard let level = Self.flowLevel(from: sample.value) else { continue } // skips "none"
+                    let day = calendar.startOfDay(for: sample.startDate)
+                    // If several samples fall on a day, keep the heaviest.
+                    if let existing = byDay[day], existing.intensity >= level.intensity { continue }
+                    byDay[day] = level
                 }
-                continuation.resume(returning: Array(days))
+                continuation.resume(returning: byDay)
             }
             store.execute(query)
+        }
+    }
+
+    /// Map Apple Health's bleeding level to ours; `none` returns nil (not a period day).
+    nonisolated private static func flowLevel(from value: Int) -> FlowLevel? {
+        switch HKCategoryValueVaginalBleeding(rawValue: value) {
+        case .light: return .light
+        case .medium: return .medium
+        case .heavy: return .heavy
+        case .unspecified: return .unspecified
+        default: return nil // .none or unknown
         }
     }
 

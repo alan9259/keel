@@ -112,6 +112,44 @@ enum CycleEntryType: String, Codable {
     case flow
 }
 
+/// How heavy a period day was, mirroring Apple Health's menstrual-flow levels
+/// (`HKCategoryValueVaginalBleeding`). A day with no entry is simply not a period
+/// day; a `.unspecified` entry is a period day she logged without a level.
+enum FlowLevel: String, Codable, CaseIterable, Identifiable {
+    case spotting
+    case light
+    case medium
+    case heavy
+    case unspecified
+
+    var id: String { rawValue }
+
+    var label: String {
+        switch self {
+        case .spotting: "Spotting"
+        case .light: "Light"
+        case .medium: "Medium"
+        case .heavy: "Heavy"
+        case .unspecified: "Period"
+        }
+    }
+
+    /// 1...4 weight for the timeline fill (spotting lightest, heavy darkest); a
+    /// plain period reads at the solid mid weight.
+    var intensity: Int {
+        switch self {
+        case .spotting: 1
+        case .light: 2
+        case .medium: 3
+        case .heavy: 4
+        case .unspecified: 3
+        }
+    }
+
+    /// The order shown in the log sheet.
+    static let loggingOrder: [FlowLevel] = [.spotting, .light, .medium, .heavy]
+}
+
 /// Where a logged record came from. Defaults to `manual` (she logged it); Apple
 /// Health imports are tagged `healthKit` so we keep provenance and never
 /// double-count her own entries against imported ones.
