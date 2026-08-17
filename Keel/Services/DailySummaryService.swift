@@ -45,39 +45,107 @@ final class DailySummaryService {
 
     // MARK: Generation
 
-    /// Generate today's summary if the day hasn't been written yet. Called on
-    /// launch, so it runs once on the first open of each calendar day.
+    /// Refresh on launch. A reflection is keyed to a CHANGE in her patterns, not to
+    /// the calendar: it only writes a new entry when today's patterns differ from
+    /// the most recent reflection, so "Looking back" doesn't fill with identical
+    /// entries when nothing has changed.
     func refreshIfNeeded() async {
         cleanUpLowContentSummaries()
-        guard today() == nil else { return }
-        await generate()
+        dedupUnchangedSummaries()
+        await generate(force: false)
     }
 
-    /// Rebuild today's summary from scratch (e.g. a manual "refresh" tap).
+    /// Manual "refresh" tap: re-evaluate now, and re-word the current reflection
+    /// even if the underlying pattern is unchanged (so the button does something),
+    /// without adding a duplicate to the history.
     func regenerate() async {
         cleanUpLowContentSummaries()
-        await generate()
+        dedupUnchangedSummaries()
+        await generate(force: true)
     }
 
-    private func generate() async {
-        let engine = PatternEngine.build(context: context)
-        let findings = engine.findings()
-        // Nothing worth reflecting on yet. Don't store a placeholder reflection: a
-        // fixed "still learning" line, stored every day, turned "Looking back" into
-        // a wall of identical entries (reported bug). The Patterns screen shows a
-        // live, day-count-accurate note instead (`placeholderReflection`), which is
-        // never persisted and so can't repeat in the history.
+    private func generate(force: Bool) async {
+        let findings = PatternEngine.build(context: context).findings()
+        // Nothing worth reflecting on yet: the Patterns screen shows a live,
+        // day-count-accurate note (`placeholderReflection`) instead of a stored one.
         guard !findings.isEmpty else { return }
 
         let facts = findings.map(\.fact)
+        let signature = Self.signature(of: facts)
+        let latest = mostRecent()
+        let changed = latest?.signalsJSON != signature
+
+        // Unchanged and not a manual refresh → the existing reflection still stands,
+        // so add nothing (this is what stops the per-day duplicates).
+        guard changed || force else { return }
+
         var text = findings[0].detail
         var source = DailySummarySource.deterministic
-        // Ask the model to narrate the real facts into a warm paragraph.
         if let narrated = await narrate(facts: facts), !narrated.isEmpty {
             text = narrated
             source = .ai
         }
-        persist(text: text, source: source, facts: facts)
+
+        if changed {
+            // A different pattern → a new dated reflection (or replace today's, so a
+            // pattern that shifts within a day doesn't leave two entries for it).
+            if let todays = today() {
+                apply(text: text, source: source, signature: signature, to: todays)
+            } else {
+                context.insert(DailySummary(
+                    day: Date().startOfDay, text: text, source: source,
+                    signalsJSON: signature, generatedAt: .now,
+                    ownerID: ownerID(), syncStatus: .synced))
+            }
+        } else if let latest {
+            // Same pattern, manual refresh → freshen the wording in place, no new row.
+            apply(text: text, source: source, signature: signature, to: latest)
+        }
+        try? context.save()
+    }
+
+    private func apply(text: String, source: DailySummarySource, signature: String, to summary: DailySummary) {
+        summary.text = text
+        summary.source = source
+        summary.signalsJSON = signature
+        summary.generatedAt = .now
+        summary.updatedAt = .now
+    }
+
+    /// The most recent stored reflection, of any day.
+    private func mostRecent() -> DailySummary? {
+        var d = FetchDescriptor<DailySummary>(
+            predicate: #Predicate { $0.deletedAt == nil },
+            sortBy: [SortDescriptor(\.day, order: .reverse), SortDescriptor(\.generatedAt, order: .reverse)])
+        d.fetchLimit = 1
+        return (try? context.fetch(d))?.first
+    }
+
+    /// Stable fingerprint of the day's grounded facts, matched against a stored
+    /// `signalsJSON` to tell whether the pattern has actually changed.
+    nonisolated static func signature(of facts: [String]) -> String {
+        (try? JSONEncoder().encode(facts)).flatMap { String(data: $0, encoding: .utf8) } ?? facts.joined(separator: "|")
+    }
+
+    /// Collapse runs of consecutive reflections that describe the SAME pattern down
+    /// to the first (when that pattern began). Cleans up the per-day duplicates
+    /// earlier builds left, and is a harmless no-op once generation is change-keyed.
+    private func dedupUnchangedSummaries() {
+        let ascending = (try? context.fetch(FetchDescriptor<DailySummary>(
+            predicate: #Predicate { $0.deletedAt == nil },
+            sortBy: [SortDescriptor(\.day), SortDescriptor(\.generatedAt)]))) ?? []
+        var previousSignature: String?
+        var changed = false
+        for summary in ascending {
+            let signature = summary.signalsJSON ?? ""
+            if signature == previousSignature {
+                summary.softDelete() // same pattern as the one before it → redundant
+                changed = true
+            } else {
+                previousSignature = signature
+            }
+        }
+        if changed { try? context.save() }
     }
 
     /// The live "not enough to reflect on yet" note shown on the Patterns screen
@@ -114,23 +182,6 @@ final class DailySummaryService {
             changed = true
         }
         if changed { try? context.save() }
-    }
-
-    private func persist(text: String, source: DailySummarySource, facts: [String]) {
-        let signalsJSON = (try? JSONEncoder().encode(facts)).flatMap { String(data: $0, encoding: .utf8) }
-        if let existing = today() {
-            existing.text = text
-            existing.source = source
-            existing.signalsJSON = signalsJSON
-            existing.generatedAt = .now
-            existing.updatedAt = .now
-        } else {
-            context.insert(DailySummary(
-                day: Date().startOfDay, text: text, source: source,
-                signalsJSON: signalsJSON, generatedAt: .now,
-                ownerID: ownerID(), syncStatus: .synced))
-        }
-        try? context.save()
     }
 
     /// Narrate grounded facts with Apple Intelligence. Returns nil (falling back

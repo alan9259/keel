@@ -15,16 +15,13 @@ struct PatternsView: View {
 
     @State private var isRefreshing = false
 
-    private var today: DailySummary? {
-        let day = Date().startOfDay
-        return summaries.first { $0.day == day }
-    }
+    /// The current reflection is the most recent one, whatever day it was written:
+    /// a reflection is keyed to a change in her patterns, not the calendar, so it
+    /// stands until something is different (see `DailySummaryService`).
+    private var latest: DailySummary? { summaries.first }
 
-    /// Earlier days, most recent first.
-    private var past: [DailySummary] {
-        let day = Date().startOfDay
-        return summaries.filter { $0.day != day }.prefix(14).map { $0 }
-    }
+    /// Earlier distinct reflections, most recent first.
+    private var past: [DailySummary] { Array(summaries.dropFirst().prefix(14)) }
 
     var body: some View {
         ScrollView {
@@ -75,7 +72,7 @@ struct PatternsView: View {
                     .accessibilityLabel("Refresh today's reflection")
                 }
 
-                if let summary = today {
+                if let summary = latest {
                     Text(summary.text)
                         .font(KeelFont.serif(17, weight: .regular)).foregroundStyle(theme.heading).lineSpacing(4)
                         .fixedSize(horizontal: false, vertical: true)
