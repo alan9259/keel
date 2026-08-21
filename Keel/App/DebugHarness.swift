@@ -175,6 +175,25 @@ enum DebugHarness {
             )
         }
 
+        if args.contains("-uitSeedVitals") {
+            // 16 days of resting HR + HRV, with resting HR running higher after the
+            // shorter-sleep nights, so the "Your body lately" card and its sleep note
+            // both render on the sim (which has no real Apple Health data).
+            let owner = env.auth.ownerID
+            let today = Date().startOfDay
+            for i in 0..<16 {
+                let day = today.adding(days: -i)
+                let short = i.isMultiple(of: 2)
+                env.context.insert(HealthSample(typeID: "restingHeartRate", day: day,
+                                                value: short ? 66 : 60, unit: "bpm", source: .healthKit, ownerID: owner))
+                env.context.insert(HealthSample(typeID: "hrv", day: day,
+                                                value: 42 + Double(i % 3), unit: "ms", source: .healthKit, ownerID: owner))
+                env.context.insert(ActivityLog(date: day, activityID: "sleep",
+                                               amount: short ? 6.0 : 8.0, source: .healthKit, ownerID: owner))
+            }
+            try? env.context.save()
+        }
+
         if args.contains("-uitSeedCycle") {
             // Regular-ish recent cycles (28, 29, 27 days) plus a current period, so
             // the timeline shows a cycle in progress and a next-period estimate.

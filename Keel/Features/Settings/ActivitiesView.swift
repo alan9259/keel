@@ -47,6 +47,8 @@ struct ActivitiesView: View {
 
                 healthSection
 
+                if hasVitals { bodySection }
+
                 manualSection
             }
             .padding(.horizontal, 24).padding(.vertical, 12)
@@ -138,6 +140,88 @@ struct ActivitiesView: View {
         .background(theme.card)
         .clipShape(RoundedRectangle(cornerRadius: Radius.card, style: .continuous))
         .overlay(RoundedRectangle(cornerRadius: Radius.card, style: .continuous).stroke(theme.border, lineWidth: 1))
+    }
+
+    // MARK: Your body lately (imported vitals, gently framed)
+
+    /// How far back the baseline reads.
+    private static let vitalWindow = 21
+
+    private func vitalTrend(_ typeID: String) -> VitalTrend {
+        let start = today.adding(days: -Self.vitalWindow)
+        let pts = samples
+            .filter { $0.typeID == typeID && $0.day >= start }
+            .map { VitalTrend.Point(day: $0.day.startOfDay, value: $0.value) }
+        return VitalTrend(points: pts)
+    }
+
+    private var restingHR: VitalTrend { vitalTrend("restingHeartRate") }
+    private var hrv: VitalTrend { vitalTrend("hrv") }
+    private var hasVitals: Bool { restingHR.count >= 3 || hrv.count >= 3 }
+
+    /// Whether her resting heart rate runs higher after shorter-sleep nights.
+    private var restingHRAfterShortSleep: Bool? {
+        let start = today.adding(days: -Self.vitalWindow)
+        let rhr = Dictionary(samples.filter { $0.typeID == "restingHeartRate" && $0.day >= start }
+            .map { ($0.day.startOfDay, $0.value) }, uniquingKeysWith: { a, _ in a })
+        let sleep = Dictionary(logs.filter { $0.activityID == "sleep" && $0.date >= start && $0.amount > 0 }
+            .map { ($0.date.startOfDay, $0.amount) }, uniquingKeysWith: { a, _ in a })
+        return VitalTrend.restingHeartRateHigherAfterShortSleep(restingHRByDay: rhr, sleepHoursByDay: sleep)
+    }
+
+    private var bodySection: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            Text("Your body lately").font(KeelFont.serif(18, weight: .semibold)).foregroundStyle(theme.heading)
+            VStack(spacing: 12) {
+                if restingHR.count >= 3 { vitalRow(title: "Resting heart rate", unit: "bpm", trend: restingHR) }
+                if hrv.count >= 3 { vitalRow(title: "Heart rate variability", unit: "ms", trend: hrv) }
+            }
+            Text(bodyNote).font(KeelFont.caption).foregroundStyle(theme.text.opacity(0.7)).lineSpacing(2)
+                .fixedSize(horizontal: false, vertical: true)
+        }
+    }
+
+    private func vitalRow(title: String, unit: String, trend: VitalTrend) -> some View {
+        HStack(spacing: 14) {
+            VStack(alignment: .leading, spacing: 3) {
+                Text(title).font(KeelFont.body).foregroundStyle(theme.text)
+                if let avg = trend.average {
+                    Text("\(Text("~\(avg)").font(KeelFont.serif(20, weight: .semibold)).foregroundStyle(theme.heading))\(Text(" \(unit)").font(KeelFont.caption).foregroundStyle(theme.muted))")
+                }
+            }
+            Spacer(minLength: 8)
+            Sparkline(values: trend.values, color: theme.accent).frame(width: 78, height: 32)
+            if let dir = trend.direction {
+                HStack(spacing: 3) {
+                    Image(systemName: directionSymbol(dir)).font(.system(size: 10, weight: .bold))
+                    Text(directionLabel(dir)).font(KeelFont.caption)
+                }
+                .foregroundStyle(theme.muted).frame(width: 74, alignment: .trailing)
+            }
+        }
+        .padding(14).background(theme.card)
+        .clipShape(RoundedRectangle(cornerRadius: Radius.card, style: .continuous))
+        .overlay(RoundedRectangle(cornerRadius: Radius.card, style: .continuous).stroke(theme.border, lineWidth: 1))
+    }
+
+    private func directionSymbol(_ d: VitalTrend.Direction) -> String {
+        switch d { case .up: "arrow.up"; case .down: "arrow.down"; case .steady: "equal" }
+    }
+    private func directionLabel(_ d: VitalTrend.Direction) -> String {
+        switch d { case .up: "up a little"; case .down: "down a little"; case .steady: "steady" }
+    }
+
+    /// Plain, non-alarming context, with a real sleep observation and a GP nudge
+    /// added only when they genuinely apply.
+    private var bodyNote: String {
+        var line = "These naturally shift with sleep, stress and where you are in your cycle."
+        if restingHRAfterShortSleep == true {
+            line += " Your resting heart rate has run a little higher after shorter-sleep nights lately."
+        }
+        if restingHR.direction == .up {
+            line += " If your resting heart rate keeps climbing, it's worth a mention to your GP."
+        }
+        return line
     }
 
     // MARK: You logged (manual)

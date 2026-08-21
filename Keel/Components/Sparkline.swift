@@ -1,48 +1,46 @@
 import SwiftUI
 
-/// Minimal area sparkline. `values` are normalized 0…1 with `nil` for missing
-/// days; missing points are skipped and the line connects what exists.
+/// A tiny line chart for a short series of values: a soft area fill, the line, and
+/// an emphasised latest point. Purely decorative context for a number beside it,
+/// so it carries no axes or labels.
 struct Sparkline: View {
-    let values: [Double?]
-    let color: Color
+    let values: [Double]
+    var color: Color
 
     var body: some View {
-        GeometryReader { geo in
-            let pts = points(in: geo.size)
-            ZStack {
-                if pts.count >= 2 {
-                    Path { path in
-                        path.move(to: CGPoint(x: pts.first!.x, y: geo.size.height))
-                        pts.forEach { path.addLine(to: $0) }
-                        path.addLine(to: CGPoint(x: pts.last!.x, y: geo.size.height))
-                        path.closeSubpath()
-                    }
-                    .fill(LinearGradient(
-                        colors: [color.opacity(0.35), color.opacity(0.02)],
-                        startPoint: .top, endPoint: .bottom
-                    ))
-                    Path { path in
-                        path.move(to: pts.first!)
-                        pts.dropFirst().forEach { path.addLine(to: $0) }
-                    }
-                    .stroke(color, style: StrokeStyle(lineWidth: 2, lineJoin: .round))
-                } else if let only = pts.first {
-                    Circle().fill(color).frame(width: 4, height: 4)
-                        .position(only)
-                }
-            }
-        }
-    }
+        Canvas { ctx, size in
+            guard values.count >= 2 else { return }
+            let minV = values.min() ?? 0
+            let maxV = values.max() ?? 0
+            let range = maxV - minV
+            let inset: CGFloat = 3
+            let h = size.height - inset * 2
 
-    private func points(in size: CGSize) -> [CGPoint] {
-        let n = values.count
-        var out: [CGPoint] = []
-        for (i, value) in values.enumerated() {
-            guard let value else { continue }
-            let x = n > 1 ? size.width * CGFloat(i) / CGFloat(n - 1) : size.width / 2
-            let y = size.height * (1 - CGFloat(min(max(value, 0), 1)))
-            out.append(CGPoint(x: x, y: y))
+            func point(_ i: Int) -> CGPoint {
+                let x = size.width * CGFloat(i) / CGFloat(values.count - 1)
+                let norm = range == 0 ? 0.5 : (values[i] - minV) / range
+                return CGPoint(x: x, y: inset + h * (1 - CGFloat(norm)))
+            }
+
+            var line = Path()
+            line.move(to: point(0))
+            for i in 1..<values.count { line.addLine(to: point(i)) }
+
+            var area = line
+            area.addLine(to: CGPoint(x: size.width, y: size.height))
+            area.addLine(to: CGPoint(x: 0, y: size.height))
+            area.closeSubpath()
+            ctx.fill(area, with: .linearGradient(
+                Gradient(colors: [color.opacity(0.18), color.opacity(0)]),
+                startPoint: .zero, endPoint: CGPoint(x: 0, y: size.height)))
+
+            ctx.stroke(line, with: .color(color),
+                       style: StrokeStyle(lineWidth: 1.5, lineCap: .round, lineJoin: .round))
+
+            let end = point(values.count - 1)
+            ctx.fill(Path(ellipseIn: CGRect(x: end.x - 2.5, y: end.y - 2.5, width: 5, height: 5)),
+                     with: .color(color))
         }
-        return out
+        .accessibilityHidden(true)
     }
 }
