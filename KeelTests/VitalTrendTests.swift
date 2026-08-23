@@ -70,4 +70,26 @@ final class VitalTrendTests: XCTestCase {
         XCTAssertNil(VitalTrend.restingHeartRateHigherAfterShortSleep(
             restingHRByDay: rhr, sleepHoursByDay: sleep, calendar: cal))
     }
+
+    func testSleepHRGapReportsRealAveragesAndCounts() {
+        var rhr: [Date: Double] = [:], sleep: [Date: Double] = [:]
+        for i in 0..<8 {
+            let short = i.isMultiple(of: 2)
+            rhr[d(i)] = short ? 66 : 60
+            sleep[d(i)] = short ? 6.0 : 8.0
+        }
+        let gap = VitalTrend.restingHRSleepGap(restingHRByDay: rhr, sleepHoursByDay: sleep, calendar: cal)
+        XCTAssertEqual(gap?.afterShortAvg, 66)
+        XCTAssertEqual(gap?.afterGoodAvg, 60)
+        XCTAssertEqual(gap?.gap, 6)
+        XCTAssertEqual(gap?.shortNights, 4)
+        XCTAssertEqual(gap?.goodNights, 4)
+        XCTAssertEqual(gap?.pairedDays, 8)
+    }
+
+    func testSleepHRGapNilWithoutEnoughPairedDays() {
+        let rhr: [Date: Double] = [d(0): 66, d(1): 60]
+        let sleep: [Date: Double] = [d(0): 6, d(1): 8]
+        XCTAssertNil(VitalTrend.restingHRSleepGap(restingHRByDay: rhr, sleepHoursByDay: sleep, calendar: cal))
+    }
 }

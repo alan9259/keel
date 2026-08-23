@@ -232,9 +232,9 @@ struct CompanionDataService {
         let avgEnergy = energies.isEmpty ? 0 : energies.reduce(0, +) / energies.count
         let symptomFreeDays = window.filter { $0.symptoms.isEmpty }.count
 
-        var symptomCounts: [String: Int] = [:]
-        for ci in window { for s in ci.symptoms { symptomCounts[s.name, default: 0] += 1 } }
-        let topSymptoms = symptomCounts.sorted { $0.value > $1.value }.prefix(5)
+        // Symptom days merged from her check-ins AND Apple Health's own logs.
+        let tally = symptomTally(days: days)
+        let topSymptoms = tally.ranked().prefix(5)
 
         let sleep = sleepAndEnergy(days: days)
 
@@ -243,6 +243,17 @@ struct CompanionDataService {
         lines.append("Average energy: \(avgEnergy)%")
         lines.append("Symptom-free days: \(symptomFreeDays)")
         if let s = sleep.averageSleepHours { lines.append("Average sleep: \(s) hours") }
+        var vitalLines = [
+            vitalReportLine(typeID: "restingHeartRate", label: "Resting heart rate", unit: "bpm", since: start),
+            vitalReportLine(typeID: "hrv", label: "Heart rate variability", unit: "ms", since: start),
+            vitalReportLine(typeID: "bodyMass", label: "Weight", unit: "kg", since: start, minCount: 2),
+        ].compactMap { $0 }
+        if let bp = bloodPressureLine(since: start) { vitalLines.append(bp) }
+        if !vitalLines.isEmpty {
+            lines.append("")
+            lines.append("Body (from Apple Health):")
+            lines.append(contentsOf: vitalLines)
+        }
         let meds = medicationSummaries(days: days)
         if !meds.isEmpty {
             lines.append("")
@@ -252,12 +263,74 @@ struct CompanionDataService {
                 lines.append("  \(m.name): \(m.dose), \(m.schedule)\(adherence)")
             }
         }
+        if tally.vasomotorDays > 0 {
+            lines.append("")
+            lines.append("Vasomotor: hot flushes or night sweats on \(tally.vasomotorDays) of \(days) days.")
+        }
         if !topSymptoms.isEmpty {
             lines.append("")
-            lines.append("Most reported symptoms:")
-            for s in topSymptoms { lines.append("  \(s.key): \(s.value) days") }
+            lines.append("Most reported symptoms (days, includes Apple Health logs):")
+            for s in topSymptoms { lines.append("  \(s.name): \(s.days) days") }
         }
         return lines.joined(separator: "\n")
+    }
+
+    // MARK: Symptom tally (check-ins + Apple Health's own logs)
+
+    /// Distinct symptom days over the window, merged from her check-ins and the
+    /// `symptom.*` `HealthSample` rows Keel archives for Apple Health logs on days she
+    /// didn't check in. Shared shape with the Reports screen (see `SymptomTally`).
+    private func symptomTally(days: Int) -> SymptomTally {
+        let start = windowStart(days: days)
+        var tally = SymptomTally()
+        for ci in checkIns.all() where ci.date >= start {
+            for symptom in ci.symptoms { tally.add(name: symptom.name, day: ci.date.startOfDay) }
+        }
+        let descriptor = FetchDescriptor<HealthSample>(
+            predicate: #Predicate { $0.deletedAt == nil && $0.day >= start }
+        )
+        for sample in ((try? context.fetch(descriptor)) ?? []) {
+            if let name = SymptomTally.name(fromHealthTypeID: sample.typeID) {
+                tally.add(name: name, day: sample.day.startOfDay)
+            }
+        }
+        return tally
+    }
+
+    // MARK: Vitals helper (from imported Apple Health samples)
+
+    /// One GP-report line for an imported vital: its average and range over the
+    /// window, or nil until there are at least three days. Reuses `VitalTrend`, so
+    /// every figure is her own Apple Health data, never an invented one.
+    private func vitalTrend(typeID: String, since: Date) -> VitalTrend {
+        let start = since.startOfDay
+        let descriptor = FetchDescriptor<HealthSample>(
+            predicate: #Predicate<HealthSample> { $0.deletedAt == nil && $0.typeID == typeID && $0.day >= start }
+        )
+        let points = ((try? context.fetch(descriptor)) ?? [])
+            .map { VitalTrend.Point(day: $0.day.startOfDay, value: $0.value) }
+        return VitalTrend(points: points)
+    }
+
+    private func vitalReportLine(typeID: String, label: String, unit: String, since: Date, minCount: Int = 3) -> String? {
+        let trend = vitalTrend(typeID: typeID, since: since)
+        guard trend.count >= minCount, let avg = trend.average else { return nil }
+        let v = trend.values
+        var range = ""
+        if let lo = v.min(), let hi = v.max(), lo != hi {
+            range = " (range \(Int(lo.rounded()))–\(Int(hi.rounded())))"
+        }
+        return "  \(label): avg \(avg) \(unit)\(range)"
+    }
+
+    /// Systolic/diastolic together, the way a clinician reads it. Nil until she has a
+    /// couple of readings (she records these with a cuff, so they're occasional).
+    private func bloodPressureLine(since: Date) -> String? {
+        let systolic = vitalTrend(typeID: "bloodPressureSystolic", since: since)
+        let diastolic = vitalTrend(typeID: "bloodPressureDiastolic", since: since)
+        guard systolic.count >= 2, diastolic.count >= 2,
+              let sys = systolic.average, let dia = diastolic.average else { return nil }
+        return "  Blood pressure: avg \(sys)/\(dia) mmHg"
     }
 
     // MARK: Activity helper (no repository exists for ActivityLog)

@@ -95,6 +95,7 @@ enum DebugHarness {
         if args.contains("-uitRouteMeds") { return .medications }
         if args.contains("-uitRoutePatterns") { return .patterns }
         if args.contains("-uitRouteMore") { return .more }
+        if args.contains("-uitRouteProfile") { return .profile }
         if args.contains("-uitRouteChat") { return .chat }
         if args.contains("-uitRouteColour") { return .colourMode }
         if args.contains("-uitRouteThemes") { return .themes }
@@ -190,8 +191,47 @@ enum DebugHarness {
                                                 value: 42 + Double(i % 3), unit: "ms", source: .healthKit, ownerID: owner))
                 env.context.insert(ActivityLog(date: day, activityID: "sleep",
                                                amount: short ? 6.0 : 8.0, source: .healthKit, ownerID: owner))
+                // Overnight wrist temperature runs a touch higher after short sleep too.
+                env.context.insert(HealthSample(typeID: "wristTemperature", day: day,
+                                                value: short ? 35.6 : 35.1, unit: "°C", source: .healthKit, ownerID: owner))
+            }
+            // Weight + blood pressure are measured occasionally, not daily.
+            for i in stride(from: 0, to: 16, by: 4) {
+                env.context.insert(HealthSample(typeID: "bodyMass", day: today.adding(days: -i),
+                                                value: 68.0 + Double(i) * 0.1, unit: "kg", source: .healthKit, ownerID: owner))
+                env.context.insert(HealthSample(typeID: "bloodPressureSystolic", day: today.adding(days: -i),
+                                                value: 120 + Double(i), unit: "mmHg", source: .healthKit, ownerID: owner))
+                env.context.insert(HealthSample(typeID: "bloodPressureDiastolic", day: today.adding(days: -i),
+                                                value: 78 + Double(i % 3), unit: "mmHg", source: .healthKit, ownerID: owner))
             }
             try? env.context.save()
+        }
+
+        if args.contains("-uitSeedSymptoms") {
+            // Hot flushes on check-in days + night sweats logged ONLY in Apple Health
+            // (no check-in those days), to prove the report/patterns merge both.
+            let owner = env.auth.ownerID
+            let today = Date().startOfDay
+            let hot = env.symptoms.allActive().first { $0.name == "Hot flushes" }
+            for i in [0, 1, 3, 5] {
+                let ci = CheckIn(date: today.adding(days: -i), mood: .okay, energy: 55, ownerID: owner)
+                env.context.insert(ci)
+                if let hot { env.context.insert(CheckInSymptom(checkIn: ci, symptom: hot, severity: 2, ownerID: owner)) }
+            }
+            for i in [2, 4] {
+                env.context.insert(HealthSample(typeID: "symptom.night_sweats", day: today.adding(days: -i),
+                                                value: 2, unit: "severity", source: .healthKit, ownerID: owner))
+            }
+            try? env.context.save()
+        }
+
+        if args.contains("-uitSeedProfile") {
+            // A local (non-Apple) profile with basic details filled, so the Profile
+            // screen's edit fields render populated and the "Create an account" upgrade
+            // path is visible on the sim (Sign in with Apple can't run unsigned).
+            env.users.updateBasicInfo(firstName: "Mischa", lastName: "Reed",
+                                      birthYear: 1977, mobile: "0400 000 000",
+                                      email: "mischa@example.com")
         }
 
         if args.contains("-uitSeedCycle") {
@@ -815,7 +855,7 @@ enum DebugHarness {
         fflush(stdout)
     }
 
-    /// Seeds data that trips all four `PatternEngine` detectors, generates the
+    /// Seeds data that trips all five `PatternEngine` detectors, generates the
     /// daily summary (deterministic on the sim; Apple Intelligence narrates on a
     /// capable OS), and prints the findings, source, stored text, and history
     /// count. Also seeds a prior day so the "looking back" history has content.
@@ -829,6 +869,7 @@ enum DebugHarness {
         (try? env.context.fetch(FetchDescriptor<CheckInSymptom>()))?.forEach { env.context.delete($0) }
         (try? env.context.fetch(FetchDescriptor<CycleEntry>()))?.forEach { env.context.delete($0) }
         (try? env.context.fetch(FetchDescriptor<DailySummary>()))?.forEach { env.context.delete($0) }
+        (try? env.context.fetch(FetchDescriptor<HealthSample>()))?.forEach { env.context.delete($0) }
         try? env.context.save()
 
         let owner = env.auth.ownerID
@@ -839,12 +880,17 @@ enum DebugHarness {
         for offset in [-105, -70, -45, -20] {
             env.context.insert(CycleEntry(date: today.adding(days: offset), type: .periodStart, ownerID: owner))
         }
-        // Recent symptom-free check-ins, alternating sleep → sleep↔energy link.
+        // Recent symptom-free check-ins, alternating sleep → sleep↔energy link, with
+        // resting HR running higher on the short-sleep days → sleep↔resting-HR link.
         for i in 0..<10 {
             let day = today.adding(days: -i)
             let low = i % 2 == 1
             env.context.insert(CheckIn(date: day, mood: low ? .low : .good, energy: low ? 40 : 75, ownerID: owner))
             env.context.insert(ActivityLog(date: day, activityID: "sleep", amount: low ? 5.5 : 8.0, ownerID: owner))
+            env.context.insert(HealthSample(typeID: "restingHeartRate", day: day,
+                                            value: low ? 66 : 60, unit: "bpm", source: .healthKit, ownerID: owner))
+            env.context.insert(HealthSample(typeID: "wristTemperature", day: day,
+                                            value: low ? 35.6 : 35.1, unit: "°C", source: .healthKit, ownerID: owner))
         }
         // Symptom days sitting inside the 7-day pre-period windows → premenstrual
         // clustering; the three most recent also make hot flushes the top symptom.

@@ -9,6 +9,8 @@ import SwiftData
 struct PatternFinding {
     enum Kind: String {
         case sleepEnergy
+        case restingHeartRateSleep
+        case wristTemperatureSleep
         case recurringSymptom
         case cycleVariability
         case premenstrual
@@ -31,9 +33,10 @@ struct PatternFinding {
 ///
 /// Detectors, in the order they read best in a summary:
 ///  1. Sleep → next-day energy (the strongest everyday link).
-///  2. Premenstrual / late-luteal clustering of symptoms or low mood.
-///  3. Cycle-length variability (a hallmark early-perimenopause change).
-///  4. A recurring symptom worth watching (hot flushes and the rest).
+///  2. Sleep → resting heart rate (the body's own read of a short night).
+///  3. Premenstrual / late-luteal clustering of symptoms or low mood.
+///  4. Cycle-length variability (a hallmark early-perimenopause change).
+///  5. A recurring symptom worth watching (hot flushes and the rest).
 struct PatternEngine {
     /// A day's worth of her logs, flattened off the SwiftData models.
     struct DayCheckIn {
@@ -45,9 +48,18 @@ struct PatternEngine {
 
     let checkIns: [DayCheckIn]
     let sleepByDay: [Date: Double]
+    /// Resting heart rate (bpm) per day, from Apple Health. Empty when unimported.
+    let restingHRByDay: [Date: Double]
+    /// Overnight wrist temperature (°C) per day, from Apple Watch. Empty when absent.
+    let wristTempByDay: [Date: Double]
+    /// Distinct days each symptom was reported, keyed by name, merged from her
+    /// check-ins AND Apple Health's own symptom logs (see [[SymptomTally]]).
+    let symptomDaysByName: [String: Set<Date>]
     /// First day of each logged period run (start of day), ascending.
     let periodStarts: [Date]
     let today: Date
+    /// Injected so day-keyed comparisons are deterministic in tests (fixed UTC).
+    let calendar: Calendar
 
     /// Detectors that need recent, everyday signal look back this far.
     private static let recentWindow = 30
@@ -55,6 +67,8 @@ struct PatternEngine {
     func findings() -> [PatternFinding] {
         var out: [PatternFinding] = []
         if let f = sleepEnergy() { out.append(f) }
+        if let f = restingHeartRateSleep() { out.append(f) }
+        if let f = wristTemperatureSleep() { out.append(f) }
         if let f = premenstrual() { out.append(f) }
         if let f = cycleVariability() { out.append(f) }
         if let f = recurringSymptom() { out.append(f) }
@@ -90,7 +104,50 @@ struct PatternEngine {
             fact: "On nights she slept less, her energy the next day was often lower.")
     }
 
-    // MARK: - 2. Premenstrual / late-luteal clustering
+    // MARK: - 2. Sleep → resting heart rate
+
+    /// Her resting heart rate the mornings after shorter sleep, against her good-sleep
+    /// mornings. The body's own, objective echo of the subjective sleep→energy link —
+    /// a real paired comparison from Apple Health, never an invented figure. Surfaced
+    /// only when the difference is clear (about 3 bpm+), so a trivial gap stays quiet.
+    private func restingHeartRateSleep() -> PatternFinding? {
+        guard let gap = VitalTrend.restingHRSleepGap(
+            restingHRByDay: restingHRByDay, sleepHoursByDay: sleepByDay, calendar: calendar),
+              gap.gap >= 3 else { return nil }
+        return PatternFinding(
+            kind: .restingHeartRateSleep,
+            title: "Sleep and your heart rate",
+            detail: "On the mornings after shorter-sleep nights, your resting heart rate has tended to run a little higher. That's a common way the body registers a short night, and it usually eases with rest. Worth noticing, and worth a mention to your GP if it keeps up.",
+            timeframe: "Seen across \(gap.pairedDays) days with both logged",
+            icon: "heart.fill",
+            accent: .terracotta,
+            // Qualitative on purpose: no bpm figure, so the AI narration can't restate
+            // a number. The exact vitals live on the Activities screen.
+            fact: "On mornings after shorter-sleep nights, her resting heart rate has tended to run a little higher.")
+    }
+
+    // MARK: - 3. Sleep → overnight body temperature
+
+    /// Her overnight wrist temperature after shorter sleep vs good sleep. Temperature
+    /// regulation is one of the clearest ways perimenopause shows up at night (hot
+    /// flushes, night sweats), so a real, paired warmer-after-short-sleep signal is
+    /// worth surfacing gently. Threshold is small (0.2°C) because skin-temperature
+    /// swings are small; framed as "notice", never a reading to worry about.
+    private func wristTemperatureSleep() -> PatternFinding? {
+        guard let gap = VitalTrend.sleepSplitGap(
+            valueByDay: wristTempByDay, sleepHoursByDay: sleepByDay, calendar: calendar),
+              gap.gap >= 0.2 else { return nil }
+        return PatternFinding(
+            kind: .wristTemperatureSleep,
+            title: "Sleep and body temperature",
+            detail: "On the nights you slept less, your overnight temperature has tended to run a little warmer. Shifts in body temperature are part of how perimenopause can unsettle sleep, and they usually ease. Worth noticing, and worth a mention to your GP if hot, broken nights are wearing on you.",
+            timeframe: "Seen across \(gap.pairedDays) nights with both logged",
+            icon: "thermometer.medium",
+            accent: .terracotta,
+            fact: "On shorter-sleep nights, her overnight body temperature has tended to run a little warmer.")
+    }
+
+    // MARK: - 4. Premenstrual / late-luteal clustering
 
     private func premenstrual() -> PatternFinding? {
         // Need at least two cycles to say something turns up "before your period".
@@ -143,7 +200,7 @@ struct PatternEngine {
         return nil
     }
 
-    // MARK: - 3. Cycle-length variability
+    // MARK: - 5. Cycle-length variability
 
     private func cycleVariability() -> PatternFinding? {
         guard periodStarts.count >= 3 else { return nil }
@@ -170,18 +227,20 @@ struct PatternEngine {
             fact: "Her cycles have been varying more in length lately, becoming less predictable.")
     }
 
-    // MARK: - 4. A recurring symptom
+    // MARK: - 6. A recurring symptom
 
     private func recurringSymptom() -> PatternFinding? {
-        let recent = checkInsWithin(Self.recentWindow)
-        var days: [String: Set<Date>] = [:]
-        for entry in recent {
-            for name in entry.symptoms {
-                days[name, default: []].insert(entry.day)
-            }
+        let floor = today.startOfDay.adding(days: -(Self.recentWindow - 1))
+        // Days per symptom in the recent window, merged across check-ins and Apple
+        // Health (via `symptomDaysByName`), so a symptom logged only in Health counts.
+        var recentDays: [String: Int] = [:]
+        for (name, days) in symptomDaysByName {
+            let n = days.filter { $0 >= floor }.count
+            if n > 0 { recentDays[name] = n }
         }
-        guard let top = days.max(by: { $0.value.count < $1.value.count }), top.value.count >= 3 else { return nil }
-        let count = top.value.count
+        guard let top = recentDays.max(by: { $0.value != $1.value ? $0.value < $1.value : $0.key > $1.key }),
+              top.value >= 3 else { return nil }
+        let count = top.value
         let name = top.key.lowercased()
         return PatternFinding(
             kind: .recurringSymptom,
@@ -214,7 +273,8 @@ extension PatternEngine {
     /// Reads the last `window` days of check-ins/sleep and all cycle logs in that
     /// span, flattening them into the pure engine. Cycle detectors need several
     /// months to see variability, so the window is wider than the recency ones.
-    static func build(context: ModelContext, window: Int = 120, today: Date = Date()) -> PatternEngine {
+    static func build(context: ModelContext, window: Int = 120, today: Date = Date(),
+                      calendar: Calendar = .current) -> PatternEngine {
         let floor = today.startOfDay.adding(days: -(window - 1))
 
         let checkInDescriptor = FetchDescriptor<CheckIn>(
@@ -236,6 +296,35 @@ extension PatternEngine {
             if sleepByDay[day] == nil { sleepByDay[day] = log.amount }
         }
 
+        // One Apple Health fetch for the window, split into the series the detectors
+        // need: resting heart rate (one daily aggregate per day) and archived symptom
+        // occurrences (`symptom.*` rows for days she logged only in Health).
+        let sampleDescriptor = FetchDescriptor<HealthSample>(
+            predicate: #Predicate<HealthSample> { $0.deletedAt == nil && $0.day >= floor }
+        )
+        let healthSamples = (try? context.fetch(sampleDescriptor)) ?? []
+        var restingHRByDay: [Date: Double] = [:]
+        var wristTempByDay: [Date: Double] = [:]
+        for sample in healthSamples where sample.value > 0 {
+            let day = sample.day.startOfDay
+            switch sample.typeID {
+            case "restingHeartRate": if restingHRByDay[day] == nil { restingHRByDay[day] = sample.value }
+            case "wristTemperature": if wristTempByDay[day] == nil { wristTempByDay[day] = sample.value }
+            default: break
+            }
+        }
+
+        // Symptom days merged from her check-ins and Apple Health's own logs.
+        var symptomDaysByName: [String: Set<Date>] = [:]
+        for entry in checkIns {
+            for name in entry.symptoms { symptomDaysByName[name, default: []].insert(entry.day) }
+        }
+        for sample in healthSamples {
+            if let name = SymptomTally.name(fromHealthTypeID: sample.typeID) {
+                symptomDaysByName[name, default: []].insert(sample.day.startOfDay)
+            }
+        }
+
         let cycleDescriptor = FetchDescriptor<CycleEntry>(
             predicate: #Predicate { $0.deletedAt == nil && $0.date >= floor }
         )
@@ -244,7 +333,11 @@ extension PatternEngine {
         return PatternEngine(
             checkIns: checkIns,
             sleepByDay: sleepByDay,
+            restingHRByDay: restingHRByDay,
+            wristTempByDay: wristTempByDay,
+            symptomDaysByName: symptomDaysByName,
             periodStarts: periodStarts(from: periodDays),
-            today: today)
+            today: today,
+            calendar: calendar)
     }
 }

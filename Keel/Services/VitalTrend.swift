@@ -36,6 +36,50 @@ struct VitalTrend {
         return .steady
     }
 
+    /// How her resting heart rate on the mornings after shorter-sleep nights (<6.5h)
+    /// compares with mornings after good-sleep nights (≥7h), from her own paired days.
+    /// A plain comparison with no judgement baked in — each caller picks how big a
+    /// gap is worth surfacing. Nil until there are at least three of each.
+    struct SleepHRGap: Equatable {
+        let afterShortAvg: Double
+        let afterGoodAvg: Double
+        let shortNights: Int
+        let goodNights: Int
+        /// bpm higher after short sleep (negative if lower).
+        var gap: Double { afterShortAvg - afterGoodAvg }
+        var pairedDays: Int { shortNights + goodNights }
+    }
+
+    /// Generic version: splits any per-day value (resting HR, wrist temperature, …)
+    /// into mornings after short vs good sleep and returns their averages + counts.
+    static func sleepSplitGap(
+        valueByDay: [Date: Double],
+        sleepHoursByDay: [Date: Double],
+        calendar: Calendar = .current
+    ) -> SleepHRGap? {
+        var afterShort: [Double] = []
+        var afterGood: [Double] = []
+        for (day, value) in valueByDay {
+            guard let sleep = sleepHoursByDay[calendar.startOfDay(for: day)] else { continue }
+            if sleep < 6.5 { afterShort.append(value) }
+            else if sleep >= 7 { afterGood.append(value) }
+        }
+        guard afterShort.count >= 3, afterGood.count >= 3 else { return nil }
+        return SleepHRGap(
+            afterShortAvg: afterShort.reduce(0, +) / Double(afterShort.count),
+            afterGoodAvg: afterGood.reduce(0, +) / Double(afterGood.count),
+            shortNights: afterShort.count,
+            goodNights: afterGood.count)
+    }
+
+    static func restingHRSleepGap(
+        restingHRByDay: [Date: Double],
+        sleepHoursByDay: [Date: Double],
+        calendar: Calendar = .current
+    ) -> SleepHRGap? {
+        sleepSplitGap(valueByDay: restingHRByDay, sleepHoursByDay: sleepHoursByDay, calendar: calendar)
+    }
+
     /// True when resting heart rate tends to run higher on the mornings after
     /// shorter sleep, from her own paired days. Nil when there isn't enough to say.
     /// A real comparison (like the sleep→energy detector), never an invented figure.
@@ -44,16 +88,8 @@ struct VitalTrend {
         sleepHoursByDay: [Date: Double],
         calendar: Calendar = .current
     ) -> Bool? {
-        var afterShort: [Double] = []
-        var afterGood: [Double] = []
-        for (day, rhr) in restingHRByDay {
-            guard let sleep = sleepHoursByDay[calendar.startOfDay(for: day)] else { continue }
-            if sleep < 6.5 { afterShort.append(rhr) }
-            else if sleep >= 7 { afterGood.append(rhr) }
-        }
-        guard afterShort.count >= 3, afterGood.count >= 3 else { return nil }
-        let short = afterShort.reduce(0, +) / Double(afterShort.count)
-        let good = afterGood.reduce(0, +) / Double(afterGood.count)
-        return short - good >= 2 // ~2 bpm higher after short sleep is worth noticing
+        guard let gap = restingHRSleepGap(
+            restingHRByDay: restingHRByDay, sleepHoursByDay: sleepHoursByDay, calendar: calendar) else { return nil }
+        return gap.gap >= 2 // ~2 bpm higher after short sleep is worth noticing
     }
 }

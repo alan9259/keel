@@ -26,12 +26,12 @@ struct ActivitiesView: View {
         let decimal: Bool
     }
 
-    /// Metrics that come from Apple Health automatically.
+    /// Metrics that come from Apple Health automatically. Movement is deliberately a
+    /// single signal — steps — rather than three overlapping ones (steps, exercise,
+    /// active energy all say the same thing); sleep and mindful minutes are distinct.
     private let healthMetrics: [Metric] = [
         Metric(id: "steps", label: "Steps", symbol: "figure.walk", unit: "steps", source: .activity, decimal: false),
-        Metric(id: "exercise", label: "Exercise", symbol: "figure.strengthtraining.traditional", unit: "min", source: .activity, decimal: false),
         Metric(id: "sleep", label: "Sleep", symbol: "moon.fill", unit: "hrs", source: .activity, decimal: true),
-        Metric(id: "activeEnergy", label: "Active energy", symbol: "flame.fill", unit: "kcal", source: .sample, decimal: false),
         Metric(id: "meditation", label: "Mindful", symbol: "wind", unit: "min", source: .activity, decimal: false),
     ]
 
@@ -157,16 +157,14 @@ struct ActivitiesView: View {
 
     private var restingHR: VitalTrend { vitalTrend("restingHeartRate") }
     private var hrv: VitalTrend { vitalTrend("hrv") }
-    private var hasVitals: Bool { restingHR.count >= 3 || hrv.count >= 3 }
-
-    /// Whether her resting heart rate runs higher after shorter-sleep nights.
-    private var restingHRAfterShortSleep: Bool? {
-        let start = today.adding(days: -Self.vitalWindow)
-        let rhr = Dictionary(samples.filter { $0.typeID == "restingHeartRate" && $0.day >= start }
-            .map { ($0.day.startOfDay, $0.value) }, uniquingKeysWith: { a, _ in a })
-        let sleep = Dictionary(logs.filter { $0.activityID == "sleep" && $0.date >= start && $0.amount > 0 }
-            .map { ($0.date.startOfDay, $0.amount) }, uniquingKeysWith: { a, _ in a })
-        return VitalTrend.restingHeartRateHigherAfterShortSleep(restingHRByDay: rhr, sleepHoursByDay: sleep)
+    /// Weight is measured less often than daily, so it shows from just a couple of
+    /// readings; the direction word only appears once there are enough (6+) to be fair.
+    private var weight: VitalTrend { vitalTrend("bodyMass") }
+    /// Overnight skin temperature from Apple Watch. Shown as a direction only (no
+    /// absolute °C, which reads oddly out of Apple's baseline context and could alarm).
+    private var wristTemp: VitalTrend { vitalTrend("wristTemperature") }
+    private var hasVitals: Bool {
+        restingHR.count >= 3 || hrv.count >= 3 || weight.count >= 2 || wristTemp.count >= 3
     }
 
     private var bodySection: some View {
@@ -175,18 +173,22 @@ struct ActivitiesView: View {
             VStack(spacing: 12) {
                 if restingHR.count >= 3 { vitalRow(title: "Resting heart rate", unit: "bpm", trend: restingHR) }
                 if hrv.count >= 3 { vitalRow(title: "Heart rate variability", unit: "ms", trend: hrv) }
+                if weight.count >= 2 { vitalRow(title: "Weight", unit: "kg", trend: weight) }
+                if wristTemp.count >= 3 { vitalRow(title: "Overnight wrist temperature", unit: "°C", trend: wristTemp, showsAverage: false) }
             }
             Text(bodyNote).font(KeelFont.caption).foregroundStyle(theme.text.opacity(0.7)).lineSpacing(2)
                 .fixedSize(horizontal: false, vertical: true)
         }
     }
 
-    private func vitalRow(title: String, unit: String, trend: VitalTrend) -> some View {
+    private func vitalRow(title: String, unit: String, trend: VitalTrend, showsAverage: Bool = true) -> some View {
         HStack(spacing: 14) {
             VStack(alignment: .leading, spacing: 3) {
                 Text(title).font(KeelFont.body).foregroundStyle(theme.text)
-                if let avg = trend.average {
+                if showsAverage, let avg = trend.average {
                     Text("\(Text("~\(avg)").font(KeelFont.serif(20, weight: .semibold)).foregroundStyle(theme.heading))\(Text(" \(unit)").font(KeelFont.caption).foregroundStyle(theme.muted))")
+                } else if !showsAverage {
+                    Text("vs your usual").font(KeelFont.caption).foregroundStyle(theme.muted)
                 }
             }
             Spacer(minLength: 8)
@@ -211,13 +213,11 @@ struct ActivitiesView: View {
         switch d { case .up: "up a little"; case .down: "down a little"; case .steady: "steady" }
     }
 
-    /// Plain, non-alarming context, with a real sleep observation and a GP nudge
-    /// added only when they genuinely apply.
+    /// Plain, non-alarming context, with a GP nudge added only when it genuinely
+    /// applies. The sleep→resting-heart-rate observation lives in Patterns and the
+    /// daily reflection now (meaning, not a tile), so it isn't repeated here.
     private var bodyNote: String {
         var line = "These naturally shift with sleep, stress and where you are in your cycle."
-        if restingHRAfterShortSleep == true {
-            line += " Your resting heart rate has run a little higher after shorter-sleep nights lately."
-        }
         if restingHR.direction == .up {
             line += " If your resting heart rate keeps climbing, it's worth a mention to your GP."
         }

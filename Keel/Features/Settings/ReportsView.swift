@@ -12,6 +12,8 @@ struct ReportsView: View {
     @Query(filter: #Predicate<MedicationLog> { $0.deletedAt == nil })
     private var medLogs: [MedicationLog]
     @Query private var activities: [ActivityLog]
+    @Query(filter: #Predicate<HealthSample> { $0.deletedAt == nil })
+    private var samples: [HealthSample]
 
     enum Period: String, CaseIterable, Identifiable { case week = "Week", month = "Month", quarter = "3 Months"; var id: String { rawValue }
         var days: Int { switch self { case .week: 7; case .month: 30; case .quarter: 90 } } }
@@ -34,6 +36,7 @@ struct ReportsView: View {
                 symptomsSection
                 medsSection
                 sleepSection
+                if hasVitals { vitalsSection }
             }
             .padding(.horizontal, 20).padding(.vertical, 12)
         }
@@ -158,6 +161,10 @@ struct ReportsView: View {
         section("Symptoms") {
             VStack(alignment: .leading, spacing: 12) {
                 Text("Frequency: days reported").font(KeelFont.eyebrow).tracking(0.6).foregroundStyle(theme.muted)
+                if let vaso = vasomotorSummary {
+                    Text(vaso).font(KeelFont.caption).foregroundStyle(theme.text.opacity(0.7))
+                        .fixedSize(horizontal: false, vertical: true)
+                }
                 if topSymptoms.isEmpty {
                     Text("No symptoms logged.").font(KeelFont.body).foregroundStyle(theme.muted)
                 } else {
@@ -199,7 +206,7 @@ struct ReportsView: View {
                 Spacer()
                 Text("\(item.count) days").font(KeelFont.body).foregroundStyle(theme.muted)
             }
-            ProgressCapsule(fraction: Double(item.count) / Double(max(windowCheckIns.count, 1)), color: theme.accent)
+            ProgressCapsule(fraction: Double(item.count) / Double(max(period.days, 1)), color: theme.accent)
                 .frame(height: 8)
         }
     }
@@ -258,6 +265,43 @@ struct ReportsView: View {
                         }
                     }
                     .frame(height: 84)
+                }
+            }
+        }
+    }
+
+    /// Resting heart rate and HRV from Apple Health, as an average and range over the
+    /// period — the kind of objective baseline a GP asks about. Reuses `VitalTrend`,
+    /// so every number is her own imported data (no invented figure), and the section
+    /// only appears once there's something real to show.
+    private var vitalsSection: some View {
+        section("Body") {
+            VStack(alignment: .leading, spacing: 14) {
+                if restingHRTrend.count >= 3 { vitalRow("Resting heart rate", unit: "bpm", trend: restingHRTrend) }
+                if hrvTrend.count >= 3 { vitalRow("Heart rate variability", unit: "ms", trend: hrvTrend) }
+                if weightTrend.count >= 2 { vitalRow("Weight", unit: "kg", trend: weightTrend) }
+                if let bp = bloodPressureText {
+                    HStack(alignment: .firstTextBaseline) {
+                        Text("Blood pressure").font(KeelFont.body).foregroundStyle(theme.text.opacity(0.8))
+                        Spacer()
+                        Text("avg \(bp) mmHg").font(KeelFont.sans(13, weight: .medium)).foregroundStyle(theme.heading)
+                    }
+                }
+                Text("Averages over the \(period.rawValue.lowercased()), from Apple Health. These naturally shift with sleep, stress and your cycle.")
+                    .font(KeelFont.caption).foregroundStyle(theme.muted)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
+        }
+    }
+
+    private func vitalRow(_ title: String, unit: String, trend: VitalTrend) -> some View {
+        HStack(alignment: .firstTextBaseline) {
+            Text(title).font(KeelFont.body).foregroundStyle(theme.text.opacity(0.8))
+            Spacer()
+            if let avg = trend.average {
+                Text("avg \(avg) \(unit)").font(KeelFont.sans(13, weight: .medium)).foregroundStyle(theme.heading)
+                if let range = vitalRangeText(trend) {
+                    Text(range).font(KeelFont.caption).foregroundStyle(theme.muted)
                 }
             }
         }
@@ -332,12 +376,34 @@ struct ReportsView: View {
         return Double(moodCounts[mood] ?? 0) / Double(windowCheckIns.count)
     }
 
+    /// Symptom days merged from her check-ins AND Apple Health's own symptom logs
+    /// (archived `symptom.*` samples on days she didn't check in), so nothing she
+    /// recorded in Health is silently dropped. A day from both sources counts once.
+    private var symptomTally: SymptomTally {
+        var tally = SymptomTally()
+        for c in windowCheckIns { for s in c.symptoms { tally.add(name: s.name, day: c.date.startOfDay) } }
+        for sample in samples where sample.day >= since {
+            if let name = SymptomTally.name(fromHealthTypeID: sample.typeID) {
+                tally.add(name: name, day: sample.day.startOfDay)
+            }
+        }
+        return tally
+    }
+
     private var topSymptoms: [(name: String, count: Int)] {
-        var counts: [String: Int] = [:]
-        for c in windowCheckIns { for s in c.symptoms { counts[s.name, default: 0] += 1 } }
-        // Every symptom she logged in the window, most frequent first — a GP report
+        // Every symptom she logged in the window, most days first — a GP report
         // shouldn't silently drop the less common ones.
-        return counts.sorted { $0.value > $1.value }.map { ($0.key, $0.value) }
+        symptomTally.ranked().map { (name: $0.name, count: $0.days) }
+    }
+
+    /// A one-line vasomotor frequency (hot flushes / night sweats), the metric that
+    /// most drives a menopause treatment conversation. Nil when there are none.
+    private var vasomotorSummary: String? {
+        let days = symptomTally.vasomotorDays
+        guard days > 0 else { return nil }
+        let perWeek = Double(days) * 7 / Double(period.days)
+        let rate = perWeek >= 1 ? "about \(perWeek.rounded().formatted()) a week" : "less than one a week"
+        return "Hot flushes or night sweats on \(days) of the last \(period.days) days (\(rate))."
     }
 
     private var adherence: Double {
@@ -385,6 +451,38 @@ struct ReportsView: View {
         return "\(label): \(sleepHoursText(sleepSeries[i]))"
     }
 
+    // MARK: Vitals (from Apple Health)
+
+    /// A `VitalTrend` over the imported daily values for one metric across the period.
+    private func vitalTrend(_ typeID: String) -> VitalTrend {
+        let points = samples
+            .filter { $0.typeID == typeID && $0.day >= since }
+            .map { VitalTrend.Point(day: $0.day.startOfDay, value: $0.value) }
+        return VitalTrend(points: points)
+    }
+
+    private var restingHRTrend: VitalTrend { vitalTrend("restingHeartRate") }
+    private var hrvTrend: VitalTrend { vitalTrend("hrv") }
+    private var weightTrend: VitalTrend { vitalTrend("bodyMass") }
+    private var systolicTrend: VitalTrend { vitalTrend("bloodPressureSystolic") }
+    private var diastolicTrend: VitalTrend { vitalTrend("bloodPressureDiastolic") }
+    /// "122/78" once she has a couple of cuff readings, else nil.
+    private var bloodPressureText: String? {
+        guard systolicTrend.count >= 2, diastolicTrend.count >= 2,
+              let sys = systolicTrend.average, let dia = diastolicTrend.average else { return nil }
+        return "\(sys)/\(dia)"
+    }
+    private var hasVitals: Bool {
+        restingHRTrend.count >= 3 || hrvTrend.count >= 3 || weightTrend.count >= 2 || bloodPressureText != nil
+    }
+
+    /// "58–70" style spread, or nil when there's only one value.
+    private func vitalRangeText(_ trend: VitalTrend) -> String? {
+        let v = trend.values
+        guard let lo = v.min(), let hi = v.max(), lo != hi else { return nil }
+        return "\(Int(lo.rounded()))–\(Int(hi.rounded()))"
+    }
+
     private func moodColor(_ mood: Mood) -> Color {
         switch mood {
         case .great: Color(hex: 0x16A34A)
@@ -402,9 +500,32 @@ struct ReportsView: View {
         lines.append("Symptom-free days: \(symptomFreeDays)")
         lines.append("Days in a row: \(currentStreak) (longest: \(longestStreak))")
         lines.append("Medication adherence: \(Int(adherence * 100))%")
+        if hasVitals {
+            lines.append("")
+            lines.append("Body (from Apple Health, averaged over the \(period.rawValue.lowercased())):")
+            if let avg = restingHRTrend.average, restingHRTrend.count >= 3 {
+                let range = vitalRangeText(restingHRTrend).map { " (range \($0))" } ?? ""
+                lines.append("  • Resting heart rate: avg \(avg) bpm\(range)")
+            }
+            if let avg = hrvTrend.average, hrvTrend.count >= 3 {
+                let range = vitalRangeText(hrvTrend).map { " (range \($0))" } ?? ""
+                lines.append("  • Heart rate variability: avg \(avg) ms\(range)")
+            }
+            if let avg = weightTrend.average, weightTrend.count >= 2 {
+                let range = vitalRangeText(weightTrend).map { " (range \($0))" } ?? ""
+                lines.append("  • Weight: avg \(avg) kg\(range)")
+            }
+            if let bp = bloodPressureText {
+                lines.append("  • Blood pressure: avg \(bp) mmHg")
+            }
+        }
+        if let vaso = vasomotorSummary {
+            lines.append("")
+            lines.append("Vasomotor symptoms: \(vaso)")
+        }
         if !topSymptoms.isEmpty {
             lines.append("")
-            lines.append("Most reported symptoms:")
+            lines.append("Most reported symptoms (days in \(period.rawValue.lowercased()), includes Apple Health logs):")
             topSymptoms.forEach { lines.append("  • \($0.name): \($0.count) days") }
         }
         return lines.joined(separator: "\n")

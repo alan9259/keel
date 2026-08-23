@@ -61,6 +61,8 @@ final class HealthKitService {
         ("heartRate", .heartRate, .count().unitDivided(by: .minute()), "bpm", true),
         ("restingHeartRate", .restingHeartRate, .count().unitDivided(by: .minute()), "bpm", true),
         ("hrv", .heartRateVariabilitySDNN, .secondUnit(with: .milli), "ms", true),
+        ("bloodPressureSystolic", .bloodPressureSystolic, .millimeterOfMercury(), "mmHg", true),
+        ("bloodPressureDiastolic", .bloodPressureDiastolic, .millimeterOfMercury(), "mmHg", true),
         ("respiratoryRate", .respiratoryRate, .count().unitDivided(by: .minute()), "brpm", true),
         ("oxygenSaturation", .oxygenSaturation, .percent(), "%", true),
         ("bodyMass", .bodyMass, .gramUnit(with: .kilo), "kg", true),
