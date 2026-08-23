@@ -31,6 +31,7 @@ struct MoreView: View {
                 Item(title: "Apple Health", symbol: "heart.fill", tint: Color(hex: 0xE91E63), route: .appleHealth),
             ]),
             ("Account", [
+                Item(title: "Profile", symbol: "person.crop.circle", tint: theme.accent, route: .profile),
                 Item(title: "Settings", symbol: "gearshape.fill", tint: theme.muted, route: .settings),
                 Item(title: "Get Support", symbol: "lifepreserver.fill", tint: theme.accent, route: .support),
                 Item(title: "Connect with Us", symbol: "bubble.left.and.bubble.right.fill", tint: theme.sage, route: .connect),

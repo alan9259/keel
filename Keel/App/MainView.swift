@@ -6,6 +6,7 @@ enum MainRoute: Hashable {
     case patterns
     case more
     case chat
+    case profile
     case colourMode
     case themes
     case moodIcons
@@ -80,6 +81,7 @@ struct MainView: View {
                 case .patterns: PatternsView()
                 case .more: MoreView()
                 case .chat: ChatView()
+                case .profile: ProfileView()
                 case .colourMode: ColourModeView()
                 case .themes: ThemesView()
                 case .moodIcons: MoodIconsView()

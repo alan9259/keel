@@ -301,6 +301,16 @@ final class AppEnvironment {
         Task { await sync.syncNow() }
     }
 
+    /// Move every locally-owned row from one `ownerID` to another when she upgrades a
+    /// "continue on this device" identity to a real Sign in with Apple account, so her
+    /// existing data follows the new owner id. Local queries don't filter by owner, so
+    /// nothing she sees changes; this only keeps ownership consistent for sync. See
+    /// `OwnershipMigration` (extracted so it's testable on an in-memory store).
+    @discardableResult
+    func reassignOwnership(from old: String, to new: String) -> Int {
+        OwnershipMigration.reassign(in: context, from: old, to: new)
+    }
+
     /// Sync now runs through SwiftData's automatic CloudKit mirroring (see
     /// `KeelSchema.makeContainer`), so the custom `SyncProvider` path is disabled:
     /// a no-op provider everywhere means `SyncEngine`/`requestSync()` stay wired

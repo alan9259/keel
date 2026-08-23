@@ -6,6 +6,8 @@ protocol UserRepositoring {
     func currentProfile() -> UserProfile?
     @discardableResult
     func upsertProfile(firstName: String, email: String?, appleUserID: String?) -> UserProfile
+    @discardableResult
+    func updateBasicInfo(firstName: String, lastName: String?, birthYear: Int?, mobile: String?, email: String?) -> UserProfile
     func setPathway(_ pathway: Pathway)
     func setHealthKitAuthorized(_ authorized: Bool)
 }
@@ -42,6 +44,29 @@ struct UserRepository: UserRepositoring {
         )
         stampContext(profile)
         context.insert(profile)
+        save()
+        return profile
+    }
+
+    /// Save the basic details she edits on the Profile screen. Optional fields are
+    /// written exactly as given (nil clears them), so the form is the source of truth;
+    /// a blank first name is ignored so she's never left unnamed. Creates a profile if
+    /// somehow none exists yet (every onboarding path makes one, so this is defensive).
+    @discardableResult
+    func updateBasicInfo(firstName: String, lastName: String?, birthYear: Int?, mobile: String?, email: String?) -> UserProfile {
+        let trimmedName = firstName.trimmingCharacters(in: .whitespaces)
+        let profile = currentProfile() ?? {
+            let created = UserProfile(firstName: trimmedName.nilIfEmpty ?? "there", ownerID: ownerID())
+            context.insert(created)
+            return created
+        }()
+        if let name = trimmedName.nilIfEmpty { profile.firstName = name }
+        profile.lastName = lastName
+        profile.birthYear = birthYear
+        profile.mobile = mobile
+        profile.email = email
+        stampContext(profile)
+        profile.touch()
         save()
         return profile
     }
