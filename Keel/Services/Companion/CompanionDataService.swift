@@ -272,6 +272,19 @@ struct CompanionDataService {
             lines.append("Most reported symptoms (days, includes Apple Health logs):")
             for s in topSymptoms { lines.append("  \(s.name): \(s.days) days") }
         }
+        // A diet trigger she has logged that her vasomotor symptoms turn up more on.
+        let triggerInputs: [DietTriggerCorrelation.Input] = EatingCatalog.triggers.map { item in
+            var yes: Set<Date> = [], no: Set<Date> = []
+            for log in activityLogs(activityID: item.id, since: start) {
+                if log.amount > 0.5 { yes.insert(log.date.startOfDay) } else { no.insert(log.date.startOfDay) }
+            }
+            return DietTriggerCorrelation.Input(label: item.label, yes: yes, no: no)
+        }
+        if let trigger = DietTriggerCorrelation.strongest(
+            triggerInputs, symptomDays: tally.unionDays(forAnyOf: SymptomTally.vasomotorNames)) {
+            lines.append("")
+            lines.append("Possible trigger: hot flushes/night sweats on \(trigger.yesHit)/\(trigger.yesTotal) days with \(trigger.label.lowercased()) vs \(trigger.noHit)/\(trigger.noTotal) days without.")
+        }
         return lines.joined(separator: "\n")
     }
 

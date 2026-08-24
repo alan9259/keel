@@ -225,6 +225,29 @@ enum DebugHarness {
             try? env.context.save()
         }
 
+        if args.contains("-uitSeedEating") {
+            // Alcohol logged yes on hot-flush days and no on clear days → a strong
+            // trigger correlation; plus a couple of today's answers so the panel shows
+            // mixed yes/no/blank state on the sim.
+            let owner = env.auth.ownerID
+            let today = Date().startOfDay
+            let hot = env.symptoms.allActive().first { $0.name == "Hot flushes" }
+            for i in [1, 3, 5, 7] {
+                let day = today.adding(days: -i)
+                env.context.insert(ActivityLog(date: day, activityID: "eat.alcohol", amount: 1, ownerID: owner))
+                let ci = CheckIn(date: day, mood: .okay, energy: 55, ownerID: owner)
+                env.context.insert(ci)
+                if let hot { env.context.insert(CheckInSymptom(checkIn: ci, symptom: hot, severity: 2, ownerID: owner)) }
+            }
+            for i in [10, 12, 14, 16] {
+                env.context.insert(ActivityLog(date: today.adding(days: -i), activityID: "eat.alcohol", amount: 0, ownerID: owner))
+                env.context.insert(CheckIn(date: today.adding(days: -i), mood: .good, energy: 70, ownerID: owner))
+            }
+            env.context.insert(ActivityLog(date: today, activityID: "eat.protein", amount: 1, ownerID: owner))
+            env.context.insert(ActivityLog(date: today, activityID: "eat.caffeine", amount: 0, ownerID: owner))
+            try? env.context.save()
+        }
+
         if args.contains("-uitSeedProfile") {
             // A local (non-Apple) profile with basic details filled, so the Profile
             // screen's edit fields render populated and the "Create an account" upgrade

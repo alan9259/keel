@@ -4,7 +4,7 @@ import SwiftData
 /// A Health-first daily picture (inspired by Bevel's read-from-Health approach,
 /// adapted to Keel): metrics Apple Health already knows flow in automatically
 /// with a gentle "vs your usual" read, the day is tied back to how she felt, and
-/// only the things Health can't capture (water, eating, journalling) are logged
+/// only the things Health can't capture (water, eating) are logged
 /// by hand. No invented fitness scores.
 struct ActivitiesView: View {
     @Environment(AppEnvironment.self) private var env
@@ -48,6 +48,8 @@ struct ActivitiesView: View {
                 healthSection
 
                 if hasVitals { bodySection }
+
+                eatingPanel
 
                 manualSection
             }
@@ -238,8 +240,65 @@ struct ActivitiesView: View {
     }
 
     private var manualActivities: [ActivityDef] {
-        let ids = ["water", "eating", "journal"]
+        let ids = ["water"]
         return ActivityCatalog.all.filter { ids.contains($0.id) }
+    }
+
+    // MARK: Eating today (tri-state yes/no panel, feeds the diet-trigger pattern)
+
+    private var eatingPanel: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            Text("Eating today").font(KeelFont.serif(18, weight: .semibold)).foregroundStyle(theme.heading)
+            VStack(spacing: 0) {
+                eatingGroupLabel("Nourishing")
+                ForEach(EatingCatalog.nourishment) { eatingRow($0) }
+                eatingGroupLabel("Might nudge symptoms")
+                ForEach(EatingCatalog.triggers) { eatingRow($0) }
+            }
+            .padding(.horizontal, 14).padding(.vertical, 6)
+            .background(theme.card)
+            .clipShape(RoundedRectangle(cornerRadius: Radius.card, style: .continuous))
+            .overlay(RoundedRectangle(cornerRadius: Radius.card, style: .continuous).stroke(theme.border, lineWidth: 1))
+            Text("Nothing here is good or bad. It just helps Keel notice what tends to go with how you feel.")
+                .font(KeelFont.caption).foregroundStyle(theme.muted)
+                .fixedSize(horizontal: false, vertical: true)
+        }
+    }
+
+    private func eatingGroupLabel(_ text: String) -> some View {
+        Text(text.uppercased()).font(KeelFont.eyebrow).tracking(0.6).foregroundStyle(theme.muted)
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .padding(.top, 10).padding(.bottom, 2)
+    }
+
+    private func eatingRow(_ item: EatingItem) -> some View {
+        let state = EatingLog.state(for: item.id, on: today, in: logs)
+        return HStack(spacing: 12) {
+            Text(item.label).font(KeelFont.body).foregroundStyle(theme.text)
+            Spacer(minLength: 8)
+            eatingPill("Yes", active: state == true) { setEating(item.id, state == true ? nil : true) }
+            eatingPill("No", active: state == false) { setEating(item.id, state == false ? nil : false) }
+        }
+        .padding(.vertical, 8)
+    }
+
+    /// Neutral pill (no good/bad colour): the selected answer is filled, the other is
+    /// outlined, and tapping the active one clears back to "not logged".
+    private func eatingPill(_ label: String, active: Bool, action: @escaping () -> Void) -> some View {
+        Button(action: action) {
+            Text(label).font(KeelFont.sans(13, weight: .medium))
+                .foregroundStyle(active ? theme.accent : theme.muted)
+                .padding(.horizontal, 15).padding(.vertical, 7)
+                .background(active ? theme.accent.opacity(0.14) : Color.clear)
+                .overlay(Capsule().stroke(active ? theme.accent : theme.border, lineWidth: 1))
+                .clipShape(Capsule())
+        }
+        .buttonStyle(.plain)
+    }
+
+    private func setEating(_ id: String, _ value: Bool?) {
+        EatingLog.set(value, for: id, on: today, ownerID: env.auth.ownerID, in: context)
+        Haptics.selection()
     }
 
     @ViewBuilder

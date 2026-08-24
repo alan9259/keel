@@ -20,7 +20,6 @@ enum ActivityCatalog {
         ActivityDef(id: "sleep", symbol: "moon.fill", label: "Sleep", unit: "hrs", step: 0.5, goal: 8),
         ActivityDef(id: "meditation", symbol: "wind", label: "Meditation / Breathwork", unit: nil, step: 1, goal: nil),
         ActivityDef(id: "eating", symbol: "fork.knife", label: "Healthy eating", unit: nil, step: 1, goal: nil),
-        ActivityDef(id: "journal", symbol: "book.fill", label: "Journalling", unit: nil, step: 1, goal: nil),
     ]
 }
 

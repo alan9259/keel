@@ -11,6 +11,7 @@ struct PatternFinding {
         case sleepEnergy
         case restingHeartRateSleep
         case wristTemperatureSleep
+        case dietTrigger
         case recurringSymptom
         case cycleVariability
         case premenstrual
@@ -55,6 +56,9 @@ struct PatternEngine {
     /// Distinct days each symptom was reported, keyed by name, merged from her
     /// check-ins AND Apple Health's own symptom logs (see [[SymptomTally]]).
     let symptomDaysByName: [String: Set<Date>]
+    /// Her yes/no diet-trigger logs (alcohol, caffeine, …) for the trigger↔symptom
+    /// comparison. Empty when she hasn't used the eating panel.
+    let dietTriggers: [DietTriggerCorrelation.Input]
     /// First day of each logged period run (start of day), ascending.
     let periodStarts: [Date]
     let today: Date
@@ -69,6 +73,7 @@ struct PatternEngine {
         if let f = sleepEnergy() { out.append(f) }
         if let f = restingHeartRateSleep() { out.append(f) }
         if let f = wristTemperatureSleep() { out.append(f) }
+        if let f = dietTrigger() { out.append(f) }
         if let f = premenstrual() { out.append(f) }
         if let f = cycleVariability() { out.append(f) }
         if let f = recurringSymptom() { out.append(f) }
@@ -147,7 +152,32 @@ struct PatternEngine {
             fact: "On shorter-sleep nights, her overnight body temperature has tended to run a little warmer.")
     }
 
-    // MARK: - 4. Premenstrual / late-luteal clustering
+    // MARK: - 4. Diet trigger → vasomotor symptoms
+
+    /// Days hot flushes or night sweats were reported (either source).
+    private func vasomotorDays() -> Set<Date> {
+        var union: Set<Date> = []
+        for name in SymptomTally.vasomotorNames { union.formUnion(symptomDaysByName[name] ?? []) }
+        return union
+    }
+
+    /// Whether hot flushes / night sweats have turned up more on the days she logged a
+    /// trigger (alcohol, caffeine, spicy food) than on the days she logged she didn't.
+    /// A real yes-vs-no comparison from her own logs; co-occurrence only, never cause.
+    private func dietTrigger() -> PatternFinding? {
+        guard let result = DietTriggerCorrelation.strongest(dietTriggers, symptomDays: vasomotorDays()) else { return nil }
+        let label = result.label.lowercased()
+        return PatternFinding(
+            kind: .dietTrigger,
+            title: "\(result.label) and your symptoms",
+            detail: "Hot flushes or night sweats turned up on \(result.yesHit) of the \(result.yesTotal) days you had \(label), and on \(result.noHit) of the \(result.noTotal) days you didn't. They have tended to come with your \(label) days lately. That's worth noticing, and worth a mention to your GP.",
+            timeframe: "From the days you logged \(label)",
+            icon: "fork.knife",
+            accent: .terracotta,
+            fact: "Hot flushes or night sweats have tended to come with her \(label) days lately.")
+    }
+
+    // MARK: - 5. Premenstrual / late-luteal clustering
 
     private func premenstrual() -> PatternFinding? {
         // Need at least two cycles to say something turns up "before your period".
@@ -200,7 +230,7 @@ struct PatternEngine {
         return nil
     }
 
-    // MARK: - 5. Cycle-length variability
+    // MARK: - 6. Cycle-length variability
 
     private func cycleVariability() -> PatternFinding? {
         guard periodStarts.count >= 3 else { return nil }
@@ -227,7 +257,7 @@ struct PatternEngine {
             fact: "Her cycles have been varying more in length lately, becoming less predictable.")
     }
 
-    // MARK: - 6. A recurring symptom
+    // MARK: - 7. A recurring symptom
 
     private func recurringSymptom() -> PatternFinding? {
         let floor = today.startOfDay.adding(days: -(Self.recentWindow - 1))
@@ -287,13 +317,24 @@ extension PatternEngine {
                        symptoms: ci.symptoms.map(\.name))
         }
 
-        let sleepDescriptor = FetchDescriptor<ActivityLog>(
-            predicate: #Predicate<ActivityLog> { $0.deletedAt == nil && $0.activityID == "sleep" && $0.date >= floor }
+        // One ActivityLog fetch for the window: sleep hours + her yes/no diet-trigger
+        // logs (from the eating panel), split by activityID.
+        let activityDescriptor = FetchDescriptor<ActivityLog>(
+            predicate: #Predicate<ActivityLog> { $0.deletedAt == nil && $0.date >= floor }
         )
+        let activityLogs = (try? context.fetch(activityDescriptor)) ?? []
         var sleepByDay: [Date: Double] = [:]
-        for log in ((try? context.fetch(sleepDescriptor)) ?? []) where log.amount > 0 {
+        for log in activityLogs where log.activityID == "sleep" && log.amount > 0 {
             let day = log.date.startOfDay
             if sleepByDay[day] == nil { sleepByDay[day] = log.amount }
+        }
+        let dietTriggers: [DietTriggerCorrelation.Input] = EatingCatalog.triggers.map { item in
+            var yes: Set<Date> = [], no: Set<Date> = []
+            for log in activityLogs where log.activityID == item.id {
+                let day = log.date.startOfDay
+                if log.amount > 0.5 { yes.insert(day) } else { no.insert(day) }
+            }
+            return DietTriggerCorrelation.Input(label: item.label, yes: yes, no: no)
         }
 
         // One Apple Health fetch for the window, split into the series the detectors
@@ -336,6 +377,7 @@ extension PatternEngine {
             restingHRByDay: restingHRByDay,
             wristTempByDay: wristTempByDay,
             symptomDaysByName: symptomDaysByName,
+            dietTriggers: dietTriggers,
             periodStarts: periodStarts(from: periodDays),
             today: today,
             calendar: calendar)

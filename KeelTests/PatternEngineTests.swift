@@ -17,13 +17,15 @@ final class PatternEngineTests: XCTestCase {
     /// the only one that can fire (empty check-ins/cycles/symptoms silence the others).
     private func engine(restingHR: [Date: Double] = [:], sleep: [Date: Double] = [:],
                         wristTemp: [Date: Double] = [:],
-                        symptomDays: [String: Set<Date>] = [:]) -> PatternEngine {
+                        symptomDays: [String: Set<Date>] = [:],
+                        dietTriggers: [DietTriggerCorrelation.Input] = []) -> PatternEngine {
         PatternEngine(
             checkIns: [],
             sleepByDay: sleep,
             restingHRByDay: restingHR,
             wristTempByDay: wristTemp,
             symptomDaysByName: symptomDays,
+            dietTriggers: dietTriggers,
             periodStarts: [],
             today: day(0),
             calendar: cal)
@@ -96,6 +98,21 @@ final class PatternEngineTests: XCTestCase {
         }
         XCTAssertNil(engine(sleep: sleep, wristTemp: temp)
             .findings().first { $0.kind == .wristTemperatureSleep })
+    }
+
+    // MARK: Diet trigger ↔ vasomotor symptoms
+
+    func testDietTriggerSurfacesWhenSymptomsClusterOnTriggerDays() {
+        let alcohol = DietTriggerCorrelation.Input(
+            label: "Alcohol",
+            yes: [day(0), day(-1), day(-2), day(-3)],   // 3 of 4 will have hot flushes
+            no: [day(-10), day(-11), day(-12), day(-13)]) // none do
+        let symptomDays: [String: Set<Date>] = ["Hot flushes": [day(0), day(-1), day(-2)]]
+        let finding = engine(symptomDays: symptomDays, dietTriggers: [alcohol])
+            .findings().first { $0.kind == .dietTrigger }
+        XCTAssertNotNil(finding)
+        XCTAssertTrue(finding?.title.contains("Alcohol") ?? false)
+        XCTAssertFalse((finding?.detail ?? "").contains("—"))
     }
 
     // MARK: Recurring symptom folds Apple Health logs

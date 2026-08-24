@@ -39,6 +39,14 @@ struct SymptomTally {
     /// Distinct days hot flushes or night sweats were reported.
     var vasomotorDays: Int { days(forAnyOf: Self.vasomotorNames) }
 
+    /// The actual union of days on which any of the named symptoms were reported —
+    /// for correlating against something else (e.g. diet-trigger days).
+    func unionDays(forAnyOf names: Set<String>) -> Set<Date> {
+        var union: Set<Date> = []
+        for (name, days) in daysByName where names.contains(name) { union.formUnion(days) }
+        return union
+    }
+
     // MARK: Apple Health `symptom.*` bridge
 
     /// The `HealthSample` typeID Keel archives a symptom under — the same forward
