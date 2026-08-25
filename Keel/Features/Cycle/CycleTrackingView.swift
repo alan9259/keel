@@ -19,16 +19,16 @@ struct CycleTrackingView: View {
             VStack(alignment: .leading, spacing: 22) {
                 ScreenHeader(title: "Cycle") { dismiss() }
 
+                // The timeline is the screen's top pane in every state: with data it
+                // shows her current cycle; empty, it shows a recent week she can tap to
+                // log into (rather than being hidden behind a separate card).
+                timelineCard
                 if hasAnyPeriod {
-                    timelineCard
                     if stats.typicalRange != nil { historyCard }
                     phaseCard
                     if let insight { insightCard(insight) }
-                    logPastCard
-                } else {
-                    emptyStateCard
-                    logPastCard
                 }
+                logPastCard
             }
             .padding(.horizontal, 24).padding(.vertical, 12)
         }
@@ -82,7 +82,14 @@ struct CycleTrackingView: View {
                     }
                     .onAppear { proxy.scrollTo(today, anchor: .center) }
                 }
-                legend.padding(.top, 16)
+                if hasAnyPeriod {
+                    legend.padding(.top, 16)
+                } else {
+                    Text("Tap a day here or in the calendar below to log a period, and Keel will build your timeline, keep your cycle lengths, and gently estimate the next one once there's a pattern. Periods you track in Apple Health come in automatically.")
+                        .font(KeelFont.caption).foregroundStyle(theme.text.opacity(0.7)).lineSpacing(2)
+                        .fixedSize(horizontal: false, vertical: true)
+                        .padding(.top, 14)
+                }
             }
         }
     }
@@ -219,20 +226,6 @@ struct CycleTrackingView: View {
         }
     }
 
-    // MARK: Empty state
-
-    private var emptyStateCard: some View {
-        StandardCard(padding: 22) {
-            VStack(alignment: .leading, spacing: 10) {
-                Image(systemName: "drop.fill").font(.system(size: 26)).foregroundStyle(theme.accent)
-                Text("Track your cycle").font(KeelFont.serif(20, weight: .semibold)).foregroundStyle(theme.heading)
-                Text("Log a period day below and Keel will build your cycle timeline, keep your recent cycle lengths, and gently estimate the next one once there's a pattern. If you track periods in Apple Health, they come in automatically.")
-                    .font(KeelFont.body).foregroundStyle(theme.text.opacity(0.75)).lineSpacing(3)
-                    .fixedSize(horizontal: false, vertical: true)
-            }
-        }
-    }
-
     // MARK: Log past days (the demoted month grid)
 
     private var logPastCard: some View {
@@ -307,15 +300,32 @@ struct CycleTrackingView: View {
 
     private var estimateWindow: ClosedRange<Date>? { stats.estimatedWindow() }
 
-    private var railStart: Date { (stats.lastStart ?? today).startOfDay }
-    private var railEnd: Date {
-        let ends = [today, estimateWindow?.upperBound ?? today.adding(days: 3)]
-        return (ends.max() ?? today).adding(days: 1)
+    private var railBounds: (start: Date, end: Date) {
+        Self.railBounds(lastStart: stats.lastStart, estimateEnd: estimateWindow?.upperBound,
+                        today: today, calendar: cal)
     }
+    private var railStart: Date { railBounds.start }
+    private var railEnd: Date { railBounds.end }
     private var railDays: [Date] {
-        var days: [Date] = []; var d = railStart
-        while d <= railEnd { days.append(d); d = d.adding(days: 1) }
+        var days: [Date] = []; var d = railBounds.start
+        while d <= railBounds.end { days.append(d); d = d.adding(days: 1) }
         return days
+    }
+
+    /// The timeline's day window. With data it runs from the current cycle's start to
+    /// today (or the estimated next period). With none, it's a recent week ending
+    /// today, so the empty top pane still shows real, tappable days to log the first
+    /// period into. Pure, so the boundaries can be tested.
+    static func railBounds(lastStart: Date?, estimateEnd: Date?, today: Date, calendar: Calendar) -> (start: Date, end: Date) {
+        let startOfToday = calendar.startOfDay(for: today)
+        guard let lastStart else {
+            let start = calendar.date(byAdding: .day, value: -6, to: startOfToday) ?? startOfToday
+            return (start, startOfToday)
+        }
+        let defaultEnd = calendar.date(byAdding: .day, value: 3, to: startOfToday) ?? startOfToday
+        let maxEnd = max(startOfToday, estimateEnd ?? defaultEnd)
+        let end = calendar.date(byAdding: .day, value: 1, to: maxEnd) ?? maxEnd
+        return (calendar.startOfDay(for: lastStart), end)
     }
 
     private var statusLine: String {
