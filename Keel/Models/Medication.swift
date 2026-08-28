@@ -29,6 +29,11 @@ final class Medication: Syncable {
     /// default — nothing is ever recorded as taken unless she opts in.
     var autoLogDoses: Bool = false
 
+    /// Whether this medicine shows in the home "Medicines" log: the ones she ticks to
+    /// track, PLUS any set to auto-log, so an auto-logged dose is never silently
+    /// invisible (a tester set testosterone to auto-log and it never appeared on home).
+    var appearsInHomeLog: Bool { isTracked || autoLogDoses }
+
     // MARK: Schedule
     //
     // Stored in parts so they map cleanly onto a row in any backend; the rules

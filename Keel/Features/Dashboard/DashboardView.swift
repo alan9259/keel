@@ -224,11 +224,12 @@ struct DashboardView: View {
     // MARK: Medicines (sits just below the day's entry)
 
     /// The day's medicines log. Every medicine she's tracking (ticked on the
-    /// Medications screen) shows here; tapping a row records whether she took it
-    /// on the selected day. The card hides when she isn't tracking anything.
+    /// Medications screen) shows here, plus any she's set to auto-log; tapping a row
+    /// records whether she took it on the selected day. The card hides when there's
+    /// nothing to show.
     @ViewBuilder
     private var medicinesCard: some View {
-        let tracked = meds.filter { $0.isTracked }
+        let tracked = meds.filter { $0.appearsInHomeLog }
         if !tracked.isEmpty {
             StandardCard(padding: 16) {
                 VStack(alignment: .leading, spacing: 10) {
@@ -538,7 +539,7 @@ struct DashboardView: View {
     }
 
     private var adherenceFraction: Double {
-        let tracked = meds.filter { $0.isTracked }
+        let tracked = meds.filter { $0.appearsInHomeLog }
         guard !tracked.isEmpty else { return 0 }
         let total = tracked.count * 7
         let taken = last7.reduce(0) { acc, day in

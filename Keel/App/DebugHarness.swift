@@ -276,6 +276,22 @@ enum DebugHarness {
             try? env.context.save()
         }
 
+        if args.contains("-uitSeedAutoLogMed") {
+            // The reported case: an auto-logged medicine whose tick is OFF. Before the
+            // fix it never appeared on the home Medicines list; now it should.
+            var tracked = TreatmentDraft(name: "Oestrogen gel", kind: .treatment)
+            tracked.schedule.slots = [DoseSlot(hour: 8, minute: 0)]
+            _ = env.medications.add(tracked)
+
+            var auto = TreatmentDraft(name: "Testosterone cream or gel", kind: .treatment)
+            auto.schedule.slots = [DoseSlot(hour: 8, minute: 0)]
+            let med = env.medications.add(auto)
+            med.isTracked = false     // tick off
+            med.autoLogDoses = true   // but set to auto-log
+            try? env.context.save()
+            env.autoLogTodaysDoses()  // record today's dose, as auto-log does
+        }
+
         if args.contains("-uitSeedMed") {
             for (name, amount, unit) in [("Magnesium", 400.0, DoseUnit.mg), ("Vitamin D", 2000.0, .iu)] {
                 var draft = TreatmentDraft(name: name, kind: .supplement)

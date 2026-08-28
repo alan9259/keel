@@ -36,7 +36,7 @@ struct MedicationsView: View {
                 KeelPrimaryButton("Add Medication or Supplement", systemImage: "plus") { showAdd = true }
 
                 InfoNoteCard(lead: "The tick:",
-                             message: "Ticked medicines show in your home Medicines log, where you record each day whether you took them.")
+                             message: "Ticked medicines show in your home Medicines log, where you record each day whether you took them. Auto-logged medicines show there too.")
 
                 InfoNoteCard(lead: "Reminders:",
                              message: "Add a time to anything here and we'll send a gentle nudge on the days it's due. Leave it off and nothing will chase you.")
