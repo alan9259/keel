@@ -47,7 +47,7 @@ struct ActivitiesView: View {
 
                 healthSection
 
-                if hasVitals { bodySection }
+                bodySection
 
                 eatingPanel
 
@@ -172,36 +172,67 @@ struct ActivitiesView: View {
     private var bodySection: some View {
         VStack(alignment: .leading, spacing: 12) {
             Text("Your body lately").font(KeelFont.serif(18, weight: .semibold)).foregroundStyle(theme.heading)
-            VStack(spacing: 12) {
-                if restingHR.count >= 3 { vitalRow(title: "Resting heart rate", unit: "bpm", trend: restingHR) }
-                if hrv.count >= 3 { vitalRow(title: "Heart rate variability", unit: "ms", trend: hrv) }
-                if weight.count >= 2 { vitalRow(title: "Weight", unit: "kg", trend: weight) }
-                if wristTemp.count >= 3 { vitalRow(title: "Overnight wrist temperature", unit: "°C", trend: wristTemp, showsAverage: false) }
+            if hasVitals {
+                VStack(spacing: 12) {
+                    if restingHR.count >= 3 { vitalRow(title: "Resting heart rate", unit: "bpm", trend: restingHR) }
+                    if hrv.count >= 3 { vitalRow(title: "Heart rate variability", unit: "ms", trend: hrv) }
+                    if weight.count >= 2 { vitalRow(title: "Weight", unit: "kg", trend: weight) }
+                    if wristTemp.count >= 3 { vitalRow(title: "Overnight wrist temperature", unit: "°C", trend: wristTemp, showsAverage: false) }
+                }
+                Text(bodyNote).font(KeelFont.caption).foregroundStyle(theme.text.opacity(0.7)).lineSpacing(2)
+                    .fixedSize(horizontal: false, vertical: true)
+            } else {
+                // Keep the charts on screen even before there's data, so she can see
+                // where her vitals will appear. No invented values: empty tracks only.
+                VStack(spacing: 12) {
+                    emptyVitalRow(title: "Resting heart rate", unit: "bpm")
+                    emptyVitalRow(title: "Heart rate variability", unit: "ms")
+                }
+                Text("These fill in once Apple Health has a few days of data. Weight, overnight temperature and blood pressure show up here too, when you record them.")
+                    .font(KeelFont.caption).foregroundStyle(theme.text.opacity(0.7)).lineSpacing(2)
+                    .fixedSize(horizontal: false, vertical: true)
             }
-            Text(bodyNote).font(KeelFont.caption).foregroundStyle(theme.text.opacity(0.7)).lineSpacing(2)
-                .fixedSize(horizontal: false, vertical: true)
         }
     }
 
-    private func vitalRow(title: String, unit: String, trend: VitalTrend, showsAverage: Bool = true) -> some View {
+    /// A vital row before there's data: the title and a faint, flat placeholder track
+    /// where the sparkline will be, labelled honestly rather than filled with a guess.
+    private func emptyVitalRow(title: String, unit: String) -> some View {
         HStack(spacing: 14) {
             VStack(alignment: .leading, spacing: 3) {
                 Text(title).font(KeelFont.body).foregroundStyle(theme.text)
-                if showsAverage, let avg = trend.average {
-                    Text("\(Text("~\(avg)").font(KeelFont.serif(20, weight: .semibold)).foregroundStyle(theme.heading))\(Text(" \(unit)").font(KeelFont.caption).foregroundStyle(theme.muted))")
-                } else if !showsAverage {
-                    Text("vs your usual").font(KeelFont.caption).foregroundStyle(theme.muted)
-                }
+                Text("No data yet").font(KeelFont.caption).foregroundStyle(theme.muted)
             }
             Spacer(minLength: 8)
-            Sparkline(values: trend.values, color: theme.accent).frame(width: 78, height: 32)
-            if let dir = trend.direction {
-                HStack(spacing: 3) {
-                    Image(systemName: directionSymbol(dir)).font(.system(size: 10, weight: .bold))
-                    Text(directionLabel(dir)).font(KeelFont.caption)
+            RoundedRectangle(cornerRadius: 2, style: .continuous)
+                .fill(theme.track).frame(width: 78, height: 3)
+        }
+        .padding(14).background(theme.card)
+        .clipShape(RoundedRectangle(cornerRadius: Radius.card, style: .continuous))
+        .overlay(RoundedRectangle(cornerRadius: Radius.card, style: .continuous).stroke(theme.border, lineWidth: 1))
+    }
+
+    private func vitalRow(title: String, unit: String, trend: VitalTrend, showsAverage: Bool = true) -> some View {
+        VStack(alignment: .leading, spacing: 12) {
+            HStack(alignment: .firstTextBaseline, spacing: 8) {
+                VStack(alignment: .leading, spacing: 2) {
+                    Text(title).font(KeelFont.body).foregroundStyle(theme.text)
+                    if showsAverage, let avg = trend.average {
+                        Text("\(Text("~\(avg)").font(KeelFont.serif(20, weight: .semibold)).foregroundStyle(theme.heading))\(Text(" \(unit)").font(KeelFont.caption).foregroundStyle(theme.muted))")
+                    } else if !showsAverage {
+                        Text("vs your usual").font(KeelFont.caption).foregroundStyle(theme.muted)
+                    }
                 }
-                .foregroundStyle(theme.muted).frame(width: 74, alignment: .trailing)
+                Spacer(minLength: 8)
+                if let dir = trend.direction {
+                    HStack(spacing: 3) {
+                        Image(systemName: directionSymbol(dir)).font(.system(size: 10, weight: .bold))
+                        Text(directionLabel(dir)).font(KeelFont.caption)
+                    }
+                    .foregroundStyle(theme.muted)
+                }
             }
+            VitalLineChart(points: trend.points, color: theme.accent, unit: unit, showsScale: showsAverage)
         }
         .padding(14).background(theme.card)
         .clipShape(RoundedRectangle(cornerRadius: Radius.card, style: .continuous))

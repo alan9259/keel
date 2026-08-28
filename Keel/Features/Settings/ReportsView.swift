@@ -36,7 +36,7 @@ struct ReportsView: View {
                 symptomsSection
                 medsSection
                 sleepSection
-                if hasVitals { vitalsSection }
+                vitalsSection
             }
             .padding(.horizontal, 20).padding(.vertical, 12)
         }
@@ -272,24 +272,30 @@ struct ReportsView: View {
 
     /// Resting heart rate and HRV from Apple Health, as an average and range over the
     /// period — the kind of objective baseline a GP asks about. Reuses `VitalTrend`,
-    /// so every number is her own imported data (no invented figure), and the section
-    /// only appears once there's something real to show.
+    /// so every number is her own imported data (no invented figure); always shown, so
+    /// she can find it, with an honest empty state before there's data.
     private var vitalsSection: some View {
         section("Body") {
             VStack(alignment: .leading, spacing: 14) {
-                if restingHRTrend.count >= 3 { vitalRow("Resting heart rate", unit: "bpm", trend: restingHRTrend) }
-                if hrvTrend.count >= 3 { vitalRow("Heart rate variability", unit: "ms", trend: hrvTrend) }
-                if weightTrend.count >= 2 { vitalRow("Weight", unit: "kg", trend: weightTrend) }
-                if let bp = bloodPressureText {
-                    HStack(alignment: .firstTextBaseline) {
-                        Text("Blood pressure").font(KeelFont.body).foregroundStyle(theme.text.opacity(0.8))
-                        Spacer()
-                        Text("avg \(bp) mmHg").font(KeelFont.sans(13, weight: .medium)).foregroundStyle(theme.heading)
+                if hasVitals {
+                    if restingHRTrend.count >= 3 { vitalRow("Resting heart rate", unit: "bpm", trend: restingHRTrend) }
+                    if hrvTrend.count >= 3 { vitalRow("Heart rate variability", unit: "ms", trend: hrvTrend) }
+                    if weightTrend.count >= 2 { vitalRow("Weight", unit: "kg", trend: weightTrend) }
+                    if let bp = bloodPressureText {
+                        HStack(alignment: .firstTextBaseline) {
+                            Text("Blood pressure").font(KeelFont.body).foregroundStyle(theme.text.opacity(0.8))
+                            Spacer()
+                            Text("avg \(bp) mmHg").font(KeelFont.sans(13, weight: .medium)).foregroundStyle(theme.heading)
+                        }
                     }
+                    Text("Averages over the \(period.rawValue.lowercased()), from Apple Health. These naturally shift with sleep, stress and your cycle.")
+                        .font(KeelFont.caption).foregroundStyle(theme.muted)
+                        .fixedSize(horizontal: false, vertical: true)
+                } else {
+                    Text("No vitals from Apple Health in this \(period.rawValue.lowercased()) yet. Resting heart rate, heart rate variability, weight and blood pressure appear here once there's data.")
+                        .font(KeelFont.body).foregroundStyle(theme.muted)
+                        .fixedSize(horizontal: false, vertical: true)
                 }
-                Text("Averages over the \(period.rawValue.lowercased()), from Apple Health. These naturally shift with sleep, stress and your cycle.")
-                    .font(KeelFont.caption).foregroundStyle(theme.muted)
-                    .fixedSize(horizontal: false, vertical: true)
             }
         }
     }

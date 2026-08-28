@@ -28,6 +28,9 @@ struct DashboardView: View {
         return Date.now.startOfDay
     }()
     @State private var calMonth = Date.now
+    /// The bar she has tapped in each strip, to read that day's value (nil = average).
+    @State private var selectedSleepDay: Date?
+    @State private var selectedEnergyDay: Date?
 
     private let cal = Calendar.current
 
@@ -110,8 +113,8 @@ struct DashboardView: View {
                         Text(selDateLabel.uppercased())
                             .font(KeelFont.eyebrow).tracking(0.8).foregroundStyle(theme.muted)
                         Spacer()
-                        if sleepFraction(for: selDate) > 0 {
-                            Text("Sleep \(sleepRingTitle(for: selDate))")
+                        if let h = sleepHours(for: selDate) {
+                            Text("Sleep \(sleepHoursText(h))")
                                 .font(KeelFont.sans(12)).foregroundStyle(theme.muted)
                         }
                     }
@@ -199,14 +202,20 @@ struct DashboardView: View {
             barTrendCard(
                 title: "Energy",
                 trailing: energyAvg > 0 ? "avg \(energyAvg)%" : "No data yet",
-                series: energyBars, color: theme.accent, maxValue: 100
+                series: energyBars, color: theme.accent, maxValue: 100,
+                selection: $selectedEnergyDay,
+                selectedText: { day, value in "\(dayLabel(day, todayWord: "Today")) · \(Int(value))%" }
             )
 
-            // Sleep (hours; ~10h fills the slot)
+            // Sleep (hours; ~10h fills the slot). Real hours, no invented score:
+            // Apple Health doesn't expose a sleep score, so we show her actual hours
+            // and let her tap a night to read it.
             barTrendCard(
                 title: "Sleep",
-                trailing: sleepAvgHours > 0 ? "score \(sleepScore)" : "No data yet",
-                series: sleepBars, color: theme.sage, maxValue: 10
+                trailing: sleepAvgHours > 0 ? "avg \(sleepHoursText(sleepAvgHours))" : "No data yet",
+                series: sleepBars, color: theme.sage, maxValue: 10,
+                selection: $selectedSleepDay,
+                selectedText: { day, hours in "\(dayLabel(day, todayWord: "Last night")) · \(sleepHoursText(hours))" }
             )
 
         }
@@ -268,34 +277,62 @@ struct DashboardView: View {
     /// A 7-day bar strip. Every day keeps a faint placeholder track (like the mood
     /// strip's empty circles) so real bars sit in their correct slot instead of
     /// floating; a day with no data shows just the empty track (never a fake value).
+    /// A 7-day bar strip. Pass `selection`/`selectedText` to make the bars tappable:
+    /// tapping a day shows that day's value in place of the trailing summary.
     private func barTrendCard(title: String, trailing: String,
                               series: [(day: Date, value: Double?)],
-                              color: Color, maxValue: Double) -> some View {
+                              color: Color, maxValue: Double,
+                              selection: Binding<Date?>? = nil,
+                              selectedText: ((Date, Double) -> String)? = nil) -> some View {
         let barHeight: CGFloat = 72
         let barWidth: CGFloat = 30
+        // When a bar is selected, the trailing reads that day; otherwise the summary.
+        let selectedDay = selection?.wrappedValue
+        let trailingText: String = {
+            if let selectedDay, let fmt = selectedText,
+               let point = series.first(where: { $0.day == selectedDay }), let v = point.value, v > 0 {
+                return fmt(selectedDay, v)
+            }
+            return trailing
+        }()
         return StandardCard(padding: 16) {
             VStack(alignment: .leading, spacing: 10) {
                 HStack(alignment: .firstTextBaseline) {
                     Text(title).font(KeelFont.sans(12)).foregroundStyle(theme.muted)
                     Spacer()
-                    Text(trailing).font(KeelFont.sans(12)).foregroundStyle(theme.text.opacity(0.6))
+                    Text(trailingText).font(KeelFont.sans(12)).foregroundStyle(theme.text.opacity(0.6))
                 }
                 HStack(alignment: .bottom, spacing: 4) {
                     ForEach(series, id: \.day) { point in
-                        VStack(spacing: 6) {
+                        let isSelected = point.day == selectedDay
+                        let bar = VStack(spacing: 6) {
                             ZStack(alignment: .bottom) {
                                 RoundedRectangle(cornerRadius: 5, style: .continuous)
                                     .fill(theme.track)
                                     .frame(width: barWidth, height: barHeight)
                                 if let v = point.value, v > 0 {
                                     RoundedRectangle(cornerRadius: 5, style: .continuous)
-                                        .fill(color.gradient)
+                                        .fill(color.gradient).opacity(selectedDay == nil || isSelected ? 1 : 0.55)
                                         .frame(width: barWidth, height: max(barHeight * CGFloat(min(v / maxValue, 1)), 5))
                                 }
                             }
-                            Text(letter(point.day)).font(KeelFont.sans(11)).foregroundStyle(theme.muted)
+                            Text(letter(point.day))
+                                .font(KeelFont.sans(11, weight: isSelected ? .semibold : .regular))
+                                .foregroundStyle(isSelected ? theme.text : theme.muted)
                         }
                         .frame(maxWidth: .infinity)
+                        .contentShape(Rectangle())
+
+                        if let selection {
+                            Button {
+                                Haptics.selection()
+                                selection.wrappedValue = isSelected ? nil : point.day
+                            } label: { bar }
+                            .buttonStyle(.plain)
+                            .disabled((point.value ?? 0) <= 0)
+                        } else {
+                            bar
+                        }
                     }
                 }
             }
@@ -473,7 +510,6 @@ struct DashboardView: View {
     }
 
     // Sleep (hours logged in Activities, activityID "sleep").
-    private let sleepGoalHours: Double = 8
 
     private func sleepHours(for day: Date) -> Double? {
         let logs = activityLogs.filter { $0.activityID == "sleep" && $0.date.isSameDay(as: day) && $0.amount > 0 }
@@ -491,20 +527,14 @@ struct DashboardView: View {
         return vals.reduce(0, +) / Double(vals.count)
     }
 
-    /// 0–100 score: average sleep as a share of the nightly goal.
-    private var sleepScore: Int {
-        min(100, Int((sleepAvgHours / sleepGoalHours * 100).rounded()))
+    /// Sleep hours as a short label, e.g. "7.5h" (a whole number reads "8h").
+    private func sleepHoursText(_ hours: Double) -> String {
+        hours == hours.rounded() ? "\(Int(hours))h" : String(format: "%.1fh", hours)
     }
 
-    /// Today's (or the selected day's) sleep, for the ring gauge.
-    private func sleepFraction(for day: Date) -> Double {
-        guard let h = sleepHours(for: day) else { return 0 }
-        return min(1, h / sleepGoalHours)
-    }
-
-    private func sleepRingTitle(for day: Date) -> String {
-        guard let h = sleepHours(for: day) else { return "–" }
-        return "\(min(100, Int((h / sleepGoalHours * 100).rounded())))"
+    /// A concise label for a tapped bar: `todayWord` for today, else "Sat 23".
+    private func dayLabel(_ day: Date, todayWord: String) -> String {
+        day.isSameDay(as: .now) ? todayWord : day.formatted(.dateTime.weekday(.abbreviated).day())
     }
 
     private var adherenceFraction: Double {
