@@ -241,6 +241,7 @@ enum DoseUnit: String, CaseIterable, Codable, Identifiable {
     case g
     case iu
     case ml
+    case pumps
     case percent
 
     var id: String { rawValue }
@@ -252,14 +253,19 @@ enum DoseUnit: String, CaseIterable, Codable, Identifiable {
         case .g: "g"
         case .iu: "IU"
         case .ml: "ml"
+        case .pumps: "pumps"
         case .percent: "%"
         }
     }
 
     func format(_ amount: Double) -> String {
         let number = amount == amount.rounded() ? String(Int(amount)) : String(amount)
-        // "400mg" reads as one word; "2000 IU" doesn't.
-        return self == .iu ? "\(number) \(label)" : "\(number)\(label)"
+        switch self {
+        // "400mg" reads as one word; "2000 IU" and "2 pumps" don't. Pumps also singularise.
+        case .iu: return "\(number) \(label)"
+        case .pumps: return "\(number) pump\(amount == 1 ? "" : "s")"
+        default: return "\(number)\(label)"
+        }
     }
 }
 

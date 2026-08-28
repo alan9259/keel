@@ -276,6 +276,17 @@ enum DebugHarness {
             try? env.context.save()
         }
 
+        if args.contains("-uitSeedPumpMed") {
+            // A gel dosed in pumps (the requested unit), to check it renders "2 pumps".
+            let med = Medication(name: "Oestrogen gel", dosage: "2 pumps",
+                                 doseAmount: 2, doseUnit: .pumps, timing: "daily", method: .gel,
+                                 kind: .treatment,
+                                 schedule: DoseSchedule(kind: .weekly, slots: [DoseSlot(hour: 8, minute: 0)]),
+                                 ownerID: env.auth.ownerID)
+            env.context.insert(med)
+            try? env.context.save()
+        }
+
         if args.contains("-uitSeedAutoLogMed") {
             // The reported case: an auto-logged medicine whose tick is OFF. Before the
             // fix it never appeared on the home Medicines list; now it should.
