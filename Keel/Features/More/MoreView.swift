@@ -19,7 +19,7 @@ struct MoreView: View {
                 Item(title: "Cycle Tracking", symbol: "calendar", tint: theme.accent, route: .cycle),
                 Item(title: "Activities", symbol: "figure.walk", tint: theme.sage, route: .activities),
                 Item(title: "Reminders", symbol: "bell.fill", tint: theme.accent, route: .reminders),
-                Item(title: "Reports", symbol: "chart.bar.fill", tint: theme.plum, route: .reports),
+                Item(title: "Looking back", symbol: "chart.bar.fill", tint: theme.plum, route: .reports),
             ]),
             ("Personalisation", [
                 Item(title: "Mood Icons", symbol: "face.smiling", tint: theme.accent, route: .moodIcons),

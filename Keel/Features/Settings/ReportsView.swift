@@ -30,7 +30,7 @@ struct ReportsView: View {
             VStack(alignment: .leading, spacing: 18) {
                 header
                 periodRow
-                daysInARowSection
+                checkInSummary
                 statTiles
                 moodSection
                 symptomsSection
@@ -46,7 +46,7 @@ struct ReportsView: View {
 
     private var header: some View {
         HStack(alignment: .top) {
-            ScreenHeader(title: "Reports", titleSize: 28, subtitle: "Your body, in numbers") { dismiss() }
+            ScreenHeader(title: "Looking back", titleSize: 28, subtitle: "What you have recorded") { dismiss() }
             ShareLink(item: exportText) {
                 Label("Export", systemImage: "square.and.arrow.up")
                     .font(KeelFont.caption).foregroundStyle(theme.muted)
@@ -66,42 +66,14 @@ struct ReportsView: View {
         }
     }
 
-    /// Logging consistency: the current run of consecutive days with an entry, a
-    /// row of the past 7 days ticked, and the longest run she's ever managed.
-    private var daysInARowSection: some View {
-        section("Days in a Row") {
-            VStack(alignment: .leading, spacing: 14) {
-                HStack(alignment: .firstTextBaseline, spacing: 8) {
-                    Text("\(currentStreak)").font(KeelFont.serif(30, weight: .semibold)).foregroundStyle(theme.heading)
-                    Text(currentStreak == 1 ? "day in a row" : "days in a row")
-                        .font(KeelFont.body).foregroundStyle(theme.muted)
-                }
-                HStack(spacing: 6) {
-                    ForEach(last7Days, id: \.self) { day in
-                        let logged = loggedDays.contains(day)
-                        VStack(spacing: 6) {
-                            ZStack {
-                                Circle().fill(logged ? theme.sage : .clear).frame(width: 26, height: 26)
-                                Circle().strokeBorder(logged ? .clear : theme.border, lineWidth: 1.5).frame(width: 26, height: 26)
-                                if logged {
-                                    Image(systemName: "checkmark").font(.system(size: 12, weight: .bold)).foregroundStyle(.white)
-                                }
-                            }
-                            Text(letter(day)).font(KeelFont.sans(11)).foregroundStyle(theme.muted)
-                        }
-                        .frame(maxWidth: .infinity)
-                        .accessibilityLabel("\(day.formatted(.dateTime.weekday(.wide))): \(logged ? "logged" : "not logged")")
-                    }
-                }
-                Divider().background(theme.border)
-                HStack {
-                    Text("Longest streak").font(KeelFont.body).foregroundStyle(theme.text.opacity(0.8))
-                    Spacer()
-                    Text(longestStreak == 1 ? "1 day" : "\(longestStreak) days")
-                        .font(KeelFont.body).foregroundStyle(theme.muted)
-                }
-            }
-        }
+    /// A plain, non-judging count of recent check-ins. No streaks, no broken runs, no
+    /// grey holes for the days a hard fortnight meant she didn't log.
+    private var checkInSummary: some View {
+        let count = last7Days.filter { loggedDays.contains($0) }.count
+        return Text("You checked in on \(count) of the last 7 days.")
+            .font(KeelFont.body).foregroundStyle(theme.text.opacity(0.8))
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .padding(.horizontal, 4)
     }
 
     private var statTiles: some View {
@@ -109,7 +81,7 @@ struct ReportsView: View {
             ("Check-ins", "\(windowCheckIns.count)", "in \(period.rawValue.lowercased())"),
             ("Avg energy", "\(avgEnergy)%", "across entries"),
             ("Symptom-free", "\(symptomFreeDays)", "days logged"),
-            ("Adherence", "\(Int(adherence * 100))%", "medications"),
+            ("Medicines", "\(daysWithAnyMedTaken)", "taken of \(period.days) days"),
         ]
         return LazyVGrid(columns: [GridItem(.flexible(), spacing: 10), GridItem(.flexible(), spacing: 10)], spacing: 10) {
             ForEach(tiles.indices, id: \.self) { i in
@@ -204,7 +176,7 @@ struct ReportsView: View {
             HStack {
                 Text(item.name).font(KeelFont.body).foregroundStyle(theme.text.opacity(0.8))
                 Spacer()
-                Text("\(item.count) days").font(KeelFont.body).foregroundStyle(theme.muted)
+                Text("\(item.count) \(item.count == 1 ? "day" : "days")").font(KeelFont.body).foregroundStyle(theme.muted)
             }
             ProgressCapsule(fraction: Double(item.count) / Double(max(period.days, 1)), color: theme.accent)
                 .frame(height: 8)
@@ -212,22 +184,30 @@ struct ReportsView: View {
     }
 
     private var medsSection: some View {
-        section("Medications") {
-            HStack(spacing: 18) {
-                ZStack {
-                    Circle().stroke(theme.track, lineWidth: 8).frame(width: 74, height: 74)
-                    Circle().trim(from: 0, to: adherence).stroke(theme.sage, style: StrokeStyle(lineWidth: 8, lineCap: .round))
-                        .rotationEffect(.degrees(-90)).frame(width: 74, height: 74)
-                    Text("\(Int(adherence * 100))%").font(KeelFont.sans(15, weight: .semibold)).foregroundStyle(theme.heading)
-                }
-                VStack(alignment: .leading, spacing: 4) {
-                    Text("Adherence rate").font(KeelFont.body).foregroundStyle(theme.text)
-                    Text(meds.isEmpty ? "No medications tracked" : "\(meds.count) tracked over \(period.days) days")
+        section("Medications and supplements") {
+            VStack(alignment: .leading, spacing: 6) {
+                if meds.isEmpty {
+                    Text("No medications or supplements tracked.").font(KeelFont.body).foregroundStyle(theme.muted)
+                } else {
+                    Text(medsTakenLine).font(KeelFont.body).foregroundStyle(theme.text.opacity(0.85))
+                        .fixedSize(horizontal: false, vertical: true)
+                    Text("\(meds.count) tracked over the \(period.rawValue.lowercased()).")
                         .font(KeelFont.caption).foregroundStyle(theme.muted)
                 }
-                Spacer()
             }
         }
+    }
+
+    /// A factual count, not a score. "Recorded as taken", because auto-log can mark a
+    /// dose taken without her confirming it, so we never imply she reported each one.
+    private var medsTakenLine: String {
+        let suffix = meds.contains { $0.autoLogDoses } ? ", including days auto-logged" : ""
+        return "Recorded as taken on \(daysWithAnyMedTaken) of \(period.days) days\(suffix)."
+    }
+
+    /// Distinct days in the window with at least one medicine recorded as taken.
+    private var daysWithAnyMedTaken: Int {
+        Set(medLogs.filter { $0.taken && $0.date >= since }.map { $0.date.startOfDay }).count
     }
 
     private var sleepSection: some View {
@@ -237,7 +217,7 @@ struct ReportsView: View {
                     Text("Hours per night").font(KeelFont.eyebrow).tracking(0.6).foregroundStyle(theme.muted)
                     Spacer()
                     if sleepAvg > 0 {
-                        Text("avg \(sleepHoursText(sleepAvg)) · score \(sleepScore)")
+                        Text("avg \(sleepHoursText(sleepAvg))")
                             .font(KeelFont.sans(12)).foregroundStyle(theme.text.opacity(0.6))
                     }
                 }
@@ -336,7 +316,7 @@ struct ReportsView: View {
 
     private var symptomFreeDays: Int { windowCheckIns.filter { $0.symptoms.isEmpty }.count }
 
-    // MARK: Streak
+    // MARK: Check-ins
 
     /// Every calendar day (start of day) she logged at least one check-in.
     private var loggedDays: Set<Date> { Set(checkIns.map { $0.date.startOfDay }) }
@@ -345,33 +325,6 @@ struct ReportsView: View {
     private var last7Days: [Date] {
         let today = Date.now.startOfDay
         return (0..<7).map { today.adding(days: -6 + $0) }
-    }
-
-    /// Consecutive days with an entry, counting back from today. If today isn't
-    /// logged yet the run isn't broken — it counts back from yesterday.
-    private var currentStreak: Int {
-        var day = Date.now.startOfDay
-        if !loggedDays.contains(day) { day = day.adding(days: -1) }
-        var streak = 0
-        while loggedDays.contains(day) { streak += 1; day = day.adding(days: -1) }
-        return streak
-    }
-
-    /// The longest run of consecutive logged days across all her history.
-    private var longestStreak: Int {
-        let sorted = loggedDays.sorted()
-        guard !sorted.isEmpty else { return 0 }
-        var longest = 1, run = 1
-        for i in 1..<sorted.count {
-            run = sorted[i - 1].adding(days: 1).isSameDay(as: sorted[i]) ? run + 1 : 1
-            longest = max(longest, run)
-        }
-        return longest
-    }
-
-    private func letter(_ date: Date) -> String {
-        let cal = Calendar.current
-        return cal.veryShortStandaloneWeekdaySymbols[cal.component(.weekday, from: date) - 1]
     }
 
     private var moodCounts: [Mood: Int] {
@@ -412,13 +365,6 @@ struct ReportsView: View {
         return "Hot flushes or night sweats on \(days) of the last \(period.days) days (\(rate))."
     }
 
-    private var adherence: Double {
-        guard !meds.isEmpty else { return 0 }
-        let taken = medLogs.filter { $0.taken && $0.date >= since }.count
-        let total = meds.count * period.days
-        return total == 0 ? 0 : min(Double(taken) / Double(total), 1)
-    }
-
     /// Sleep hours per day from activity logs; falls back to a gentle sample when empty.
     /// The days the sleep chart covers, oldest first.
     private var sleepDays: [Date] {
@@ -433,17 +379,12 @@ struct ReportsView: View {
         }
     }
 
-    private let sleepGoalHours: Double = 8
-
     /// Average across nights that have data (0 when none).
     private var sleepAvg: Double {
         let vals = sleepSeries.filter { $0 > 0 }
         guard !vals.isEmpty else { return 0 }
         return vals.reduce(0, +) / Double(vals.count)
     }
-
-    /// 0–100 derived from average sleep against the nightly goal (not an Apple score).
-    private var sleepScore: Int { min(100, Int((sleepAvg / sleepGoalHours * 100).rounded())) }
 
     private func sleepHoursText(_ h: Double) -> String { String(format: "%.1fh", h) }
 
@@ -500,12 +441,11 @@ struct ReportsView: View {
     }
 
     private var exportText: String {
-        var lines = ["Keel Report: \(period.rawValue)", ""]
+        var lines = ["Your Keel records: \(period.rawValue)", ""]
         lines.append("Check-ins: \(windowCheckIns.count)")
         lines.append("Average energy: \(avgEnergy)%")
         lines.append("Symptom-free days: \(symptomFreeDays)")
-        lines.append("Days in a row: \(currentStreak) (longest: \(longestStreak))")
-        lines.append("Medication adherence: \(Int(adherence * 100))%")
+        if !meds.isEmpty { lines.append("Medicines: \(medsTakenLine)") }
         if hasVitals {
             lines.append("")
             lines.append("Body (from Apple Health, averaged over the \(period.rawValue.lowercased())):")
@@ -532,7 +472,7 @@ struct ReportsView: View {
         if !topSymptoms.isEmpty {
             lines.append("")
             lines.append("Most reported symptoms (days in \(period.rawValue.lowercased()), includes Apple Health logs):")
-            topSymptoms.forEach { lines.append("  • \($0.name): \($0.count) days") }
+            topSymptoms.forEach { lines.append("  • \($0.name): \($0.count) \($0.count == 1 ? "day" : "days")") }
         }
         return lines.joined(separator: "\n")
     }

@@ -108,7 +108,7 @@ struct PatternsView: View {
 
     private var lookingBack: some View {
         VStack(alignment: .leading, spacing: 12) {
-            Text("Looking back")
+            Text("Earlier reflections")
                 .font(KeelFont.serif(18, weight: .semibold)).foregroundStyle(theme.heading)
             ForEach(past) { summary in
                 StandardCard(padding: 16) {

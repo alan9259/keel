@@ -263,12 +263,10 @@ struct DashboardView: View {
                         .accessibilityHint("Records whether you took it on \(selDateLabel)")
                     }
                     Divider().background(theme.border).padding(.top, 2)
-                    HStack(spacing: 8) {
-                        ProgressCapsule(fraction: adherenceFraction, color: theme.sage)
-                            .frame(height: 6)
-                        Text("\(Int(adherenceFraction * 100))% this week")
-                            .font(KeelFont.sans(12)).foregroundStyle(theme.muted)
-                    }
+                    // A plain count, not a score or a progress bar: no failing-grade framing.
+                    Text("Recorded as taken on \(daysTakenLast7) of the last 7 days.")
+                        .font(KeelFont.sans(12)).foregroundStyle(theme.muted)
+                        .fixedSize(horizontal: false, vertical: true)
                 }
             }
             .id(selDate)
@@ -538,14 +536,12 @@ struct DashboardView: View {
         day.isSameDay(as: .now) ? todayWord : day.formatted(.dateTime.weekday(.abbreviated).day())
     }
 
-    private var adherenceFraction: Double {
+    /// Distinct days in the last 7 with at least one home-list medicine recorded taken.
+    private var daysTakenLast7: Int {
         let tracked = meds.filter { $0.appearsInHomeLog }
-        guard !tracked.isEmpty else { return 0 }
-        let total = tracked.count * 7
-        let taken = last7.reduce(0) { acc, day in
-            acc + tracked.filter { tookSet.contains(Key(med: $0.id, day: day.startOfDay)) }.count
-        }
-        return total == 0 ? 0 : Double(taken) / Double(total)
+        return last7.filter { day in
+            tracked.contains { tookSet.contains(Key(med: $0.id, day: day.startOfDay)) }
+        }.count
     }
 
     private var greeting: String { Greeting.current() }
