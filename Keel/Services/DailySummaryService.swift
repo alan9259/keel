@@ -51,6 +51,7 @@ final class DailySummaryService {
     /// entries when nothing has changed.
     func refreshIfNeeded() async {
         cleanUpLowContentSummaries()
+        purgeUnsafeReflections()
         dedupUnchangedSummaries()
         await generate(force: false)
     }
@@ -60,6 +61,7 @@ final class DailySummaryService {
     /// without adding a duplicate to the history.
     func regenerate() async {
         cleanUpLowContentSummaries()
+        purgeUnsafeReflections()
         dedupUnchangedSummaries()
         await generate(force: true)
     }
@@ -184,15 +186,52 @@ final class DailySummaryService {
         if changed { try? context.save() }
     }
 
-    /// Narrate grounded facts with Apple Intelligence. Returns nil (falling back
-    /// to the deterministic text) when the on-device model is unavailable or errors.
+    /// Retire any already-stored reflection that reassures or normalises a symptom
+    /// (written before the safety filter existed), so "Looking back" can't keep
+    /// showing it. New reflections are guarded at generation time (see `narrate`).
+    private func purgeUnsafeReflections() {
+        let stored = (try? context.fetch(FetchDescriptor<DailySummary>(
+            predicate: #Predicate { $0.deletedAt == nil }))) ?? []
+        var changed = false
+        for summary in stored where Self.offersReassurance(summary.text) {
+            summary.softDelete()
+            changed = true
+        }
+        if changed { try? context.save() }
+    }
+
+    /// Narrate grounded facts with Apple Intelligence. Returns nil (falling back to the
+    /// deterministic text) when the on-device model is unavailable, errors, OR slips
+    /// into reassurance — the model must never tell her a symptom is normal or nothing
+    /// to worry about, and instructions alone don't guarantee that, so we also filter.
     private func narrate(facts: [String]) async -> String? {
         #if canImport(FoundationModels)
         if #available(iOS 26.0, *) {
-            return await AppleSummaryNarrator.narrate(facts: facts)
+            guard let text = await AppleSummaryNarrator.narrate(facts: facts) else { return nil }
+            return Self.offersReassurance(text) ? nil : text
         }
         #endif
         return nil
+    }
+
+    /// A reflection must reflect a pattern to notice, never reassure her about what it
+    /// means (Keel can't judge whether a symptom is serious) and never alarm her. This
+    /// catches an AI narration that normalises or dismisses a symptom, or tells her to
+    /// worry or not to, so it can be discarded in favour of the deterministic text.
+    /// A tester flagged "there's no reason to worry... perfectly normal" for headaches.
+    nonisolated static func offersReassurance(_ text: String) -> Bool {
+        let lower = text.lowercased()
+        let banned = [
+            "worry",              // a reflection should neither reassure nor alarm
+            "normal",             // never call a symptom normal
+            "harmless", "benign",
+            "nothing serious", "not serious", "nothing to be concerned",
+            "no cause for concern", "no need to be concerned", "no need for concern",
+            "perfectly fine", "you're fine", "you are fine", "everything is fine",
+            "don't be alarmed", "do not be alarmed", "no need to panic", "no need to worry",
+            "reassur",            // reassure / reassuring / rest assured
+        ]
+        return banned.contains { lower.contains($0) }
     }
 }
 
@@ -232,9 +271,15 @@ enum AppleSummaryNarrator {
     the patterns in words. The exact figures are shown to her elsewhere.
     - Australian and New Zealand spelling. Say "hot flushes", never "hot flashes".
     - Never diagnose, never prescribe, never predict. These are things to notice.
+    - Never reassure her about her health. You cannot judge whether a symptom is \
+    serious, so do not say a symptom is normal, common, harmless, expected, nothing \
+    to worry about, or that there is no reason to worry. Do not tell her to worry or \
+    not to worry. Reflect the pattern plainly, and where it fits, gently suggest she \
+    might mention it to her GP.
     - No dashes of any kind. Use full stops and commas.
-    - Gentle and grounded, never alarming. It is fine to gently suggest she might \
-    mention something to her GP.
+
+    Keep a calm, steady tone. Do not be alarming, but do not offer comfort about what \
+    her symptoms mean either.
 
     Return only the reflection text, nothing else.
     """
