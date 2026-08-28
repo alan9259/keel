@@ -8,6 +8,13 @@ import Foundation
 /// It only ever reports co-occurrence, never cause: the copy says things "turned up
 /// more on" trigger days, never that the trigger caused them.
 enum DietTriggerCorrelation {
+    /// Gated OFF pending clinical review (product alignment note, 19 Aug 2026). The
+    /// symptom-vs-trigger link surfaces an interpretation, so it is held back from
+    /// Patterns, the daily reflection, the GP report AND the trigger-logging panel
+    /// until reviewed. The pure comparison below stays intact and tested for when it
+    /// returns; only the surfacing is gated.
+    static let surfacesToUser = false
+
     /// One trigger's logged days.
     struct Input: Equatable {
         let label: String       // "Alcohol"

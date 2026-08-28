@@ -191,8 +191,10 @@ struct MedicationRepository: MedicationRepositoring {
             kind: draft.kind,
             catalogGroupID: draft.catalogGroupID,
             schedule: draft.schedule,
-            // Recorded for her: today, because that's when she told us.
-            date: draft.date ?? .now,
+            // Only a date she actually entered is recorded, never a system timestamp,
+            // so the GP summary carries her date unaltered and stays blank if she
+            // didn't give one (clinical data-integrity rule, product alignment note).
+            date: draft.date,
             doseChangedAt: draft.doseChangedAt,
             note: draft.note.trimmingCharacters(in: .whitespacesAndNewlines).nilIfEmpty,
             isOffLabel: draft.isOffLabel,
@@ -206,17 +208,11 @@ struct MedicationRepository: MedicationRepositoring {
     }
 
     func update(_ medication: Medication, with draft: TreatmentDraft) {
-        // A dose that differs from the one already recorded is a dose change, and
-        // it's stamped without asking. Only counts once there was a dose to
-        // change from, so first filling it in isn't mistaken for a change.
-        let hadDose = medication.doseAmount != nil
-        let doseDiffers = medication.doseAmount != draft.doseAmount || medication.doseUnit != draft.doseUnit
-        if hadDose && doseDiffers {
-            medication.doseChangedAt = .now
-        } else {
-            medication.doseChangedAt = draft.doseChangedAt
-        }
-        medication.date = medication.date ?? draft.date ?? .now
+        // Dates are recorded only as she entered them: never inferred and never stamped
+        // with today, so the GP summary carries her dates unaltered and stays blank
+        // when she didn't give one. A dose change with no date she gave stays blank.
+        medication.doseChangedAt = draft.doseChangedAt
+        medication.date = medication.date ?? draft.date
         medication.name = draft.name.trimmingCharacters(in: .whitespaces)
         medication.dosage = draft.doseText
         medication.doseAmount = draft.doseAmount

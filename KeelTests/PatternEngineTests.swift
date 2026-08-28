@@ -102,17 +102,19 @@ final class PatternEngineTests: XCTestCase {
 
     // MARK: Diet trigger ↔ vasomotor symptoms
 
-    func testDietTriggerSurfacesWhenSymptomsClusterOnTriggerDays() {
+    /// The diet-trigger correlation is gated off pending clinical review, so even a
+    /// clear signal must NOT surface as a finding. (The pure comparison is still
+    /// covered by DietTriggerCorrelationTests for when it returns.)
+    func testDietTriggerIsGatedOffPendingReview() {
+        XCTAssertFalse(DietTriggerCorrelation.surfacesToUser)
         let alcohol = DietTriggerCorrelation.Input(
             label: "Alcohol",
-            yes: [day(0), day(-1), day(-2), day(-3)],   // 3 of 4 will have hot flushes
+            yes: [day(0), day(-1), day(-2), day(-3)],   // 3 of 4 have hot flushes
             no: [day(-10), day(-11), day(-12), day(-13)]) // none do
         let symptomDays: [String: Set<Date>] = ["Hot flushes": [day(0), day(-1), day(-2)]]
         let finding = engine(symptomDays: symptomDays, dietTriggers: [alcohol])
             .findings().first { $0.kind == .dietTrigger }
-        XCTAssertNotNil(finding)
-        XCTAssertTrue(finding?.title.contains("Alcohol") ?? false)
-        XCTAssertFalse((finding?.detail ?? "").contains("—"))
+        XCTAssertNil(finding, "gated: the diet-trigger link should not surface")
     }
 
     // MARK: Recurring symptom folds Apple Health logs

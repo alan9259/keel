@@ -165,6 +165,7 @@ struct PatternEngine {
     /// trigger (alcohol, caffeine, spicy food) than on the days she logged she didn't.
     /// A real yes-vs-no comparison from her own logs; co-occurrence only, never cause.
     private func dietTrigger() -> PatternFinding? {
+        guard DietTriggerCorrelation.surfacesToUser else { return nil } // gated pending clinical review
         guard let result = DietTriggerCorrelation.strongest(dietTriggers, symptomDays: vasomotorDays()) else { return nil }
         let label = result.label.lowercased()
         return PatternFinding(

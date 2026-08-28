@@ -283,14 +283,20 @@ struct ActivitiesView: View {
             VStack(spacing: 0) {
                 eatingGroupLabel("Nourishing")
                 ForEach(EatingCatalog.nourishment) { eatingRow($0) }
-                eatingGroupLabel("Might nudge symptoms")
-                ForEach(EatingCatalog.triggers) { eatingRow($0) }
+                // The symptom-trigger rows are held back with the correlation they feed,
+                // pending clinical review (product alignment note).
+                if DietTriggerCorrelation.surfacesToUser {
+                    eatingGroupLabel("Might nudge symptoms")
+                    ForEach(EatingCatalog.triggers) { eatingRow($0) }
+                }
             }
             .padding(.horizontal, 14).padding(.vertical, 6)
             .background(theme.card)
             .clipShape(RoundedRectangle(cornerRadius: Radius.card, style: .continuous))
             .overlay(RoundedRectangle(cornerRadius: Radius.card, style: .continuous).stroke(theme.border, lineWidth: 1))
-            Text("Nothing here is good or bad. It just helps Keel notice what tends to go with how you feel.")
+            Text(DietTriggerCorrelation.surfacesToUser
+                 ? "Nothing here is good or bad. It just helps Keel notice what tends to go with how you feel."
+                 : "Tap what fits, or leave it. Nothing here is scored or judged.")
                 .font(KeelFont.caption).foregroundStyle(theme.muted)
                 .fixedSize(horizontal: false, vertical: true)
         }

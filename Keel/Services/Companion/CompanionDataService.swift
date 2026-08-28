@@ -280,7 +280,8 @@ struct CompanionDataService {
             }
             return DietTriggerCorrelation.Input(label: item.label, yes: yes, no: no)
         }
-        if let trigger = DietTriggerCorrelation.strongest(
+        if DietTriggerCorrelation.surfacesToUser,
+           let trigger = DietTriggerCorrelation.strongest(
             triggerInputs, symptomDays: tally.unionDays(forAnyOf: SymptomTally.vasomotorNames)) {
             lines.append("")
             lines.append("Possible trigger: hot flushes/night sweats on \(trigger.yesHit)/\(trigger.yesTotal) days with \(trigger.label.lowercased()) vs \(trigger.noHit)/\(trigger.noTotal) days without.")
