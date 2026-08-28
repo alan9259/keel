@@ -78,9 +78,9 @@ struct ReportsView: View {
 
     private var statTiles: some View {
         let tiles: [(String, String, String)] = [
-            ("Check-ins", "\(windowCheckIns.count)", "in \(period.rawValue.lowercased())"),
+            ("Check-ins", "\(windowCheckIns.count)", "of \(period.days) days"),
             ("Avg energy", "\(avgEnergy)%", "across entries"),
-            ("Symptom-free", "\(symptomFreeDays)", "days logged"),
+            ("Symptom-free", "\(symptomFreeDays)", "of \(windowCheckIns.count) days logged"),
             ("Medicines", "\(daysWithAnyMedTaken)", "taken of \(period.days) days"),
         ]
         return LazyVGrid(columns: [GridItem(.flexible(), spacing: 10), GridItem(.flexible(), spacing: 10)], spacing: 10) {
@@ -388,10 +388,12 @@ struct ReportsView: View {
 
     private func sleepHoursText(_ h: Double) -> String { String(format: "%.1fh", h) }
 
-    /// The tapped night's hours, else the most recent night with sleep.
+    /// The tapped night's hours. Nothing floats over the chart until she taps a bar,
+    /// so a stray "Last night" no longer sits mid-chart on the most recent night.
     private var sleepDetail: String {
-        let idx = selectedSleepIndex ?? sleepSeries.lastIndex(where: { $0 > 0 })
-        guard let i = idx, i < sleepDays.count, sleepSeries[i] > 0 else { return "Tap a bar for that night." }
+        guard let i = selectedSleepIndex, i < sleepDays.count, sleepSeries[i] > 0 else {
+            return "Tap a bar for that night's hours."
+        }
         let day = sleepDays[i]
         let label = day.isSameDay(as: .now) ? "Last night"
             : day.formatted(.dateTime.weekday(.abbreviated).day().month(.abbreviated))
@@ -430,13 +432,16 @@ struct ReportsView: View {
         return "\(Int(lo.rounded()))–\(Int(hi.rounded()))"
     }
 
+    /// Distinct mood tones on a calm warm-to-green scale. Amber is Keel's alert colour,
+    /// so it is deliberately not used here (a tester flagged amber for "Okay"), and no
+    /// two neighbouring moods share a hue.
     private func moodColor(_ mood: Mood) -> Color {
         switch mood {
-        case .great: Color(hex: 0x16A34A)
-        case .good: Color(hex: 0x8BC34A)
-        case .okay: Color(hex: 0xCA8A04)
-        case .low: Color(hex: 0xF97316)
-        case .difficult: Color(hex: 0xA9762F)
+        case .great: Color(hex: 0x6E9E73)     // sage
+        case .good: Color(hex: 0x9DBBA0)      // light sage
+        case .okay: Color(hex: 0xC9AE86)      // warm sand, neutral
+        case .low: Color(hex: 0xB56A5A)       // soft terracotta
+        case .difficult: Color(hex: 0x8A5A66) // muted rose, serious but not alarming
         }
     }
 

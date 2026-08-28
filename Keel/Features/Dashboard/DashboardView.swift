@@ -35,7 +35,7 @@ struct DashboardView: View {
     private let cal = Calendar.current
 
     var body: some View {
-        ZStack(alignment: .bottomTrailing) {
+        ZStack {
             theme.background.ignoresSafeArea()
 
             ScrollView {
@@ -45,13 +45,13 @@ struct DashboardView: View {
                     medicinesCard
                     trends
                     calendarCard
-                    Spacer().frame(height: 90)
                 }
                 .padding(.horizontal, 20)
                 .padding(.top, 8)
             }
-
-            fabRow
+            // The FAB row docks at the bottom instead of floating over the last cards,
+            // so it never sits on top of the Energy or Sleep charts.
+            .safeAreaInset(edge: .bottom, spacing: 0) { fabRow }
         }
         .toolbar(.hidden, for: .navigationBar)
     }
@@ -234,7 +234,7 @@ struct DashboardView: View {
             StandardCard(padding: 16) {
                 VStack(alignment: .leading, spacing: 10) {
                     HStack {
-                        Text("Medicines").font(KeelFont.sans(12)).foregroundStyle(theme.muted)
+                        Text("Medications").font(KeelFont.sans(12)).foregroundStyle(theme.muted)
                         Spacer()
                         Text(selDateLabel).font(KeelFont.sans(11)).foregroundStyle(theme.muted)
                     }
@@ -264,7 +264,7 @@ struct DashboardView: View {
                     }
                     Divider().background(theme.border).padding(.top, 2)
                     // A plain count, not a score or a progress bar: no failing-grade framing.
-                    Text("Recorded as taken on \(daysTakenLast7) of the last 7 days.")
+                    Text("Recorded as taken on \(daysTakenLast7) of the last 7 days\(meds.contains { $0.autoLogDoses } ? ", including auto-logged" : "").")
                         .font(KeelFont.sans(12)).foregroundStyle(theme.muted)
                         .fixedSize(horizontal: false, vertical: true)
                 }
@@ -407,6 +407,7 @@ struct DashboardView: View {
 
     private var fabRow: some View {
         HStack(spacing: 10) {
+            Spacer(minLength: 0)
             miniFab("bubble.left.and.bubble.right.fill", tint: theme.plum) { onNavigate(.chat) }
             miniFab("pills.fill", tint: theme.sage) { onNavigate(.medications) }
             miniFab("chart.line.uptrend.xyaxis", tint: theme.heading) { onNavigate(.patterns) }
@@ -421,12 +422,15 @@ struct DashboardView: View {
                     .foregroundStyle(theme.background)
                     .frame(width: 56, height: 56)
                     .background(theme.accent).clipShape(Circle())
-                    .shadow(color: theme.accent.opacity(0.45), radius: 11, y: 8)
             }
             .accessibilityLabel("New check-in")
         }
-        .padding(.trailing, 18)
-        .padding(.bottom, 30)
+        .padding(.horizontal, 18)
+        .padding(.vertical, 10)
+        .frame(maxWidth: .infinity)
+        // An opaque docked bar, so the buttons never sit over the charts behind them.
+        .background(theme.background)
+        .overlay(alignment: .top) { Rectangle().fill(theme.border).frame(height: 1) }
     }
 
     private func miniFab(_ icon: String, tint: Color, action: @escaping () -> Void) -> some View {

@@ -20,7 +20,7 @@ struct MedicationsView: View {
         ScrollView {
             VStack(alignment: .leading, spacing: 24) {
                 // The longest title in the app: held to one line, scaling to fit.
-                ScreenHeader(title: "Medications & Supplements") { dismiss() }
+                ScreenHeader(title: "Medications and supplements") { dismiss() }
 
                 if medications.isEmpty {
                     emptyState
