@@ -11,9 +11,6 @@ struct SettingsView: View {
     @State private var showCloseDialog = false
     @State private var typed = ""
 
-    // TODO: point this at the real published privacy policy before launch.
-    private let privacyPolicyURL = URL(string: "https://therecalibrationyears.com/privacy")
-
     var body: some View {
         ScrollView {
             VStack(alignment: .leading, spacing: 22) {
@@ -28,10 +25,8 @@ struct SettingsView: View {
                 }
 
                 group("Privacy") {
-                    if let url = privacyPolicyURL {
-                        Button { openURL(url) } label: { linkRow("globe", "Privacy policy") }
-                            .buttonStyle(.plain)
-                    }
+                    NavigationLink(value: MainRoute.privacy) { linkRow("hand.raised.fill", "Privacy policy") }
+                        .buttonStyle(.plain)
                 }
 
                 accountGroup

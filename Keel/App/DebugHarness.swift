@@ -120,6 +120,7 @@ enum DebugHarness {
         if args.contains("-uitRouteAbout") { return .about }
         if args.contains("-uitRouteSupport") { return .support }
         if args.contains("-uitRouteGPSummary") { return .gpSummary }
+        if args.contains("-uitRoutePrivacy") { return .privacy }
         return nil
     }
 
