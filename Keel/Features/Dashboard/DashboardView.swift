@@ -45,6 +45,7 @@ struct DashboardView: View {
                     medicinesCard
                     trends
                     calendarCard
+                    gpSummaryCard
                 }
                 .padding(.horizontal, 20)
                 .padding(.top, 8)
@@ -401,6 +402,39 @@ struct DashboardView: View {
         } else {
             Color.clear.frame(height: 38)
         }
+    }
+
+    // MARK: GP visit summary
+
+    /// Always-visible entry into the GP Visit Summary flow (spec: "entry point,
+    /// always visible from home").
+    private var gpSummaryCard: some View {
+        Button { Haptics.selection(); onNavigate(.gpSummary) } label: {
+            HStack(spacing: 14) {
+                Image(systemName: "doc.text")
+                    .font(.system(size: 20))
+                    .foregroundStyle(theme.accent)
+                    .frame(width: 40, height: 40)
+                    .background(theme.accentTint)
+                    .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
+                VStack(alignment: .leading, spacing: 2) {
+                    Text(GPSummaryCopy.prepareEntry)
+                        .font(KeelFont.sans(16, weight: .medium)).foregroundStyle(theme.text)
+                    Text("A summary of what you've recorded, for your appointment.")
+                        .font(KeelFont.caption).foregroundStyle(theme.muted)
+                        .fixedSize(horizontal: false, vertical: true)
+                }
+                Spacer(minLength: 0)
+                Image(systemName: "chevron.right").font(.system(size: 14, weight: .semibold))
+                    .foregroundStyle(theme.muted)
+            }
+            .padding(16)
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .background(theme.card)
+            .clipShape(RoundedRectangle(cornerRadius: Radius.card, style: .continuous))
+            .overlay(RoundedRectangle(cornerRadius: Radius.card, style: .continuous).stroke(theme.border, lineWidth: 1))
+        }
+        .buttonStyle(.plain)
     }
 
     // MARK: FAB row

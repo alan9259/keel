@@ -91,6 +91,15 @@ enum DebugHarness {
         return nil
     }
 
+    /// Open the GP Visit Summary flow at a chosen step, so each screen can be shot
+    /// without driving the taps between steps.
+    static var gpInitialStep: GPSummaryFlowModel.Step? {
+        if args.contains("-uitGPReview") { return .review }
+        if args.contains("-uitGPDetails") { return .details }
+        if args.contains("-uitGPPreview") { return .preview }
+        return nil
+    }
+
     static var initialRoute: MainRoute? {
         if args.contains("-uitRouteCycle") { return .cycle }
         if args.contains("-uitRouteMeds") { return .medications }
@@ -110,6 +119,7 @@ enum DebugHarness {
         if args.contains("-uitRouteConnect") { return .connect }
         if args.contains("-uitRouteAbout") { return .about }
         if args.contains("-uitRouteSupport") { return .support }
+        if args.contains("-uitRouteGPSummary") { return .gpSummary }
         return nil
     }
 

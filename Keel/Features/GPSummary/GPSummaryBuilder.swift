@@ -31,6 +31,17 @@ struct GPSymptomTable: Equatable {
 }
 
 enum GPSummaryBuilder {
+    /// Rank by days logged, then higher mean recorded severity, then most recent log,
+    /// then name. Shared by the table and the review step so both order identically.
+    static func ranked(_ stats: [GPSymptomStat]) -> [GPSymptomStat] {
+        stats.sorted { a, b in
+            if a.daysThisPeriod != b.daysThisPeriod { return a.daysThisPeriod > b.daysThisPeriod }
+            if a.meanSeverity != b.meanSeverity { return a.meanSeverity > b.meanSeverity }
+            if a.lastLogged != b.lastLogged { return a.lastLogged > b.lastLogged }
+            return a.name.localizedCaseInsensitiveCompare(b.name) == .orderedAscending
+        }
+    }
+
     /// The symptom section, exactly per spec: ranked by days logged, then higher mean
     /// recorded severity, then most recent log; denominators are always shown; the
     /// previous-period column appears only when that window is at least half
@@ -47,12 +58,7 @@ enum GPSummaryBuilder {
         let showPrevious = previousWindowDayCount > 0
             && Double(checkInDaysPreviousPeriod) >= 0.5 * Double(previousWindowDayCount)
 
-        let ranked = recorded.sorted { a, b in
-            if a.daysThisPeriod != b.daysThisPeriod { return a.daysThisPeriod > b.daysThisPeriod }
-            if a.meanSeverity != b.meanSeverity { return a.meanSeverity > b.meanSeverity }
-            if a.lastLogged != b.lastLogged { return a.lastLogged > b.lastLogged }
-            return a.name.localizedCaseInsensitiveCompare(b.name) == .orderedAscending
-        }
+        let ranked = ranked(recorded)
 
         let top = Array(ranked.prefix(max(maxRows, 0)))
         let rows = top.map { stat in

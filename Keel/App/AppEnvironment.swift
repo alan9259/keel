@@ -50,6 +50,12 @@ final class AppEnvironment {
     /// Once-a-day reflection over her own data, kept as a dated record.
     let dailySummary: DailySummaryService
 
+    /// Builds the GP Visit Summary from her records for the chosen period.
+    var gpSummary: GPSummaryService {
+        GPSummaryService(context: context, checkIns: checkIns, medications: medications,
+                         cycle: cycle, users: users)
+    }
+
     init(container: ModelContainer, provider: SyncProvider) {
         self.container = container
         let context = container.mainContext

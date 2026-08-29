@@ -181,6 +181,20 @@ struct GPSummaryService {
             calendar: calendar)
     }
 
+    // MARK: Review
+
+    /// The active treatments as removable rows for the review step: id (to toggle
+    /// removal), her name, and which table they fall in.
+    func reviewMeds() -> [(id: UUID, name: String, category: GPMedCategory)] {
+        medications.active().map { (id: $0.id, name: $0.name, category: category(of: $0)) }
+    }
+
+    /// Whether a name/age exist to offer as opt-in "About me" fields.
+    func profileNameAndAge() -> (name: String?, age: Int?) {
+        let profile = users.currentProfile()
+        return (profile?.firstName.nilIfEmpty, profile?.age)
+    }
+
     // MARK: Medications
 
     private func category(of med: Medication) -> GPMedCategory {
