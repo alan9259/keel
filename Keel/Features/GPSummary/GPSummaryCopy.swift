@@ -50,6 +50,34 @@ enum GPSummaryCopy {
     static let noEarlierComparison = "Not enough earlier records to compare."
     static let notEnoughPeriodsForRange = "not enough recorded periods to show a range"
     static let notRecorded = "not recorded"
+    static let noneRecorded = "None recorded."
+
+    // Row labels used by the renderer (kept here so the release lint covers them).
+    static let aboutName = "Name"
+    static let aboutAge = "Age"
+    static let aboutPeriod = "Summary period"
+    static let aboutCheckIns = "Check-ins in this period"
+    static let cycleLastStart = "Last recorded period start"
+    static let cyclePeriodsRecorded = "Periods recorded in this period"
+    static let cycleLengths = "Cycle lengths recorded"
+    static let cycleFlow = "Flow"
+    static let cycleBleeding = "Bleeding or spotting between periods"
+    static let cycleNotApplicable = "Periods not applicable"
+    static let sleepRowLabel = "Sleep"
+    static let sleepRowSuffix = "nights with disrupted sleep logged"
+    static let energyRowLabel = "Energy"
+    static let moodRowLabel = "Mood"
+    static let symptomColumn = "Symptom"
+    static let thisPeriodColumn = "This period"
+    static let previousPeriodColumn = "Previous period"
+    static let treatmentColumn = "Treatment"
+    static let mhtDoseColumn = "Dose or use as entered"
+    static let mhtChangedColumn = "Started or last changed"
+    static let nameColumn = "Name"
+    static let doseColumn = "Dose"
+    static let doseIfKnownColumn = "Dose if known"
+    static let frequencyColumn = "Frequency"
+    static let generatedPrefix = "Generated"
 
     /// Fixed, non-removable footer on every page.
     static let footer = "This summary contains information recorded by the user in Keel. It is intended to support a healthcare conversation and is not a diagnosis or clinical assessment."
@@ -85,6 +113,11 @@ enum GPSummaryCopy {
          mhtHeading, otherMedsHeading, supplementsHeading, treatmentChangesHeading,
          sleepEnergyMoodHeading, questionsHeading, noSymptoms, noEarlierComparison,
          notEnoughPeriodsForRange, notRecorded, footer, shareWarning,
-         impactOtherOption] + impactAreaOptions + impactLevelOptions
+         impactOtherOption, noneRecorded, aboutName, aboutAge, aboutPeriod, aboutCheckIns,
+         cycleLastStart, cyclePeriodsRecorded, cycleLengths, cycleFlow, cycleBleeding,
+         cycleNotApplicable, sleepRowLabel, sleepRowSuffix, energyRowLabel, moodRowLabel,
+         symptomColumn, thisPeriodColumn, previousPeriodColumn, treatmentColumn,
+         mhtDoseColumn, mhtChangedColumn, nameColumn, doseColumn, doseIfKnownColumn,
+         frequencyColumn, generatedPrefix] + impactAreaOptions + impactLevelOptions
     }
 }

@@ -3,6 +3,7 @@ import Foundation
 import SwiftData
 import HealthKit
 import UserNotifications
+import PDFKit
 #if canImport(FoundationModels)
 import FoundationModels
 #endif
@@ -437,6 +438,10 @@ enum DebugHarness {
 
         if args.contains("-uitDailySummary") {
             runDailySummaryProbe(env: env)
+        }
+
+        if args.contains("-uitGPSummary") {
+            runGPSummaryProbe(env: env)
         }
 
         if args.contains("-uitHealthImport") {
@@ -876,6 +881,71 @@ enum DebugHarness {
 
     /// Seeds a clear sleep↔energy pattern and a recurring symptom, then derives
     /// insights and prints them, so the real (non-mock) derivation can be checked.
+    /// Seeds a realistic 12-week picture, renders the GP Visit Summary PDF to a known
+    /// path, and prints the path, overflow status and whether any author/creator/
+    /// producer metadata survives. Read the PDF off the sim to check the layout.
+    @MainActor
+    private static func runGPSummaryProbe(env: AppEnvironment) {
+        env.symptoms.syncBuiltIns()
+        (try? env.context.fetch(FetchDescriptor<CheckIn>()))?.forEach { env.context.delete($0) }
+        (try? env.context.fetch(FetchDescriptor<CheckInSymptom>()))?.forEach { env.context.delete($0) }
+        (try? env.context.fetch(FetchDescriptor<CycleEntry>()))?.forEach { env.context.delete($0) }
+        (try? env.context.fetch(FetchDescriptor<Medication>()))?.forEach { env.context.delete($0) }
+        (try? env.context.fetch(FetchDescriptor<MedicationLog>()))?.forEach { env.context.delete($0) }
+        try? env.context.save()
+        let owner = env.auth.ownerID
+        let names = ["Trouble sleeping", "Hot flushes", "Anxious", "Brain fog", "Joint pain",
+                     "Night sweats", "Irritable", "Low mood"]
+        let picks = names.compactMap { n in env.symptoms.allActive().first { $0.name == n } }
+        for i in 0..<84 where i % 2 == 0 {
+            let day = Date().startOfDay.adding(days: -i)
+            let mood: Mood = [.okay, .good, .low, .difficult][i / 2 % 4]
+            let chosen = picks.prefix((i / 2 % 5) + 1).map { (symptom: $0, severity: (i % 3) + 1) }
+            env.checkIns.create(mood: mood, energy: 20 + (i % 5) * 20, notes: nil,
+                                symptoms: Array(chosen), date: day)
+        }
+        // Cycle: two period runs and a standalone spotting day.
+        for k in [70, 69, 68, 42, 41, 40] { env.cycle.togglePeriodDay(Date().startOfDay.adding(days: -k)) }
+        env.cycle.setFlow(.spotting, on: Date().startOfDay.adding(days: -20))
+        // Treatment.
+        let oestrogel = Medication(name: "Oestrogel", dosage: "2 pumps", timing: "Morning",
+                                   kind: .treatment, catalogGroupID: "oestrogen",
+                                   date: Date().adding(days: -200), doseChangedAt: Date().adding(days: -14), ownerID: owner)
+        let mag = Medication(name: "Magnesium glycinate", dosage: "400mg", timing: "Night", kind: .supplement, ownerID: owner)
+        let sert = Medication(name: "Sertraline", dosage: "50mg", timing: "Morning", kind: .treatment, ownerID: owner)
+        [oestrogel, mag, sert].forEach { env.context.insert($0) }
+        env.users.updateBasicInfo(firstName: "Mischa", lastName: nil, birthYear: 1977, mobile: nil, email: nil)
+        try? env.context.save()
+
+        var inputs = GPSummaryInputs()
+        inputs.period = .twelveWeeks
+        inputs.includeName = true
+        inputs.includeAge = true
+        inputs.priorities = ["Get on top of the night sweats", "Talk through mood dips", "Sleep"]
+        inputs.impactAreas = ["Sleep", "Work or concentration", "Emotional wellbeing"]
+        inputs.impactOverall = "Significant"
+        inputs.questions = ["Should I adjust my MHT dose?", "Is a blood test worth doing?"]
+
+        let service = GPSummaryService(context: env.context, checkIns: env.checkIns,
+                                       medications: env.medications, cycle: env.cycle,
+                                       users: env.users)
+        let document = service.makeDocument(inputs: inputs)
+        let renderer = GPSummaryPDFRenderer(document: document)
+        let data = renderer.render()
+        let url = URL(fileURLWithPath: NSTemporaryDirectory()).appendingPathComponent("keel-gp-summary.pdf")
+        try? data.write(to: url)
+
+        var author = "", creator = "", producer = ""
+        if let pdf = PDFDocument(data: data) {
+            let a = pdf.documentAttributes ?? [:]
+            author = (a[PDFDocumentAttribute.authorAttribute] as? String) ?? ""
+            creator = (a[PDFDocumentAttribute.creatorAttribute] as? String) ?? ""
+            producer = (a[PDFDocumentAttribute.producerAttribute] as? String) ?? ""
+        }
+        print("KEEL_GPSUMMARY path=\(url.path) bytes=\(data.count) pageOneOverflow=\(renderer.pageOneOverflowed) author='\(author)' creator='\(creator)' producer='\(producer)'")
+        fflush(stdout)
+    }
+
     @MainActor
     private static func runInsightsProbe(env: AppEnvironment) {
         env.symptoms.syncBuiltIns()
