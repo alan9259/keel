@@ -610,7 +610,7 @@ enum DebugHarness {
                                   ownerID: owner, createdAt: now, updatedAt: now, deletedAt: now, syncStatus: .synced)
         ctx.insert(link)
 
-        let cycle = CycleEntry(date: now, type: .periodStart, source: .healthKit, ownerID: owner,
+        let cycle = CycleEntry(date: now, type: .periodStart, flowLevel: .medium, source: .healthKit, ownerID: owner,
                                createdAt: now, updatedAt: now, deletedAt: now, syncStatus: .synced)
         ctx.insert(cycle)
 
@@ -621,7 +621,8 @@ enum DebugHarness {
         let med = Medication(name: "Schema seed", dosage: "50 mg", doseAmount: 50, doseUnit: .mg,
                              timing: "8:30 am", method: .tablet, isActive: true, isTracked: true,
                              autoLogDoses: true, kind: .treatment, catalogGroupID: "seed", schedule: schedule,
-                             date: now, doseChangedAt: now, note: "seed", isOffLabel: true, isCompounded: true,
+                             date: now, doseChangedAt: now, stoppedAt: now, note: "seed",
+                             isOffLabel: true, isCompounded: true,
                              ownerID: owner, createdAt: now, updatedAt: now, deletedAt: now, syncStatus: .synced)
         med.frequencyRaw = DoseFrequency.daily.rawValue   // legacy fields, not set by init
         med.timeOfDayRaw = TimeOfDay.morning.rawValue
@@ -653,12 +654,14 @@ enum DebugHarness {
                                   ownerID: owner, createdAt: now, updatedAt: now, deletedAt: now, syncStatus: .synced)
         ctx.insert(sample)
 
-        let profile = UserProfile(firstName: "Schema seed", email: "seed@example.com",
+        let profile = UserProfile(firstName: "Schema seed", lastName: "Seed", birthYear: 1977,
+                                  mobile: "0400 000 000", email: "seed@example.com",
                                   appleUserID: "seed-apple-id", pathway: .both, healthKitAuthorized: true,
                                   trackingStartDate: now, ownerID: owner, createdAt: now, updatedAt: now,
                                   deletedAt: now, syncStatus: .synced)
         profile.region = "AU"; profile.localeID = "en_AU"; profile.timeZoneID = "Australia/Sydney"
         profile.appVersion = "1.0.1"; profile.deviceModel = "Simulator"; profile.osVersion = "26.5"
+        profile.periodsNotApplicableReason = "seed"
         ctx.insert(profile)
 
         do {
