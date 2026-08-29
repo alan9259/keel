@@ -43,9 +43,9 @@ struct DashboardView: View {
                     topBar
                     snapshot
                     medicinesCard
+                    gpSummaryCard
                     trends
                     calendarCard
-                    gpSummaryCard
                 }
                 .padding(.horizontal, 20)
                 .padding(.top, 8)
