@@ -45,15 +45,10 @@ struct ReportsView: View {
     }
 
     private var header: some View {
-        HStack(alignment: .top) {
-            ScreenHeader(title: "Looking back", titleSize: 28, subtitle: "What you have recorded") { dismiss() }
-            ShareLink(item: exportText) {
-                Label("Export", systemImage: "square.and.arrow.up")
-                    .font(KeelFont.caption).foregroundStyle(theme.muted)
-                    .padding(.horizontal, 12).padding(.vertical, 8)
-                    .overlay(RoundedRectangle(cornerRadius: 10, style: .continuous).stroke(theme.border, lineWidth: 1))
-            }
-        }
+        // No Export here: sharing anything clinician-facing goes through the GP Visit
+        // Summary flow (with its review step and footer), never a one-tap text dump
+        // that bypasses those safeguards (R12). "Looking back" is for her own reflection.
+        ScreenHeader(title: "Looking back", titleSize: 28, subtitle: "What you have recorded") { dismiss() }
     }
 
     private var periodRow: some View {
@@ -79,7 +74,8 @@ struct ReportsView: View {
     private var statTiles: some View {
         let tiles: [(String, String, String)] = [
             ("Check-ins", "\(windowCheckIns.count)", "of \(period.days) days"),
-            ("Avg energy", "\(avgEnergy)%", "across entries"),
+            // Energy in her own words, not a percentage (R10). Dash when nothing logged.
+            ("Avg energy", windowCheckIns.isEmpty ? "—" : EnergyLevel.from(percent: avgEnergy).label, "across entries"),
             ("Symptom-free", "\(symptomFreeDays)", "of \(windowCheckIns.count) days logged"),
             ("Medicines", "\(daysWithAnyMedTaken)", "taken of \(period.days) days"),
         ]
@@ -445,40 +441,4 @@ struct ReportsView: View {
         }
     }
 
-    private var exportText: String {
-        var lines = ["Your Keel records: \(period.rawValue)", ""]
-        lines.append("Check-ins: \(windowCheckIns.count)")
-        lines.append("Average energy: \(avgEnergy)%")
-        lines.append("Symptom-free days: \(symptomFreeDays)")
-        if !meds.isEmpty { lines.append("Medicines: \(medsTakenLine)") }
-        if hasVitals {
-            lines.append("")
-            lines.append("Body (from Apple Health, averaged over the \(period.rawValue.lowercased())):")
-            if let avg = restingHRTrend.average, restingHRTrend.count >= 3 {
-                let range = vitalRangeText(restingHRTrend).map { " (range \($0))" } ?? ""
-                lines.append("  • Resting heart rate: avg \(avg) bpm\(range)")
-            }
-            if let avg = hrvTrend.average, hrvTrend.count >= 3 {
-                let range = vitalRangeText(hrvTrend).map { " (range \($0))" } ?? ""
-                lines.append("  • Heart rate variability: avg \(avg) ms\(range)")
-            }
-            if let avg = weightTrend.average, weightTrend.count >= 2 {
-                let range = vitalRangeText(weightTrend).map { " (range \($0))" } ?? ""
-                lines.append("  • Weight: avg \(avg) kg\(range)")
-            }
-            if let bp = bloodPressureText {
-                lines.append("  • Blood pressure: avg \(bp) mmHg")
-            }
-        }
-        if let vaso = vasomotorSummary {
-            lines.append("")
-            lines.append("Vasomotor symptoms: \(vaso)")
-        }
-        if !topSymptoms.isEmpty {
-            lines.append("")
-            lines.append("Most reported symptoms (days in \(period.rawValue.lowercased()), includes Apple Health logs):")
-            topSymptoms.forEach { lines.append("  • \($0.name): \($0.count) \($0.count == 1 ? "day" : "days")") }
-        }
-        return lines.joined(separator: "\n")
-    }
 }

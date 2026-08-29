@@ -91,23 +91,24 @@ struct DashboardView: View {
         let dayEntries = entries(for: selDate)
         StandardCard {
             if dayEntries.isEmpty {
-                HStack {
-                    VStack(alignment: .leading, spacing: 2) {
-                        Text(selIsToday ? "No entry yet today" : "Nothing logged")
-                            .font(KeelFont.body).foregroundStyle(theme.text.opacity(0.7))
-                        Text(selIsToday ? "How are you feeling?" : selDateLabel)
-                            .font(KeelFont.sans(12)).foregroundStyle(theme.muted)
+                // The whole card is the tap target; the single add "+" is the docked
+                // button below (HM2: never two plus buttons at once).
+                Button { Haptics.selection(); onCreateEntry(selDate) } label: {
+                    HStack {
+                        VStack(alignment: .leading, spacing: 2) {
+                            Text(selIsToday ? "No entry yet today" : "Nothing logged")
+                                .font(KeelFont.body).foregroundStyle(theme.text.opacity(0.7))
+                            Text(selIsToday ? "How are you feeling?" : selDateLabel)
+                                .font(KeelFont.sans(12)).foregroundStyle(theme.muted)
+                        }
+                        Spacer()
+                        Image(systemName: "chevron.right")
+                            .font(.system(size: 14, weight: .semibold)).foregroundStyle(theme.muted)
                     }
-                    Spacer()
-                    Button { onCreateEntry(selDate) } label: {
-                        Image(systemName: "plus")
-                            .font(.system(size: 20, weight: .semibold))
-                            .foregroundStyle(theme.background)
-                            .frame(width: 40, height: 40)
-                            .background(theme.accent).clipShape(Circle())
-                    }
-                    .accessibilityLabel(selIsToday ? "Quick check-in" : "Add an entry for this day")
+                    .contentShape(Rectangle())
                 }
+                .buttonStyle(.plain)
+                .accessibilityLabel(selIsToday ? "Quick check-in" : "Add an entry for this day")
             } else {
                 VStack(alignment: .leading, spacing: 12) {
                     HStack(alignment: .firstTextBaseline) {
@@ -119,15 +120,8 @@ struct DashboardView: View {
                                 .font(KeelFont.sans(12)).foregroundStyle(theme.muted)
                         }
                     }
+                    // Entries only; the docked "+" adds another (HM2: one plus button).
                     ForEach(dayEntries) { entryCard($0) }
-                    Button { Haptics.selection(); onCreateEntry(selDate) } label: {
-                        Label(selIsToday ? "Add a check-in" : "Add an entry", systemImage: "plus")
-                            .font(KeelFont.sans(13, weight: .medium)).foregroundStyle(theme.accent)
-                            .frame(maxWidth: .infinity).padding(.vertical, 10)
-                            .overlay(RoundedRectangle(cornerRadius: Radius.input, style: .continuous)
-                                .stroke(theme.accent.opacity(0.4), lineWidth: 1))
-                    }
-                    .buttonStyle(.plain)
                 }
             }
         }
@@ -145,7 +139,9 @@ struct DashboardView: View {
                             .font(KeelFont.caption).foregroundStyle(theme.muted)
                     }
                     Spacer()
-                    Text("\(entry.energy)%").font(KeelFont.sans(13, weight: .semibold)).foregroundStyle(theme.accent)
+                    // Energy in the word she chose (R10: a subjective scale, not a percentage).
+                    Text(EnergyLevel.from(percent: entry.energy).label)
+                        .font(KeelFont.sans(13, weight: .semibold)).foregroundStyle(theme.accent)
                     Image(systemName: "chevron.right").font(.system(size: 12, weight: .semibold)).foregroundStyle(theme.muted)
                 }
                 if !loggedSymptoms(entry).isEmpty {
@@ -199,13 +195,13 @@ struct DashboardView: View {
                 }
             }
 
-            // Energy (0–100%)
+            // Energy shown in her own words, not a percentage (R10).
             barTrendCard(
                 title: "Energy",
-                trailing: energyAvg > 0 ? "avg \(energyAvg)%" : "No data yet",
+                trailing: energyAvg > 0 ? "mostly \(EnergyLevel.from(percent: energyAvg).label.lowercased())" : "No data yet",
                 series: energyBars, color: theme.accent, maxValue: 100,
                 selection: $selectedEnergyDay,
-                selectedText: { day, value in "\(dayLabel(day, todayWord: "Today")) · \(Int(value))%" }
+                selectedText: { day, value in "\(dayLabel(day, todayWord: "Today")) · \(EnergyLevel.from(percent: Int(value)).label)" }
             )
 
             // Sleep (hours; ~10h fills the slot). Real hours, no invented score:
