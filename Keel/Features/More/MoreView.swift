@@ -16,7 +16,7 @@ struct MoreView: View {
     private var sections: [(String, [Item])] {
         [
             ("Tracking", [
-                Item(title: "Cycle Tracking", symbol: "calendar", tint: theme.accent, route: .cycle),
+                // Cycle Tracking now lives in the home button group.
                 Item(title: "Activities", symbol: "figure.walk", tint: theme.sage, route: .activities),
                 Item(title: "Reminders", symbol: "bell.fill", tint: theme.accent, route: .reminders),
                 Item(title: "Looking back", symbol: "chart.bar.fill", tint: theme.plum, route: .reports),

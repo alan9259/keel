@@ -442,7 +442,9 @@ struct DashboardView: View {
     private var fabRow: some View {
         HStack(spacing: 10) {
             Spacer(minLength: 0)
-            miniFab("bubble.left.and.bubble.right.fill", tint: theme.plum) { onNavigate(.chat) }
+            // Cycle tracking sits in the home button group (was buried in More); the
+            // companion is hidden for now (its only entry point was here).
+            miniFab("calendar", tint: theme.plum) { onNavigate(.cycle) }
             miniFab("pills.fill", tint: theme.sage) { onNavigate(.medications) }
             miniFab("chart.line.uptrend.xyaxis", tint: theme.heading) { onNavigate(.patterns) }
             miniFab("ellipsis", tint: theme.muted) { onNavigate(.more) }
