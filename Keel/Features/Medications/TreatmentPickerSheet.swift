@@ -351,6 +351,7 @@ struct TreatmentDetailForm: View {
                     autoLogSection
                     datesSection
                     notesSection
+                    if onRemove != nil { stoppedSection }   // editing an existing entry
                     actions
                 }
                 .padding(.horizontal, 20).padding(.top, 18).padding(.bottom, 32)
@@ -759,6 +760,39 @@ struct TreatmentDetailForm: View {
     private func dateLine(_ label: String, _ date: Date) -> some View {
         Text("\(label) \(date.formatted(.dateTime.day().month(.abbreviated).year()))")
             .font(KeelFont.sans(12)).foregroundStyle(theme.muted)
+    }
+
+    /// "I'm still taking this" — turning it off records a stop date she can edit. The
+    /// treatment is kept (not deleted) so her GP summary can show "Stopped [date]".
+    /// The date defaults to today but is a visible, editable field she saves, never a
+    /// background timestamp.
+    private var stoppedSection: some View {
+        VStack(alignment: .leading, spacing: Spacing.sm) {
+            Toggle(isOn: stillTakingBinding) {
+                Text("I'm still taking this").font(KeelFont.body).foregroundStyle(theme.text)
+            }
+            .tint(theme.accent)
+            if !draft.isActive {
+                DatePicker("Stopped on",
+                           selection: Binding(get: { draft.stoppedAt ?? Date() },
+                                              set: { draft.stoppedAt = $0 }),
+                           in: ...Date(), displayedComponents: .date)
+                    .font(KeelFont.body).foregroundStyle(theme.text).tint(theme.accent)
+                Text("Kept on your GP summary, marked stopped on this date.")
+                    .font(KeelFont.sans(12)).foregroundStyle(theme.muted)
+            }
+        }
+    }
+
+    private var stillTakingBinding: Binding<Bool> {
+        Binding(
+            get: { draft.isActive },
+            set: { stillTaking in
+                draft.isActive = stillTaking
+                if stillTaking { draft.stoppedAt = nil }
+                else if draft.stoppedAt == nil { draft.stoppedAt = Date() }
+            }
+        )
     }
 
     private var notesSection: some View {

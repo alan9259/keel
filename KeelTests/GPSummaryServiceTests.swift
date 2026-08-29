@@ -107,6 +107,46 @@ final class GPSummaryServiceTests: XCTestCase {
         XCTAssertEqual(doc.treatmentChanges, ["\(styled(d(-3))): changed Oestrogel dose"])
     }
 
+    func testStoppedTreatmentsShowInMHTAndChangesButNotOtherTables() {
+        seedFullPicture()   // active Oestrogel (MHT) + Magnesium (supplement)
+        // A stopped MHT and a stopped supplement, both dated inside the 4-week window.
+        let oldPatch = Medication(name: "Old patch", dosage: "50mcg", timing: "",
+                                  isActive: false, kind: .treatment, catalogGroupID: "oestrogen",
+                                  stoppedAt: d(-10), ownerID: "test-owner")
+        let oldMag = Medication(name: "Old magnesium", dosage: "300mg", timing: "",
+                                isActive: false, kind: .supplement, stoppedAt: d(-10), ownerID: "test-owner")
+        context.insert(oldPatch); context.insert(oldMag)
+        try? context.save()
+
+        var inputs = GPSummaryInputs(); inputs.period = .fourWeeks
+        let doc = service.makeDocument(inputs: inputs, now: now)
+
+        // MHT lists the stopped treatment with "Stopped [date]".
+        let mhtNames = doc.mht.rows.map(\.col1)
+        XCTAssertTrue(mhtNames.contains("Old patch"))
+        let stoppedRow = doc.mht.rows.first { $0.col1 == "Old patch" }
+        XCTAssertTrue(stoppedRow?.col3.contains("Stopped \(styled(d(-10)))") ?? false, "got \(stoppedRow?.col3 ?? "nil")")
+
+        // A stopped supplement never becomes a supplement row (spec: MHT only).
+        XCTAssertFalse(doc.supplements.rows.map(\.col1).contains("Old magnesium"))
+
+        // Both stops are restated in the dated changes list.
+        XCTAssertTrue(doc.treatmentChanges.contains("\(styled(d(-10))): stopped Old patch"))
+        XCTAssertTrue(doc.treatmentChanges.contains("\(styled(d(-10))): stopped Old magnesium"))
+    }
+
+    func testStopOutsideWindowIsNotShown() {
+        seedFullPicture()
+        let ancient = Medication(name: "Ancient HRT", dosage: "1mg", timing: "",
+                                 isActive: false, kind: .treatment, catalogGroupID: "oestrogen",
+                                 stoppedAt: d(-400), ownerID: "test-owner")
+        context.insert(ancient); try? context.save()
+        var inputs = GPSummaryInputs(); inputs.period = .fourWeeks
+        let doc = service.makeDocument(inputs: inputs, now: now)
+        XCTAssertFalse(doc.mht.rows.map(\.col1).contains("Ancient HRT"))
+        XCTAssertFalse(doc.treatmentChanges.contains { $0.contains("Ancient HRT") })
+    }
+
     func testNameAndAgeOffByDefaultAndPrioritiesDropSymptomRow() {
         seedFullPicture()
         var inputs = GPSummaryInputs()

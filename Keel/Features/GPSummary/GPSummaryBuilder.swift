@@ -225,12 +225,9 @@ extension GPSummaryBuilder {
             switch category {
             case .mht:
                 var parts: [String] = []
-                if let anchor = med.doseChangedAt ?? med.started {
-                    parts.append(dateStyle(anchor))
-                } else {
-                    parts.append(GPSummaryCopy.notRecorded)
-                }
+                if let anchor = med.doseChangedAt ?? med.started { parts.append(dateStyle(anchor)) }
                 if let stopped = med.stoppedAt { parts.append("Stopped \(dateStyle(stopped))") }
+                if parts.isEmpty { parts.append(GPSummaryCopy.notRecorded) }
                 col3 = parts.joined(separator: " · ")
             case .otherPrescribed, .supplement:
                 col3 = med.frequency?.nilIfEmpty ?? GPSummaryCopy.notRecorded

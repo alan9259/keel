@@ -32,6 +32,34 @@ final class MedicationRepositoryTests: XCTestCase {
         return med
     }
 
+    // MARK: stop / reactivate
+
+    func testStopRecordsDateAndKeepsRecord_reactivateClearsIt() {
+        let med = makeMed()
+        XCTAssertTrue(med.isActive)
+
+        // Mark stopped with a date she entered.
+        var draft = TreatmentDraft(med)
+        draft.isActive = false
+        draft.stoppedAt = Date(timeIntervalSince1970: 1_700_000_000)
+        repo.update(med, with: draft)
+
+        XCTAssertFalse(med.isActive)
+        XCTAssertEqual(med.stoppedAt, Date(timeIntervalSince1970: 1_700_000_000))
+        XCTAssertNil(med.deletedAt, "stopping keeps the record, it is not a delete")
+        XCTAssertFalse(repo.active().contains { $0.id == med.id })
+        XCTAssertTrue(repo.stoppedTreatments().contains { $0.id == med.id })
+
+        // Reactivating clears the stop date and returns it to the active list.
+        var back = TreatmentDraft(med)
+        back.isActive = true
+        repo.update(med, with: back)
+        XCTAssertTrue(med.isActive)
+        XCTAssertNil(med.stoppedAt)
+        XCTAssertTrue(repo.active().contains { $0.id == med.id })
+        XCTAssertFalse(repo.stoppedTreatments().contains { $0.id == med.id })
+    }
+
     // MARK: whole-day (nil slot) tick
 
     func testWholeDayTickAndRead() {

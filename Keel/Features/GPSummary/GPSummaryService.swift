@@ -7,10 +7,9 @@ import SwiftData
 /// writes, and it never invents a value: an un-entered date stays nil, a missing
 /// section reads as its honest empty state.
 ///
-/// Not yet covered (needs a stop-date field she enters, so no system timestamp is
-/// used): stopped treatments in the MHT table and "stopped X" in the changes list.
-/// Until then the med tables show current treatment and the changes list shows dated
-/// dose changes only. Nothing is faked to fill the gap.
+/// Stopped treatments she dated are kept (not deleted): the MHT table shows them with
+/// "Stopped [date]" and the changes list restates the stop. Dates are only ever the
+/// ones she entered, never a system timestamp.
 @MainActor
 struct GPSummaryService {
     let context: ModelContext
@@ -56,19 +55,35 @@ struct GPSummaryService {
         // Cycle.
         let cycleBlock = makeCycleBlock(window: window)
 
-        // Treatment (active only for V1).
-        let meds = medications.active().filter { !inputs.removedMedIDs.contains($0.id) }
-        let medInputs = meds.map(medInput(from:))
+        // Treatment. Active meds fill the three tables; treatments she stopped during
+        // the window are kept too (never deleted) so the MHT table can show them with
+        // "Stopped [date]" and the changes list can restate the stop.
+        let active = medications.active().filter { !inputs.removedMedIDs.contains($0.id) }
+        let stoppedInWindow = medications.stoppedTreatments().filter { med in
+            guard let stopped = med.stoppedAt, window.contains(stopped, calendar: calendar) else { return false }
+            return !inputs.removedMedIDs.contains(med.id)
+        }
+        // Only MHT includes stopped items as rows (spec); a stopped other/supplement
+        // still contributes a dated change but not a table row.
+        let tableMeds = active + stoppedInWindow.filter { category(of: $0) == .mht }
+        let medInputs = tableMeds.map(medInput(from:))
         let mht = GPSummaryBuilder.medTable(medInputs, category: .mht, dateStyle: dateStyle)
         let other = GPSummaryBuilder.medTable(medInputs, category: .otherPrescribed, dateStyle: dateStyle)
         let supplements = GPSummaryBuilder.medTable(medInputs, category: .supplement, dateStyle: dateStyle)
 
-        // Changes: dose changes she dated within the window, most recent first.
-        let changes = meds.compactMap { med -> GPTreatmentChange? in
-            guard let changed = med.doseChangedAt, window.contains(changed, calendar: calendar) else { return nil }
-            return GPTreatmentChange(date: changed, medName: med.name, kind: .doseChanged)
+        // Changes: dose changes and stops she dated within the window, most recent first.
+        var changeEvents: [GPTreatmentChange] = []
+        for med in active + stoppedInWindow {
+            if let changed = med.doseChangedAt, window.contains(changed, calendar: calendar) {
+                changeEvents.append(GPTreatmentChange(date: changed, medName: med.name, kind: .doseChanged))
+            }
         }
-        let treatmentChanges = GPSummaryBuilder.treatmentChanges(changes, dateStyle: dateStyle)
+        for med in stoppedInWindow {
+            if let stopped = med.stoppedAt {   // already filtered to the window and not removed
+                changeEvents.append(GPTreatmentChange(date: stopped, medName: med.name, kind: .stopped))
+            }
+        }
+        let treatmentChanges = GPSummaryBuilder.treatmentChanges(changeEvents, dateStyle: dateStyle)
 
         // Step-4 inputs (her words). Fixed labels lower-cased; her "other" text verbatim.
         var renderedAreas: [String] = inputs.impactAreas.map { $0.lowercased() }
@@ -210,7 +225,7 @@ struct GPSummaryService {
             frequency: (med.hasSchedule ? med.schedule.summary : med.timing).nilIfEmpty,
             started: med.date,
             doseChangedAt: med.doseChangedAt,
-            stoppedAt: nil,   // no stop-date field yet; never a system timestamp
+            stoppedAt: med.stoppedAt,   // her entered stop date, if she stopped it
             category: category(of: med))
     }
 

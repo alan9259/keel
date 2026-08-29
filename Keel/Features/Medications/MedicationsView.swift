@@ -13,6 +13,11 @@ struct MedicationsView: View {
     @Query(filter: #Predicate<Medication> { $0.deletedAt == nil && $0.isActive == true }, sort: \Medication.createdAt)
     private var medications: [Medication]
 
+    /// Treatments she has marked stopped: kept for her records and the GP summary,
+    /// shown in their own muted section so she can reopen, reactivate or remove them.
+    @Query(filter: #Predicate<Medication> { $0.deletedAt == nil && $0.isActive == false }, sort: \Medication.createdAt)
+    private var stoppedMedications: [Medication]
+
     @State private var showAdd = false
     @State private var editing: Medication?
 
@@ -22,7 +27,7 @@ struct MedicationsView: View {
                 // The longest title in the app: held to one line, scaling to fit.
                 ScreenHeader(title: "Medications and supplements") { dismiss() }
 
-                if medications.isEmpty {
+                if medications.isEmpty && stoppedMedications.isEmpty {
                     emptyState
                 } else {
                     ForEach(TreatmentKind.allCases) { kind in
@@ -31,6 +36,7 @@ struct MedicationsView: View {
                             section(kind.label, items: items)
                         }
                     }
+                    if !stoppedMedications.isEmpty { stoppedSection }
                 }
 
                 KeelPrimaryButton("Add Medication or Supplement", systemImage: "plus") { showAdd = true }
@@ -86,6 +92,37 @@ struct MedicationsView: View {
             Text(title).keelEyebrow()
             ForEach(items) { med in row(med) }
         }
+    }
+
+    private var stoppedSection: some View {
+        VStack(alignment: .leading, spacing: 14) {
+            Text("No longer taking").keelEyebrow()
+            ForEach(stoppedMedications) { med in stoppedRow(med) }
+        }
+    }
+
+    private func stoppedRow(_ med: Medication) -> some View {
+        HStack(spacing: Spacing.md) {
+            VStack(alignment: .leading, spacing: 4) {
+                Text(med.name).font(KeelFont.serif(17, weight: .semibold)).foregroundStyle(theme.muted)
+                    .multilineTextAlignment(.leading)
+                if let stopped = med.stoppedAt {
+                    Text("Stopped \(stopped.formatted(.dateTime.day().month(.abbreviated).year()))")
+                        .font(KeelFont.caption).foregroundStyle(theme.muted)
+                }
+            }
+            .frame(maxWidth: .infinity, alignment: .leading)
+            Image(systemName: "chevron.right").font(.system(size: 13, weight: .semibold)).foregroundStyle(theme.muted)
+        }
+        .padding(20)
+        .background(theme.card.opacity(0.5))
+        .clipShape(RoundedRectangle(cornerRadius: Radius.card, style: .continuous))
+        .overlay(RoundedRectangle(cornerRadius: Radius.card, style: .continuous).stroke(theme.border, lineWidth: 1))
+        .contentShape(RoundedRectangle(cornerRadius: Radius.card, style: .continuous))
+        .onTapGesture { Haptics.selection(); editing = med }
+        .accessibilityElement(children: .combine)
+        .accessibilityAddTraits(.isButton)
+        .accessibilityHint("Opens details")
     }
 
     // The whole card opens the detail/edit sheet (remove lives in there now). The

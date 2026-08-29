@@ -21,6 +21,10 @@ struct TreatmentDraft {
     /// through the form untouched. See `MedicationRepository.add`/`update`.
     var date: Date?
     var doseChangedAt: Date?
+    /// Whether she is currently taking this. Turning it off records a stop date.
+    var isActive: Bool = true
+    /// The date she entered when she stopped it (only when `isActive` is false).
+    var stoppedAt: Date?
     var note: String = ""
     var isOffLabel: Bool = false
     var isCompounded: Bool = false
@@ -60,6 +64,8 @@ struct TreatmentDraft {
         legacyTiming = med.doseTime == nil ? med.timing : ""
         date = med.date
         doseChangedAt = med.doseChangedAt
+        isActive = med.isActive
+        stoppedAt = med.stoppedAt
         note = med.note ?? ""
         isOffLabel = med.isOffLabel
         isCompounded = med.isCompounded
@@ -82,6 +88,7 @@ protocol MedicationRepositoring {
     func active() -> [Medication]
     func active(kind: TreatmentKind) -> [Medication]
     func active(named name: String) -> Medication?
+    func stoppedTreatments() -> [Medication]
     func migrateLegacySchedules()
     @discardableResult
     func add(name: String, dosage: String, timing: String, method: MedicationMethod?) -> Medication
@@ -103,6 +110,16 @@ struct MedicationRepository: MedicationRepositoring {
     func active() -> [Medication] {
         let descriptor = FetchDescriptor<Medication>(
             predicate: #Predicate { $0.deletedAt == nil && $0.isActive == true },
+            sortBy: [SortDescriptor(\.createdAt)]
+        )
+        return (try? context.fetch(descriptor)) ?? []
+    }
+
+    /// Treatments she has marked stopped (kept, not deleted). The GP summary reads
+    /// these for stopped MHT rows and the dated "stopped X" changes.
+    func stoppedTreatments() -> [Medication] {
+        let descriptor = FetchDescriptor<Medication>(
+            predicate: #Predicate { $0.deletedAt == nil && $0.isActive == false },
             sortBy: [SortDescriptor(\.createdAt)]
         )
         return (try? context.fetch(descriptor)) ?? []
@@ -202,6 +219,8 @@ struct MedicationRepository: MedicationRepositoring {
             ownerID: ownerID()
         )
         medication.autoLogDoses = draft.autoLogDoses
+        medication.isActive = draft.isActive
+        medication.stoppedAt = draft.isActive ? nil : draft.stoppedAt
         context.insert(medication)
         try? context.save()
         return medication
@@ -213,6 +232,10 @@ struct MedicationRepository: MedicationRepositoring {
         // when she didn't give one. A dose change with no date she gave stays blank.
         medication.doseChangedAt = draft.doseChangedAt
         medication.date = medication.date ?? draft.date
+        // Stopping keeps the record (not a delete) and carries the date she entered;
+        // reactivating clears it. Never a system timestamp.
+        medication.isActive = draft.isActive
+        medication.stoppedAt = draft.isActive ? nil : draft.stoppedAt
         medication.name = draft.name.trimmingCharacters(in: .whitespaces)
         medication.dosage = draft.doseText
         medication.doseAmount = draft.doseAmount

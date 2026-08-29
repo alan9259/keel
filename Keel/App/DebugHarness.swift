@@ -923,7 +923,14 @@ enum DebugHarness {
                                    date: Date().adding(days: -200), doseChangedAt: Date().adding(days: -14), ownerID: owner)
         let mag = Medication(name: "Magnesium glycinate", dosage: "400mg", timing: "Night", kind: .supplement, ownerID: owner)
         let sert = Medication(name: "Sertraline", dosage: "50mg", timing: "Morning", kind: .treatment, ownerID: owner)
-        [oestrogel, mag, sert].forEach { env.context.insert($0) }
+        // A stopped MHT (shows in the MHT table with "Stopped [date]") and a stopped
+        // supplement (contributes a "stopped X" change but no supplement row).
+        let stoppedPatch = Medication(name: "Estradot patch", dosage: "50mcg", timing: "",
+                                      isActive: false, kind: .treatment, catalogGroupID: "oestrogen",
+                                      stoppedAt: Date().adding(days: -21), ownerID: owner)
+        let stoppedSup = Medication(name: "Evening primrose oil", dosage: "1000mg", timing: "",
+                                    isActive: false, kind: .supplement, stoppedAt: Date().adding(days: -30), ownerID: owner)
+        [oestrogel, mag, sert, stoppedPatch, stoppedSup].forEach { env.context.insert($0) }
         env.users.updateBasicInfo(firstName: "Mischa", lastName: nil, birthYear: 1977, mobile: nil, email: nil)
         try? env.context.save()
 

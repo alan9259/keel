@@ -68,6 +68,10 @@ final class Medication: Syncable {
     /// When the dose last changed, so the before/after timeline has an anchor.
     /// Set automatically when a saved dose differs from the one before it.
     var doseChangedAt: Date?
+    /// The date she entered when she stopped taking this (never a system timestamp).
+    /// Set only when she marks it stopped; nil while she is still taking it. A stopped
+    /// treatment stays recorded (not deleted) so the GP summary can carry the date.
+    var stoppedAt: Date?
     /// Her own note, e.g. "switched brands due to shortage".
     var note: String?
     /// Flags carried from the catalog: a product prescribed outside its approved
@@ -103,6 +107,7 @@ final class Medication: Syncable {
         schedule: DoseSchedule? = nil,
         date: Date? = nil,
         doseChangedAt: Date? = nil,
+        stoppedAt: Date? = nil,
         note: String? = nil,
         isOffLabel: Bool = false,
         isCompounded: Bool = false,
@@ -126,6 +131,7 @@ final class Medication: Syncable {
         self.catalogGroupID = catalogGroupID
         self.date = date
         self.doseChangedAt = doseChangedAt
+        self.stoppedAt = stoppedAt
         self.note = note
         self.isOffLabel = isOffLabel
         self.isCompounded = isCompounded
