@@ -16,6 +16,22 @@ enum GPSummaryCopy {
     static let questionsPrompt = "Is there anything you want to make sure you ask before you leave?"
     static let impactOwnAssessment = "My own assessment of impact."
 
+    // "How this is affecting me" (step 4). Multi-select areas, then one overall level.
+    // The last option is her own 60-character free text and prints verbatim.
+    static let impactAreaOptions = [
+        "Sleep", "Work or concentration", "Exercise or physical activity",
+        "Relationships or intimacy", "Day-to-day activities", "Emotional wellbeing",
+    ]
+    static let impactOtherOption = "Other"
+    static let impactLevelOptions = ["Mild", "Moderate", "Significant"]
+
+    // Priority/question limits (spec: 3 lines each; 100 / 120 characters).
+    static let maxPriorities = 3
+    static let priorityCharLimit = 100
+    static let maxQuestions = 3
+    static let questionCharLimit = 120
+    static let impactOtherCharLimit = 60
+
     // Section headings.
     static let aboutHeading = "About me"
     static let prioritiesHeading = "What I most want help with today"
@@ -68,6 +84,7 @@ enum GPSummaryCopy {
          aboutHeading, prioritiesHeading, symptomsHeading, impactHeading, cycleHeading,
          mhtHeading, otherMedsHeading, supplementsHeading, treatmentChangesHeading,
          sleepEnergyMoodHeading, questionsHeading, noSymptoms, noEarlierComparison,
-         notEnoughPeriodsForRange, notRecorded, footer, shareWarning]
+         notEnoughPeriodsForRange, notRecorded, footer, shareWarning,
+         impactOtherOption] + impactAreaOptions + impactLevelOptions
     }
 }

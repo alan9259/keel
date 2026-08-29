@@ -200,6 +200,31 @@ final class GPSummaryTests: XCTestCase {
         XCTAssertEqual(GPSummaryBuilder.treatmentChanges(many, dateStyle: styled).count, 8)
     }
 
+    // MARK: Sleep-symptom classification and inter-period bleeding
+
+    func testSleepDisruptionSymptomMatch() {
+        XCTAssertTrue(GPSummaryBuilder.isSleepDisruptionSymptom(name: "Trouble sleeping"))
+        XCTAssertTrue(GPSummaryBuilder.isSleepDisruptionSymptom(name: "Restless sleep"))
+        XCTAssertTrue(GPSummaryBuilder.isSleepDisruptionSymptom(name: "Insomnia"))
+        XCTAssertTrue(GPSummaryBuilder.isSleepDisruptionSymptom(name: "Can't sleep past 3am"))  // custom
+        XCTAssertFalse(GPSummaryBuilder.isSleepDisruptionSymptom(name: "Hot flushes"))
+        XCTAssertFalse(GPSummaryBuilder.isSleepDisruptionSymptom(name: "Night sweats"))
+    }
+
+    func testInterPeriodBleeding() {
+        XCTAssertEqual(GPSummaryBuilder.interPeriodBleeding(menstruationDays: [], spottingDays: [], calendar: cal),
+                       .notRecorded)
+        // Period days but no spotting.
+        XCTAssertEqual(GPSummaryBuilder.interPeriodBleeding(
+            menstruationDays: [d(0), d(1), d(2)], spottingDays: [], calendar: cal), .no)
+        // Spotting the day after a period run is not "between periods".
+        XCTAssertEqual(GPSummaryBuilder.interPeriodBleeding(
+            menstruationDays: [d(0), d(1), d(2)], spottingDays: [d(3)], calendar: cal), .no)
+        // A standalone spotting day, well away from any period, is "between periods".
+        XCTAssertEqual(GPSummaryBuilder.interPeriodBleeding(
+            menstruationDays: [d(0), d(1), d(2)], spottingDays: [d(14)], calendar: cal), .yes)
+    }
+
     // MARK: Banned-verb guard
 
     func testGeneratedCopyHasNoBannedVerb() {

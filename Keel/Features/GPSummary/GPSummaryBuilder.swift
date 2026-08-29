@@ -250,4 +250,53 @@ extension GPSummaryBuilder {
             .prefix(maxRows)
             .map { "\(dateStyle($0.date)): \($0.description)" }
     }
+
+    /// The compact "How this is affecting me" line, e.g. "Affecting: sleep, work or
+    /// concentration, exercise. Overall impact: Significant." The fixed area labels are
+    /// lower-cased; her "Other" text is passed through already in `areas` and printed
+    /// verbatim. Nil when she selected nothing. Never styled as a score or scale.
+    static func impactLine(areas: [String], overall: String?) -> String? {
+        let cleaned = areas.map { $0.trimmingCharacters(in: .whitespacesAndNewlines) }.filter { !$0.isEmpty }
+        guard !cleaned.isEmpty || overall != nil else { return nil }
+        var line = ""
+        if !cleaned.isEmpty { line += "Affecting: \(cleaned.joined(separator: ", "))." }
+        if let overall {
+            if !line.isEmpty { line += " " }
+            line += "Overall impact: \(overall)."
+        }
+        return line
+    }
+
+    /// Whether a symptom counts toward the "nights disrupted sleep" line: the built-in
+    /// sleep symptoms (Trouble sleeping, Insomnia, Restless sleep) and any custom label
+    /// she named with "sleep". A mechanical name match, never an inference about quality.
+    static func isSleepDisruptionSymptom(name: String) -> Bool {
+        let lowered = name.lowercased()
+        return lowered.contains("sleep") || lowered == "insomnia"
+    }
+
+    /// The "Bleeding or spotting between periods" line, decided mechanically from what
+    /// she recorded, never interpreted. A spotting day counts as "between periods" only
+    /// when neither the day before nor after is a menstruation day (adjacency, not a
+    /// pattern). Nothing here labels bleeding heavy, unexpected or abnormal.
+    /// - Yes: at least one standalone spotting day.
+    /// - No: she recorded cycle data but no standalone spotting.
+    /// - Not recorded: no cycle entries at all.
+    static func interPeriodBleeding(
+        menstruationDays: [Date],
+        spottingDays: [Date],
+        calendar: Calendar = .current
+    ) -> GPBleeding {
+        if menstruationDays.isEmpty && spottingDays.isEmpty { return .notRecorded }
+        let period = Set(menstruationDays.map { calendar.startOfDay(for: $0) })
+        for spot in spottingDays {
+            let day = calendar.startOfDay(for: spot)
+            let before = calendar.date(byAdding: .day, value: -1, to: day)!
+            let after = calendar.date(byAdding: .day, value: 1, to: day)!
+            if !period.contains(day) && !period.contains(before) && !period.contains(after) {
+                return .yes
+            }
+        }
+        return .no
+    }
 }
