@@ -30,6 +30,17 @@ final class GPSummaryPDFRenderer {
 
     /// True if page 1 could not be made to fit even at 4 symptom rows (a spec defect).
     private(set) var pageOneOverflowed = false
+    /// True if the page-2 content had to spill onto a further page (a spec defect, but
+    /// data is kept rather than clipped).
+    private(set) var pageTwoOverflowed = false
+
+    /// A self-contained page-2 section: its height, the gap above it, and how to draw
+    /// it at a given y. Used to paginate so nothing is silently clipped.
+    private struct Block {
+        let height: CGFloat
+        let spacingBefore: CGFloat
+        let draw: (CGFloat) -> Void
+    }
 
     init(document: GPSummaryDocument) { self.doc = document }
 
@@ -67,8 +78,16 @@ final class GPSummaryPDFRenderer {
             rowCap -= 1
         }
         pageOneOverflowed = layoutPage1(symptomRows: rowCap, draw: false) > contentBottom
+
+        // Page 2 onward flows: if the blocks don't fit one page they spill onto a
+        // further page rather than being clipped (spec: never drop data silently).
+        let blocks = pageTwoBlocks()
+        let extraPages = pageCount(for: blocks)
+        let totalPages = 1 + extraPages
+        pageTwoOverflowed = extraPages > 1
         #if DEBUG
         if pageOneOverflowed { print("GPSummary DEFECT: page 1 overflowed even at 4 symptom rows.") }
+        if pageTwoOverflowed { print("GPSummary DEFECT: page 2 content spilled onto page \(totalPages).") }
         #endif
 
         let format = UIGraphicsPDFRendererFormat()
@@ -77,13 +96,41 @@ final class GPSummaryPDFRenderer {
         let raw = renderer.pdfData { ctx in
             ctx.beginPage()
             _ = layoutPage1(symptomRows: rowCap, draw: true)
-            drawFooter(page: 1, of: 2)
+            drawFooter(page: 1, of: totalPages)
 
+            // Page 2+.
+            var page = 2
+            var y = contentTop
             ctx.beginPage()
-            _ = layoutPage2(draw: true)
-            drawFooter(page: 2, of: 2)
+            for block in blocks {
+                let needsSpacing = y > contentTop
+                let required = (needsSpacing ? block.spacingBefore : 0) + block.height
+                if y + required > contentBottom && y > contentTop {
+                    drawFooter(page: page, of: totalPages)
+                    ctx.beginPage(); page += 1; y = contentTop
+                }
+                if y > contentTop { y += block.spacingBefore }
+                block.draw(y)
+                y += block.height
+            }
+            drawFooter(page: page, of: totalPages)
         }
         return stripMetadata(raw)
+    }
+
+    /// How many pages the page-2 blocks need, using the same fit rule as drawing.
+    private func pageCount(for blocks: [Block]) -> Int {
+        var pages = 1
+        var y = contentTop
+        for block in blocks {
+            let required = (y > contentTop ? block.spacingBefore : 0) + block.height
+            if y + required > contentBottom && y > contentTop {
+                pages += 1; y = contentTop
+            }
+            if y > contentTop { y += block.spacingBefore }
+            y += block.height
+        }
+        return pages
     }
 
     /// Write the PDF to a temp file for the share sheet. Caller deletes it afterwards.
@@ -161,44 +208,48 @@ final class GPSummaryPDFRenderer {
         return y
     }
 
-    // MARK: Page 2
+    // MARK: Page 2 (paginated)
 
-    private func layoutPage2(draw: Bool) -> CGFloat {
-        var y = contentTop
-
-        y += medSection(GPSummaryCopy.mhtHeading, table: doc.mht,
-                        columns: [GPSummaryCopy.treatmentColumn, GPSummaryCopy.mhtDoseColumn, GPSummaryCopy.mhtChangedColumn],
-                        y: y, draw: draw)
-        y += 12
-        y += medSection(GPSummaryCopy.otherMedsHeading, table: doc.otherMeds,
-                        columns: [GPSummaryCopy.nameColumn, GPSummaryCopy.doseColumn, GPSummaryCopy.frequencyColumn],
-                        y: y, draw: draw)
-        y += 12
-        y += medSection(GPSummaryCopy.supplementsHeading, table: doc.supplements,
-                        columns: [GPSummaryCopy.nameColumn, GPSummaryCopy.doseIfKnownColumn, GPSummaryCopy.frequencyColumn],
-                        y: y, draw: draw)
-        y += 12
-
-        // Changes to my treatment (omit when none).
+    /// The page-2 sections as blocks, each measured once, in order. A single block is
+    /// always shorter than a page (tables cap at 10 rows), so block-level pagination
+    /// never needs to split one.
+    private func pageTwoBlocks() -> [Block] {
+        var blocks: [Block] = []
+        func add(_ spacingBefore: CGFloat, _ render: @escaping (CGFloat, Bool) -> CGFloat) {
+            blocks.append(Block(height: render(0, false), spacingBefore: spacingBefore,
+                                draw: { y in _ = render(y, true) }))
+        }
+        add(0) { self.medSection(GPSummaryCopy.mhtHeading, table: self.doc.mht,
+                                 columns: [GPSummaryCopy.treatmentColumn, GPSummaryCopy.mhtDoseColumn, GPSummaryCopy.mhtChangedColumn],
+                                 y: $0, draw: $1) }
+        add(12) { self.medSection(GPSummaryCopy.otherMedsHeading, table: self.doc.otherMeds,
+                                  columns: [GPSummaryCopy.nameColumn, GPSummaryCopy.doseColumn, GPSummaryCopy.frequencyColumn],
+                                  y: $0, draw: $1) }
+        add(12) { self.medSection(GPSummaryCopy.supplementsHeading, table: self.doc.supplements,
+                                  columns: [GPSummaryCopy.nameColumn, GPSummaryCopy.doseIfKnownColumn, GPSummaryCopy.frequencyColumn],
+                                  y: $0, draw: $1) }
         if !doc.treatmentChanges.isEmpty {
-            y += heading(GPSummaryCopy.treatmentChangesHeading, y: y, draw: draw)
-            for line in doc.treatmentChanges { y += bullet(line, y: y, draw: draw) }
-            y += 12
+            add(12) { self.bulletBlock(GPSummaryCopy.treatmentChangesHeading, lines: self.doc.treatmentChanges, y: $0, draw: $1) }
         }
-
-        // Sleep, energy and mood.
-        y += heading(GPSummaryCopy.sleepEnergyMoodHeading, y: y, draw: draw)
-        y += labelValue(GPSummaryCopy.sleepRowLabel, "\(doc.sleepLine) \(GPSummaryCopy.sleepRowSuffix)", y: y, draw: draw)
-        y += labelValue(GPSummaryCopy.energyRowLabel, doc.energyLine ?? GPSummaryCopy.notRecorded, y: y, draw: draw)
-        y += labelValue(GPSummaryCopy.moodRowLabel, doc.moodLine ?? GPSummaryCopy.notRecorded, y: y, draw: draw)
-        y += 12
-
-        // Questions I want to discuss (omit when blank).
+        add(12) { self.sleepEnergyMoodBlock(y: $0, draw: $1) }
         if !doc.questions.isEmpty {
-            y += heading(GPSummaryCopy.questionsHeading, y: y, draw: draw)
-            for line in doc.questions { y += bullet(line, y: y, draw: draw) }
+            add(12) { self.bulletBlock(GPSummaryCopy.questionsHeading, lines: self.doc.questions, y: $0, draw: $1) }
         }
-        return y
+        return blocks
+    }
+
+    private func bulletBlock(_ title: String, lines: [String], y: CGFloat, draw: Bool) -> CGFloat {
+        var used = heading(title, y: y, draw: draw)
+        for line in lines { used += bullet(line, y: y + used, draw: draw) }
+        return used
+    }
+
+    private func sleepEnergyMoodBlock(y: CGFloat, draw: Bool) -> CGFloat {
+        var used = heading(GPSummaryCopy.sleepEnergyMoodHeading, y: y, draw: draw)
+        used += labelValue(GPSummaryCopy.sleepRowLabel, "\(doc.sleepLine) \(GPSummaryCopy.sleepRowSuffix)", y: y + used, draw: draw)
+        used += labelValue(GPSummaryCopy.energyRowLabel, doc.energyLine ?? GPSummaryCopy.notRecorded, y: y + used, draw: draw)
+        used += labelValue(GPSummaryCopy.moodRowLabel, doc.moodLine ?? GPSummaryCopy.notRecorded, y: y + used, draw: draw)
+        return used
     }
 
     private func medSection(_ title: String, table: GPMedTable, columns: [String], y: CGFloat, draw: Bool) -> CGFloat {
