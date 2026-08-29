@@ -192,7 +192,7 @@ struct GPSummaryService {
             lastRecordedStart: cycle.stats(now: window.end).lastStart,
             mostFrequentFlow: mostFrequentFlow,
             intermenstrualBleeding: bleeding,
-            notApplicableReason: nil,   // no field she can enter yet; omitted, never invented
+            notApplicableReason: users.currentProfile()?.periodsNotApplicableReason,
             calendar: calendar)
     }
 

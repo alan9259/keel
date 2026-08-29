@@ -135,6 +135,14 @@ final class GPSummaryServiceTests: XCTestCase {
         XCTAssertTrue(doc.treatmentChanges.contains("\(styled(d(-10))): stopped Old magnesium"))
     }
 
+    func testPeriodsNotApplicableReasonFlowsIntoCycleBlock() {
+        seedFullPicture()   // creates a profile
+        UserRepository(context: context, ownerID: TestStore.ownerID)
+            .setPeriodsNotApplicableReason("  After a hysterectomy in 2019  ")
+        let doc = service.makeDocument(inputs: GPSummaryInputs(), now: now)
+        XCTAssertEqual(doc.cycle.notApplicable, "After a hysterectomy in 2019")   // trimmed, her words
+    }
+
     func testStopOutsideWindowIsNotShown() {
         seedFullPicture()
         let ancient = Medication(name: "Ancient HRT", dosage: "1mg", timing: "",

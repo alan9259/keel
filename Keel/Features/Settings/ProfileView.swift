@@ -21,6 +21,7 @@ struct ProfileView: View {
     @State private var age = ""
     @State private var mobile = ""
     @State private var email = ""
+    @State private var periodsNotApplicable = ""
     @State private var justSaved = false
     /// Non-nil shows the sign-in error alert (a real failure, not a cancellation).
     @State private var authErrorMessage: String?
@@ -114,6 +115,13 @@ struct ProfileView: View {
                     .fixedSize(horizontal: false, vertical: true)
             }
 
+            KeelTextField(label: "Periods no longer apply (optional)",
+                          placeholder: "e.g. after menopause or a hysterectomy",
+                          text: $periodsNotApplicable, autocapitalization: .sentences)
+            Text("If you fill this in, your GP visit summary notes it instead of period details.")
+                .font(KeelFont.caption).foregroundStyle(theme.muted)
+                .fixedSize(horizontal: false, vertical: true)
+
             KeelPrimaryButton("Save changes", action: save).padding(.top, Spacing.xs)
             if justSaved {
                 Label("Changes saved", systemImage: "checkmark.circle.fill")
@@ -151,6 +159,7 @@ struct ProfileView: View {
         age = profile.age.map(String.init) ?? ""
         mobile = profile.mobile ?? ""
         email = profile.email ?? ""
+        periodsNotApplicable = profile.periodsNotApplicableReason ?? ""
     }
 
     private func save() {
@@ -164,6 +173,7 @@ struct ProfileView: View {
             birthYear: birthYear,
             mobile: mobile.trimmingCharacters(in: .whitespaces).nilIfEmpty,
             email: email.trimmingCharacters(in: .whitespaces).nilIfEmpty)
+        env.users.setPeriodsNotApplicableReason(periodsNotApplicable)
         if let name = fn.nilIfEmpty { env.auth.updateName(name) }
         Haptics.success()
         withAnimation { justSaved = true }

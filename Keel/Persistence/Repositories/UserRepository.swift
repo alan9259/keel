@@ -10,6 +10,7 @@ protocol UserRepositoring {
     func updateBasicInfo(firstName: String, lastName: String?, birthYear: Int?, mobile: String?, email: String?) -> UserProfile
     func setPathway(_ pathway: Pathway)
     func setHealthKitAuthorized(_ authorized: Bool)
+    func setPeriodsNotApplicableReason(_ reason: String?)
 }
 
 @MainActor
@@ -69,6 +70,15 @@ struct UserRepository: UserRepositoring {
         profile.touch()
         save()
         return profile
+    }
+
+    /// Her note for when periods no longer apply (blank clears it). Stored trimmed,
+    /// exactly as she entered it, for the GP summary's cycle block.
+    func setPeriodsNotApplicableReason(_ reason: String?) {
+        guard let profile = currentProfile() else { return }
+        profile.periodsNotApplicableReason = reason?.trimmingCharacters(in: .whitespacesAndNewlines).nilIfEmpty
+        profile.touch()
+        save()
     }
 
     /// Record the current non-identifying environment context on the profile, so

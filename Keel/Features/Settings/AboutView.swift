@@ -36,7 +36,7 @@ struct AboutView: View {
                     HStack {
                         Text("Keel · Version \(DeviceContext.shortVersion)")
                         Spacer()
-                        Text("© 2026 Keel Health Ltd.")
+                        Text("© 2026 The Recalibration Years")
                     }
                     Text("Emoji artwork © Twemoji, licensed under CC-BY 4.0")
                         .frame(maxWidth: .infinity, alignment: .leading)

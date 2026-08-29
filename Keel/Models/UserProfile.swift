@@ -17,6 +17,10 @@ final class UserProfile: Syncable {
     /// Contact mobile number, stored as entered (no verification).
     var mobile: String?
     var email: String?
+    /// Her own note when periods no longer apply (e.g. after menopause or surgery),
+    /// in her words. When set, the GP summary's cycle block prints it instead of
+    /// leaving that context blank. Only ever what she entered.
+    var periodsNotApplicableReason: String? = nil
     /// Stable Sign in with Apple user identifier — this is also the `ownerID`.
     var appleUserID: String?
     var pathwayRaw: String?
