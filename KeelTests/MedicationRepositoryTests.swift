@@ -60,6 +60,18 @@ final class MedicationRepositoryTests: XCTestCase {
         XCTAssertFalse(repo.stoppedTreatments().contains { $0.id == med.id })
     }
 
+    func testStoppingWithoutADateLeavesItBlank() {
+        // Product-alignment item 1: never substitute a system timestamp for a date she
+        // didn't enter. Stopping with no date must leave stoppedAt nil.
+        let med = makeMed()
+        var draft = TreatmentDraft(med)
+        draft.isActive = false
+        draft.stoppedAt = nil
+        repo.update(med, with: draft)
+        XCTAssertFalse(med.isActive)
+        XCTAssertNil(med.stoppedAt, "no date entered means the stop date stays blank")
+    }
+
     // MARK: whole-day (nil slot) tick
 
     func testWholeDayTickAndRead() {

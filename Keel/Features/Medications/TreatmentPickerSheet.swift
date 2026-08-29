@@ -762,10 +762,11 @@ struct TreatmentDetailForm: View {
             .font(KeelFont.sans(12)).foregroundStyle(theme.muted)
     }
 
-    /// "I'm still taking this" — turning it off records a stop date she can edit. The
-    /// treatment is kept (not deleted) so her GP summary can show "Stopped [date]".
-    /// The date defaults to today but is a visible, editable field she saves, never a
-    /// background timestamp.
+    /// "I'm still taking this" — turning it off keeps the treatment (not a delete) so
+    /// the GP summary can show it. The stop date is left BLANK unless she adds it: it
+    /// is never defaulted to today, because a system timestamp she didn't enter must
+    /// not reach the summary (product-alignment note, item 1). She taps "Add the date"
+    /// to enter one; the summary shows a date only if she does.
     private var stoppedSection: some View {
         VStack(alignment: .leading, spacing: Spacing.sm) {
             Toggle(isOn: stillTakingBinding) {
@@ -773,13 +774,24 @@ struct TreatmentDetailForm: View {
             }
             .tint(theme.accent)
             if !draft.isActive {
-                DatePicker("Stopped on",
-                           selection: Binding(get: { draft.stoppedAt ?? Date() },
-                                              set: { draft.stoppedAt = $0 }),
-                           in: ...Date(), displayedComponents: .date)
-                    .font(KeelFont.body).foregroundStyle(theme.text).tint(theme.accent)
-                Text("Kept on your GP summary, marked stopped on this date.")
-                    .font(KeelFont.sans(12)).foregroundStyle(theme.muted)
+                if draft.stoppedAt != nil {
+                    DatePicker("Stopped on",
+                               selection: Binding(get: { draft.stoppedAt ?? Date() },
+                                                  set: { draft.stoppedAt = $0 }),
+                               in: ...Date(), displayedComponents: .date)
+                        .font(KeelFont.body).foregroundStyle(theme.text).tint(theme.accent)
+                    Button { draft.stoppedAt = nil } label: {
+                        Text("Remove the date").font(KeelFont.sans(12)).foregroundStyle(theme.muted)
+                    }
+                } else {
+                    Button { draft.stoppedAt = Date() } label: {
+                        Label("Add the date you stopped (optional)", systemImage: "calendar.badge.plus")
+                            .font(KeelFont.body).foregroundStyle(theme.accent)
+                    }
+                    Text("Left blank unless you add it. Your GP summary shows a stop date only if you enter one.")
+                        .font(KeelFont.sans(12)).foregroundStyle(theme.muted)
+                        .fixedSize(horizontal: false, vertical: true)
+                }
             }
         }
     }
@@ -789,8 +801,8 @@ struct TreatmentDetailForm: View {
             get: { draft.isActive },
             set: { stillTaking in
                 draft.isActive = stillTaking
+                // Stopping never stamps a date; reactivating clears any date she added.
                 if stillTaking { draft.stoppedAt = nil }
-                else if draft.stoppedAt == nil { draft.stoppedAt = Date() }
             }
         )
     }
