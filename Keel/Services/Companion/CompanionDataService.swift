@@ -257,10 +257,11 @@ struct CompanionDataService {
         let meds = medicationSummaries(days: days)
         if !meds.isEmpty {
             lines.append("")
+            // Current treatment only, and no taken-count: a GP-facing summary records
+            // what she is on, it does not score how well she took it (product alignment).
             lines.append("Medications and supplements:")
             for m in meds {
-                let adherence = m.adherencePercent.map { ", taken \($0)% of scheduled doses" } ?? ""
-                lines.append("  \(m.name): \(m.dose), \(m.schedule)\(adherence)")
+                lines.append("  \(m.name): \(m.dose), \(m.schedule)")
             }
         }
         if tally.vasomotorDays > 0 {
