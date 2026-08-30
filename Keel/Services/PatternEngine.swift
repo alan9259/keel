@@ -37,7 +37,7 @@ struct PatternFinding {
 ///  2. Sleep → resting heart rate (the body's own read of a short night).
 ///  3. Premenstrual / late-luteal clustering of symptoms or low mood.
 ///  4. Cycle-length variability (a hallmark early-perimenopause change).
-///  5. A recurring symptom worth watching (hot flushes and the rest).
+///  5. A recurring symptom she has logged often (hot flushes and the rest).
 struct PatternEngine {
     /// A day's worth of her logs, flattened off the SwiftData models.
     struct DayCheckIn {
@@ -102,11 +102,11 @@ struct PatternEngine {
         return PatternFinding(
             kind: .sleepEnergy,
             title: "Sleep and energy",
-            detail: "On the nights you slept less, your energy the next day was often lower. These seem to move together. You might like to keep an eye on it, or mention it to your GP.",
+            detail: "On the days you logged both, your energy was lower on average after nights of less sleep. That's the kind of detail that can be useful to bring to your GP.",
             timeframe: "Seen across \(lowSleep.count + goodSleep.count) days with both logged",
             icon: "moon.stars.fill",
             accent: .terracotta,
-            fact: "On nights she slept less, her energy the next day was often lower.")
+            fact: "On the days she logged both, her energy was lower on average after nights of less sleep.")
     }
 
     // MARK: - 2. Sleep → resting heart rate
@@ -122,13 +122,13 @@ struct PatternEngine {
         return PatternFinding(
             kind: .restingHeartRateSleep,
             title: "Sleep and your heart rate",
-            detail: "On the mornings after shorter-sleep nights, your resting heart rate has tended to run a little higher. That's a common way the body registers a short night, and it usually eases with rest. Worth noticing, and worth a mention to your GP if it keeps up.",
+            detail: "On the mornings after less sleep, your resting heart rate readings were a little higher on average. That's the kind of detail that can be useful to bring to your GP.",
             timeframe: "Seen across \(gap.pairedDays) days with both logged",
             icon: "heart.fill",
             accent: .terracotta,
             // Qualitative on purpose: no bpm figure, so the AI narration can't restate
             // a number. The exact vitals live on the Activities screen.
-            fact: "On mornings after shorter-sleep nights, her resting heart rate has tended to run a little higher.")
+            fact: "On mornings after less sleep, her resting heart rate readings were a little higher on average.")
     }
 
     // MARK: - 3. Sleep → overnight body temperature
@@ -145,11 +145,11 @@ struct PatternEngine {
         return PatternFinding(
             kind: .wristTemperatureSleep,
             title: "Sleep and body temperature",
-            detail: "On the nights you slept less, your overnight temperature has tended to run a little warmer. Shifts in body temperature are part of how perimenopause can unsettle sleep, and they usually ease. Worth noticing, and worth a mention to your GP if hot, broken nights are wearing on you.",
+            detail: "On the nights you slept less, your overnight temperature readings were a little warmer on average. That's the kind of detail that can be useful to bring to your GP.",
             timeframe: "Seen across \(gap.pairedDays) nights with both logged",
             icon: "thermometer.medium",
             accent: .terracotta,
-            fact: "On shorter-sleep nights, her overnight body temperature has tended to run a little warmer.")
+            fact: "On shorter-sleep nights, her overnight temperature readings were a little warmer on average.")
     }
 
     // MARK: - 4. Diet trigger → vasomotor symptoms
@@ -171,11 +171,11 @@ struct PatternEngine {
         return PatternFinding(
             kind: .dietTrigger,
             title: "\(result.label) and your symptoms",
-            detail: "Hot flushes or night sweats turned up on \(result.yesHit) of the \(result.yesTotal) days you had \(label), and on \(result.noHit) of the \(result.noTotal) days you didn't. They have tended to come with your \(label) days lately. That's worth noticing, and worth a mention to your GP.",
+            detail: "Hot flushes or night sweats were recorded on \(result.yesHit) of the \(result.yesTotal) days you logged \(label), and on \(result.noHit) of the \(result.noTotal) days you didn't. That's the kind of detail that can be useful to bring to your GP.",
             timeframe: "From the days you logged \(label)",
             icon: "fork.knife",
             accent: .terracotta,
-            fact: "Hot flushes or night sweats have tended to come with her \(label) days lately.")
+            fact: "Hot flushes or night sweats were recorded more often on her \(label) days than on the days without.")
     }
 
     // MARK: - 5. Premenstrual / late-luteal clustering
@@ -203,11 +203,11 @@ struct PatternEngine {
                 return PatternFinding(
                     kind: .premenstrual,
                     title: "Before your period",
-                    detail: "Your symptoms have tended to turn up more in the days before your period. That premenstrual window is often a bumpier stretch in perimenopause. Worth noticing, and worth a mention to your GP if it's wearing on you.",
+                    detail: "You recorded more symptom days in the week before your period than at other times. That's the kind of detail that can be useful to bring to your GP.",
                     timeframe: "Across your last \(periodStarts.count) logged cycles",
                     icon: "calendar.badge.clock",
                     accent: .terracotta,
-                    fact: "Her symptoms have tended to cluster in the days before her period.")
+                    fact: "She recorded more symptom days in the week before her period than at other times.")
             }
         }
 
@@ -221,11 +221,11 @@ struct PatternEngine {
                 return PatternFinding(
                     kind: .premenstrual,
                     title: "Before your period",
-                    detail: "Your mood has tended to dip in the days before your period. That premenstrual shift is common, and it can feel sharper through perimenopause. Gentle with yourself in that window, and worth raising with your GP if it's hard.",
+                    detail: "Your recorded mood was lower on average in the week before your period than at other times. That's the kind of detail that can be useful to bring to your GP.",
                     timeframe: "Across your last \(periodStarts.count) logged cycles",
                     icon: "calendar.badge.clock",
                     accent: .terracotta,
-                    fact: "Her mood has tended to dip in the days before her period.")
+                    fact: "Her recorded mood was lower on average in the week before her period than at other times.")
             }
         }
         return nil
@@ -249,13 +249,13 @@ struct PatternEngine {
         return PatternFinding(
             kind: .cycleVariability,
             title: "Your cycle length",
-            detail: "Your recent cycles have varied more in length, ranging from about \(lo) to \(hi) days apart. Cycles becoming less predictable is one of the more common early signs of perimenopause. It's useful to note, and helpful for your GP to hear.",
+            detail: "Your recent cycles ranged from about \(lo) to \(hi) days apart. That's the kind of detail that can be useful to bring to your GP.",
             timeframe: "Across your last \(sorted.count) logged cycles",
             icon: "arrow.left.and.right",
             accent: .sage,
-            // Qualitative on purpose: the exact range lives on the card, so the
-            // AI narration can't restate a number and contradict it.
-            fact: "Her cycles have been varying more in length lately, becoming less predictable.")
+            // Number-free on purpose: the exact range lives on the card, so the
+            // AI narration can't restate a figure. States the record, not a meaning.
+            fact: "Her recent cycles were different lengths from one to the next.")
     }
 
     // MARK: - 7. A recurring symptom
@@ -275,8 +275,8 @@ struct PatternEngine {
         let name = top.key.lowercased()
         return PatternFinding(
             kind: .recurringSymptom,
-            title: "A symptom worth watching",
-            detail: "You've noted \(name) on \(count) of your recent days. That's the kind of thing worth keeping an eye on, or bringing to your GP.",
+            title: "A symptom you've logged often",
+            detail: "You recorded \(name) on \(count) of your recent days. That's the kind of detail that can be useful to bring to your GP.",
             timeframe: "Your most-logged symptom lately",
             icon: "list.bullet.clipboard",
             accent: .sage,

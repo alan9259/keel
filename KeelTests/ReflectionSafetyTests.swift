@@ -24,10 +24,10 @@ final class ReflectionSafetyTests: XCTestCase {
     func testOffersReassuranceAllowsGroundedReflections() {
         // These are the real deterministic detail lines the detectors produce.
         let safe = [
-            "On the nights you slept less, your energy the next day was often lower. You might like to keep an eye on it, or mention it to your GP.",
-            "You've noted headache on several of your recent days. That's the kind of thing worth keeping an eye on, or bringing to your GP.",
-            "Your cycles have varied more in length lately, becoming less predictable. It's useful to note, and helpful for your GP to hear.",
-            "Your symptoms have tended to turn up more in the days before your period. Worth noticing, and worth a mention to your GP if it's wearing on you.",
+            "On the days you logged both, your energy was lower on average after nights of less sleep. That's the kind of detail that can be useful to bring to your GP.",
+            "You recorded headache on 5 of your recent days. That's the kind of detail that can be useful to bring to your GP.",
+            "Your recent cycles ranged from about 26 to 34 days apart. That's the kind of detail that can be useful to bring to your GP.",
+            "You recorded more symptom days in the week before your period than at other times. That's the kind of detail that can be useful to bring to your GP.",
         ]
         for text in safe {
             XCTAssertFalse(DailySummaryService.offersReassurance(text), text)
