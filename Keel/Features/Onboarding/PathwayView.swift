@@ -2,6 +2,7 @@ import SwiftUI
 
 struct PathwayView: View {
     @Environment(AppEnvironment.self) private var env
+    @Environment(\.keelTheme) private var theme
     let onContinue: () -> Void
     @State private var selection: Pathway?
 
@@ -16,7 +17,7 @@ struct PathwayView: View {
 
                     Text("There's no right answer. This helps Keel personalise your experience.")
                         .onboardingSubtitle(.leading)
-                        .foregroundStyle(KeelColor.mutedForeground)
+                        .foregroundStyle(theme.muted)
                         .padding(.bottom, Spacing.md)
 
                     ForEach(Pathway.allCases) { pathway in
@@ -41,7 +42,7 @@ struct PathwayView: View {
             .padding(.horizontal, Spacing.screenH)
             .padding(.top, Spacing.sm)
             .padding(.bottom, Spacing.xl)
-            .background(KeelColor.cream)
+            .background(theme.background)
         }
         .keelScreenBackground()
     }

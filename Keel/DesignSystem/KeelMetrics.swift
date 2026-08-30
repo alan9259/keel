@@ -37,13 +37,22 @@ extension View {
         shadow(color: Color(hex: 0x8C4A45, alpha: 0.30), radius: 12, x: 0, y: 8)
     }
 
-    /// Cream page background that fills the safe area.
+    /// Themed page background that fills the safe area (off-white in light, dark in
+    /// dark) so onboarding follows the appearance like the rest of the app.
     func keelScreenBackground() -> some View {
-        background(KeelColor.cream.ignoresSafeArea())
+        modifier(KeelScreenBackgroundModifier())
     }
 
     /// Minimum 44pt tap target (iOS HIG).
     func keelHitTarget() -> some View {
         frame(minWidth: 44, minHeight: 44)
+    }
+}
+
+/// Reads `\.keelTheme` so `keelScreenBackground()` can be a plain `View` helper.
+private struct KeelScreenBackgroundModifier: ViewModifier {
+    @Environment(\.keelTheme) private var theme
+    func body(content: Content) -> some View {
+        content.background(theme.background.ignoresSafeArea())
     }
 }

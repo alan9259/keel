@@ -1,6 +1,7 @@
 import SwiftUI
 
 struct ReadyView: View {
+    @Environment(\.keelTheme) private var theme
     let onComplete: () -> Void
     @State private var appeared = false
 
@@ -15,7 +16,7 @@ struct ReadyView: View {
             StandardCard(padding: Spacing.xl) {
                 Text("Check in daily. The more you share, the clearer your picture becomes. Keel will take a couple of weeks to learn you, so be patient with it. The patterns are already there. We're just going to help you see them.")
                     .font(KeelFont.bodyLarge)
-                    .foregroundStyle(KeelColor.warmGrey.opacity(0.9))
+                    .foregroundStyle(theme.text.opacity(0.9))
                     .lineSpacing(4)
             }
             .padding(.top, Spacing.xl)

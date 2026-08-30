@@ -2,6 +2,7 @@ import SwiftUI
 
 struct AppleHealthView: View {
     @Environment(AppEnvironment.self) private var env
+    @Environment(\.keelTheme) private var theme
     let onContinue: () -> Void
     @State private var connecting = false
 
@@ -18,11 +19,11 @@ struct AppleHealthView: View {
                 }
                 Image(systemName: "plus")
                     .font(.system(size: 24))
-                    .foregroundStyle(KeelColor.mutedForeground)
-                iconTile(gradient: [KeelColor.terracotta, KeelColor.terracotta]) {
+                    .foregroundStyle(theme.muted)
+                iconTile(gradient: [theme.accent, theme.accent]) {
                     Text("K")
                         .font(KeelFont.serif(36, weight: .semibold))
-                        .foregroundStyle(KeelColor.cream)
+                        .foregroundStyle(.white)   // fixed light on the rosewood tile
                 }
             }
 
@@ -33,7 +34,7 @@ struct AppleHealthView: View {
 
                 Text("Keel can read your sleep, activity, cycle, and even symptoms like hot flushes from Health, automatically. Less for you to log, more for Keel to learn. Keel only ever reads, it never writes anything back.")
                     .onboardingSubtitle()
-                    .foregroundStyle(KeelColor.warmGrey.opacity(0.8))
+                    .foregroundStyle(theme.text.opacity(0.8))
             }
 
             Spacer()
@@ -45,7 +46,7 @@ struct AppleHealthView: View {
                 KeelTextLink("Skip for now") { onContinue() }
                 Text("We never sell your data. Ever.")
                     .font(KeelFont.caption)
-                    .foregroundStyle(KeelColor.mutedForeground)
+                    .foregroundStyle(theme.muted)
             }
             .padding(.bottom, Spacing.xxxl)
         }

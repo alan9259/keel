@@ -6,12 +6,13 @@ struct OnboardingFlow: View {
         case welcome, rightPlace, createAccount, pathway, appleHealth, ready
     }
 
+    @Environment(\.keelTheme) private var theme
     let onComplete: () -> Void
     @State private var step: Step = .welcome
 
     var body: some View {
         ZStack {
-            KeelColor.cream.ignoresSafeArea()
+            theme.background.ignoresSafeArea()
             content
                 .transition(.asymmetric(
                     insertion: .move(edge: .trailing).combined(with: .opacity),

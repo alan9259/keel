@@ -8,7 +8,7 @@ struct RootView: View {
         Group {
             // A returning user (identity + onboarding restored from the Keychain,
             // e.g. after a reinstall) skips straight past onboarding.
-            if env.auth.hasCompletedOnboarding || debugForcedOnboarded {
+            if (env.auth.hasCompletedOnboarding || debugForcedOnboarded) && !debugForceOnboarding {
                 MainView()
             } else {
                 OnboardingFlow {
@@ -30,6 +30,16 @@ struct RootView: View {
     private var debugForcedOnboarded: Bool {
         #if DEBUG
         DebugHarness.forcedOnboarded
+        #else
+        false
+        #endif
+    }
+
+    /// -uitForceOnboarding: show onboarding even for an already-onboarded sim (for
+    /// screenshotting the flow without erasing the device).
+    private var debugForceOnboarding: Bool {
+        #if DEBUG
+        DebugHarness.forceOnboarding
         #else
         false
         #endif

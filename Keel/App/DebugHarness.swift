@@ -23,6 +23,7 @@ enum DebugHarness {
     private static var args: Set<String> { Set(ProcessInfo.processInfo.arguments) }
 
     static var forcedOnboarded: Bool { args.contains("-uitOnboarded") }
+    static var forceOnboarding: Bool { args.contains("-uitForceOnboarding") }
 
     /// Skip re-arming reminders on launch, so the notification-permission prompt
     /// doesn't block automated screenshots. DEBUG-only; never in Release.
