@@ -224,26 +224,15 @@ struct ActivitiesView: View {
                     }
                 }
                 Spacer(minLength: 8)
-                if let dir = trend.direction {
-                    HStack(spacing: 3) {
-                        Image(systemName: directionSymbol(dir)).font(.system(size: 10, weight: .bold))
-                        Text(directionLabel(dir)).font(KeelFont.caption)
-                    }
-                    .foregroundStyle(theme.muted)
-                }
+                // No qualitative characterisation (steady/up/down): the number, its
+                // range and the graph speak for themselves. Keel does not judge whether
+                // physiological data is steady, normal or unusual.
             }
-            VitalLineChart(points: trend.points, color: theme.accent, unit: unit, showsScale: showsAverage)
+            VitalLineChart(points: trend.points, color: theme.accent, unit: unit, showsScale: true)
         }
         .padding(14).background(theme.card)
         .clipShape(RoundedRectangle(cornerRadius: Radius.card, style: .continuous))
         .overlay(RoundedRectangle(cornerRadius: Radius.card, style: .continuous).stroke(theme.border, lineWidth: 1))
-    }
-
-    private func directionSymbol(_ d: VitalTrend.Direction) -> String {
-        switch d { case .up: "arrow.up"; case .down: "arrow.down"; case .steady: "equal" }
-    }
-    private func directionLabel(_ d: VitalTrend.Direction) -> String {
-        switch d { case .up: "up a little"; case .down: "down a little"; case .steady: "steady" }
     }
 
     /// Plain, non-alarming context, with a GP nudge added only when it genuinely
