@@ -1,7 +1,7 @@
 import SwiftUI
 import PDFKit
 
-/// The GP Visit Summary flow: choose a period, review what Keel found (remove any
+/// The GP Visit Summary flow: choose a period, review what she recorded (remove any
 /// row), add what matters to her, preview the exact PDF, then generate and share it.
 /// The preview shows the very PDF that is shared, so the two never drift.
 struct GPSummaryFlowView: View {
@@ -81,7 +81,7 @@ struct GPSummaryFlowView: View {
     private func title(_ step: GPSummaryFlowModel.Step) -> String {
         switch step {
         case .period: "Choose a time period"
-        case .review: "Review what Keel found"
+        case .review: "Review what you recorded"
         case .details: "Add what matters to you"
         case .preview: "Preview"
         }
