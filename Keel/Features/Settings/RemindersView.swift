@@ -210,9 +210,9 @@ struct RemindersView: View {
         let c = env.settings.reminderConfig
         switch id {
         case "dailyCheckIn": env.notifications.scheduleDailyCheckInReminder(hour: c.checkInHour, minute: c.checkInMinute)
-        case "hydration": env.notifications.scheduleHydration(startHour: c.hydrationStartHour, endHour: c.hydrationEndHour, everyHours: c.hydrationIntervalHours)
-        case "movement": env.notifications.scheduleMovement(hour: c.movementHour, minute: c.movementMinute, weekdaysOnly: c.movementWeekdaysOnly)
-        case "winddown": env.notifications.scheduleWindDown(hour: c.windDownHour, minute: c.windDownMinute)
+        // Lifestyle nudges keep their Apple-Intelligence tip across an edit (reused
+        // from cache, no fresh model call on every picker change).
+        case "hydration", "movement", "winddown": env.rescheduleLifestyleReminder(id)
         default: break // medication reminders are set per item
         }
     }

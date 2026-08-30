@@ -218,6 +218,12 @@ final class AppEnvironment {
     /// Re-arm the lifestyle reminders she has enabled. Calendar triggers persist
     /// across launches, but not across a reinstall, so we top them up on open.
     /// Only touches ones already enabled, so nothing is scheduled she didn't ask for.
+    /// The last Apple-Intelligence lifestyle tip generated per reminder id. Editing a
+    /// reminder's schedule reuses the cached tip instead of reverting to static copy,
+    /// and without a fresh model call on every picker tick. Refilled here on launch /
+    /// foreground; nil-valued (or absent) means the static copy stands.
+    private var lifestyleTips: [String: String] = [:]
+
     func refreshLifestyleReminders() {
         #if DEBUG
         if DebugHarness.suppressReminders { return }
@@ -231,18 +237,40 @@ final class AppEnvironment {
             if enabled.contains("dailyCheckIn") { notifications.scheduleDailyCheckInReminder(hour: c.checkInHour, minute: c.checkInMinute) }
             // Each recurring lifestyle nudge gets a fresh Apple-Intelligence tip in
             // its area when the device can make one; otherwise the static copy stands.
+            // The tip is cached so a later schedule edit keeps it (see below).
             if enabled.contains("hydration") {
                 let tip = await LifestyleTipWriter.tip(for: .hydration)
+                lifestyleTips["hydration"] = tip
                 notifications.scheduleHydration(startHour: c.hydrationStartHour, endHour: c.hydrationEndHour, everyHours: c.hydrationIntervalHours, tip: tip)
             }
             if enabled.contains("movement") {
                 let tip = await LifestyleTipWriter.tip(for: .movement)
+                lifestyleTips["movement"] = tip
                 notifications.scheduleMovement(hour: c.movementHour, minute: c.movementMinute, weekdaysOnly: c.movementWeekdaysOnly, tip: tip)
             }
             if enabled.contains("winddown") {
                 let tip = await LifestyleTipWriter.tip(for: .windDown)
+                lifestyleTips["winddown"] = tip
                 notifications.scheduleWindDown(hour: c.windDownHour, minute: c.windDownMinute, tip: tip)
             }
+        }
+    }
+
+    /// Reschedule one lifestyle reminder from the current config, reusing the last
+    /// generated Apple-Intelligence tip (no new model call). Used by the Reminders
+    /// screen so editing a reminder's time keeps its tip instead of reverting to the
+    /// static copy. Falls back to static (nil) until a tip has been generated.
+    func rescheduleLifestyleReminder(_ id: String) {
+        guard settings.pushNotifications else { return }
+        let c = settings.reminderConfig
+        switch id {
+        case "hydration":
+            notifications.scheduleHydration(startHour: c.hydrationStartHour, endHour: c.hydrationEndHour, everyHours: c.hydrationIntervalHours, tip: lifestyleTips["hydration"])
+        case "movement":
+            notifications.scheduleMovement(hour: c.movementHour, minute: c.movementMinute, weekdaysOnly: c.movementWeekdaysOnly, tip: lifestyleTips["movement"])
+        case "winddown":
+            notifications.scheduleWindDown(hour: c.windDownHour, minute: c.windDownMinute, tip: lifestyleTips["winddown"])
+        default: break
         }
     }
 
