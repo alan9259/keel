@@ -26,7 +26,7 @@ struct PatternsView: View {
     var body: some View {
         ScrollView {
             VStack(alignment: .leading, spacing: 24) {
-                ScreenHeader(title: "Your Patterns") { dismiss() }
+                ScreenHeader(title: "Looking back") { dismiss() }
 
                 todaysReflection
 
@@ -104,7 +104,7 @@ struct PatternsView: View {
         }
     }
 
-    // MARK: Looking back (history)
+    // MARK: Earlier reflections (history)
 
     private var lookingBack: some View {
         VStack(alignment: .leading, spacing: 12) {

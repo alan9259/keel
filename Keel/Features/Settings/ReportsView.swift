@@ -47,8 +47,8 @@ struct ReportsView: View {
     private var header: some View {
         // No Export here: sharing anything clinician-facing goes through the GP Visit
         // Summary flow (with its review step and footer), never a one-tap text dump
-        // that bypasses those safeguards (R12). "Looking back" is for her own reflection.
-        ScreenHeader(title: "Looking back", titleSize: 28, subtitle: "What you have recorded") { dismiss() }
+        // that bypasses those safeguards (R12). "Stats" is for her own reflection.
+        ScreenHeader(title: "Stats", titleSize: 28, subtitle: "What you have recorded") { dismiss() }
     }
 
     private var periodRow: some View {

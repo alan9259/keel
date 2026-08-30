@@ -20,7 +20,7 @@ struct MoreView: View {
                 // (button group / card), so they aren't duplicated here.
                 Item(title: "Activities", symbol: "figure.walk", tint: theme.sage, route: .activities),
                 Item(title: "Reminders", symbol: "bell.fill", tint: theme.accent, route: .reminders),
-                Item(title: "Looking back", symbol: "chart.bar.fill", tint: theme.plum, route: .reports),
+                Item(title: "Stats", symbol: "chart.bar.fill", tint: theme.plum, route: .reports),
             ]),
             ("Personalisation", [
                 Item(title: "Mood Icons", symbol: "face.smiling", tint: theme.accent, route: .moodIcons),
