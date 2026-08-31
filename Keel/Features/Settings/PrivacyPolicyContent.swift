@@ -48,8 +48,8 @@ We do not use your health information for advertising or marketing, and we never
 
 Some of Keel's features (pattern observations, the GP report) use AI to help generate plain-language summaries from your own data. Here's exactly how that works:
 
-- Only the minimum information needed to generate the specific output is sent. [Confirm exact scope with Chunru's system prompt / Edge Function design once finalised - this section needs to match the build precisely.]
-- This processing happens through a secure server-side connection; your raw data is not sent directly from your phone to a third party.
+- The processing runs on your device, not on our servers. On supported devices it uses Apple's on-device intelligence. Either way, the information used stays on your phone and is not sent to us or to any other company.
+- Only the minimum information needed to generate that specific summary is used.
 - Any AI-generated observation is written to reflect a possible pattern in your own data, not a clinical assessment or medical opinion, and is always presented for you to review, not as an instruction.
 
 **Automated decision-making disclosure** (required under Australian law from 10 December 2026): Keel's pattern observations and GP report content are generated using automated processing (AI) based on the health and lifestyle information you provide. These outputs are informational only. No automated process makes a decision about your health, treatment, or care on your behalf; every output is something you review, edit, and choose whether to act on or share with your doctor.
@@ -76,7 +76,7 @@ Some of what you log in Keel - cycle data, HRT and treatment details, symptoms -
 You can:
 - See what information Keel holds about you.
 - Correct anything that's wrong.
-- Delete your account and data at any time, directly in the app. [Confirm deletion flow meets App Store requirement before publishing.]
+- Delete your account and data at any time, directly in the app. This removes it from your device and from your private iCloud storage.
 - Ask us what's been shared and with whom.
 - Turn off any AI feature at any time; the rest of Keel keeps working normally.
 

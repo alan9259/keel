@@ -107,6 +107,12 @@ struct SettingsView: View {
                             .font(KeelFont.caption).foregroundStyle(theme.muted).fixedSize(horizontal: false, vertical: true)
                     }
                 }
+                if env.auth.hasAppleIdentity {
+                    // She signed in with Apple. Deleting here clears everything on Keel's
+                    // side; only she can remove Keel from her Apple ID, in iOS Settings.
+                    Text("You signed in with Apple. Closing your account deletes everything from Keel. To also stop Keel using your Apple ID, remove it under your Apple Account in the Settings app.")
+                        .font(KeelFont.caption).foregroundStyle(theme.muted).fixedSize(horizontal: false, vertical: true)
+                }
                 VStack(alignment: .leading, spacing: 6) {
                     Text("\(Text("Type "))\(Text("DELETE").font(.system(.footnote, design: .monospaced).weight(.semibold)))\(Text(" to confirm"))")
                         .font(KeelFont.caption).foregroundStyle(theme.muted)
@@ -158,6 +164,12 @@ struct SettingsView: View {
         // so the next sign-up has its default check-in symptoms (bootstrap only
         // seeds at launch, and closing the account returns to onboarding in place).
         env.symptoms.syncBuiltIns()
+        // Deleting the models above propagates to her private CloudKit database via
+        // .automatic mirroring, so the iCloud copy goes too. Keel holds no server-side
+        // Apple tokens (AuthService keeps only the stable Apple `user` id locally, with
+        // no REST-API token exchange), so there is nothing to revoke here today. When a
+        // backend that exchanges tokens is added, call Apple's token-revoke endpoint
+        // from there on account deletion (the private .p8 key must never ship in-app).
         env.auth.signOut()
         hasOnboarded = false
     }
