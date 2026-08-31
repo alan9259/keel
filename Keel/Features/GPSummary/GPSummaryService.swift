@@ -102,7 +102,7 @@ struct GPSummaryService {
             name: name,
             age: age,
             periodLabel: periodLabel(window),
-            checkInsLabel: "\(checkInDaysThis) of \(window.dayCount) days",
+            checkInsLabel: "\(checkInDaysThis) of \(window.dayCount) \(window.dayCount == 1 ? "day" : "days")",
             priorities: priorities,
             symptomStats: stats,
             checkInDaysThisPeriod: checkInDaysThis,
@@ -119,7 +119,11 @@ struct GPSummaryService {
             energyLine: energyLine,
             moodLine: moodLine,
             questions: questions,
-            generatedOn: now)
+            generatedOn: now,
+            includeCycle: !inputs.removedSections.contains(.cycle),
+            includeSleep: !inputs.removedSections.contains(.sleep),
+            includeEnergy: !inputs.removedSections.contains(.energy),
+            includeMood: !inputs.removedSections.contains(.mood))
     }
 
     // MARK: Symptoms

@@ -70,9 +70,9 @@ enum GPSummaryBuilder {
                     : nil)
         }
 
-        // Beyond the top rows: symptoms recorded on 3+ days, listed alphabetically.
+        // Beyond the top rows: every other symptom she kept and recorded this period,
+        // listed alphabetically, so nothing she chose to include is silently dropped.
         let overflow = ranked.dropFirst(top.count)
-            .filter { $0.daysThisPeriod >= 3 }
             .map(\.name)
             .sorted { $0.localizedCaseInsensitiveCompare($1) == .orderedAscending }
         let alsoRecorded = overflow.isEmpty ? nil : "Also recorded: \(overflow.joined(separator: ", "))."
@@ -119,7 +119,7 @@ extension GPSummaryBuilder {
                 }
             }
             if let lo = gaps.min(), let hi = gaps.max() {
-                rangeText = lo == hi ? "\(lo) days" : "\(lo) to \(hi) days"
+                rangeText = lo == hi ? "\(lo) \(lo == 1 ? "day" : "days")" : "\(lo) to \(hi) days"
             }
         }
         return GPCycleBlock(

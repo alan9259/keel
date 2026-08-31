@@ -168,7 +168,7 @@ private struct GPReviewStepView: View {
             StandardCard {
                 VStack(spacing: 0) {
                     ForEach(Array(model.candidateSymptoms.enumerated()), id: \.element.name) { index, stat in
-                        row(stat.name, detail: "\(stat.daysThisPeriod) days",
+                        row(stat.name, detail: "\(stat.daysThisPeriod) of \(model.candidateCheckInDays) check-in days",
                             included: model.isSymptomIncluded(stat.name)) { model.toggleSymptom(stat.name) }
                         if index < model.candidateSymptoms.count - 1 { Divider().overlay(theme.border) }
                     }
@@ -190,11 +190,32 @@ private struct GPReviewStepView: View {
             }
         }
 
+        // Auto-populated sections she can leave off. Period dates and check-in counts
+        // are the identifying frame and stay in, so they aren't listed here.
+        sectionHeader("Cycle, sleep, energy and mood")
+        StandardCard {
+            VStack(spacing: 0) {
+                ForEach(Array(Self.sectionRows.enumerated()), id: \.offset) { index, item in
+                    row(item.title, detail: item.detail,
+                        included: model.isSectionIncluded(item.section)) { model.toggleSection(item.section) }
+                    if index < Self.sectionRows.count - 1 { Divider().overlay(theme.border) }
+                }
+            }
+        }
+
         CalloutCard(systemImage: "info.circle.fill") {
-            Text("Your period dates, check-in counts, cycle details and sleep, energy and mood are always included.")
+            Text("Your period dates and check-in counts are always included.")
                 .font(KeelFont.caption).foregroundStyle(theme.text)
         }
     }
+
+    /// The four removable auto-populated sections, with a short descriptor each.
+    private static let sectionRows: [(section: GPSummarySection, title: String, detail: String)] = [
+        (.cycle, "Periods and cycle", "Cycle summary from your records"),
+        (.sleep, "Sleep", "Nights with disrupted sleep logged"),
+        (.energy, "Energy", "Your average energy"),
+        (.mood, "Mood", "Your most-logged moods"),
+    ]
 
     private func sectionHeader(_ text: String) -> some View {
         Text(text).font(KeelFont.serif(17, weight: .medium)).foregroundStyle(theme.accent)

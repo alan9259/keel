@@ -9,6 +9,7 @@ import Foundation
 enum GPSummaryCopy {
     // Provisional product wording (may change 26 Aug / September copy pass).
     static let featureName = "GP Visit Summary"
+    static let titleSubtitle = "Prepared from my Keel records"
     static let prepareEntry = "Prepare for a GP visit"
 
     // Step prompts (her words, never pre-filled or suggested).
@@ -108,7 +109,7 @@ enum GPSummaryCopy {
 
     /// Every fixed Keel-generated string in this feature, for the release lint.
     static var lintableStrings: [String] {
-        [featureName, prepareEntry, prioritiesPrompt, questionsPrompt, impactOwnAssessment,
+        [featureName, titleSubtitle, prepareEntry, prioritiesPrompt, questionsPrompt, impactOwnAssessment,
          aboutHeading, prioritiesHeading, symptomsHeading, impactHeading, cycleHeading,
          mhtHeading, otherMedsHeading, supplementsHeading, treatmentChangesHeading,
          sleepEnergyMoodHeading, questionsHeading, noSymptoms, noEarlierComparison,

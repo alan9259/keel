@@ -66,6 +66,12 @@ struct GPDateWindow: Equatable {
     }
 }
 
+/// The auto-populated sections she can remove at the review step. Period dates and
+/// check-in counts are the identifying frame and stay in; everything here is optional.
+enum GPSummarySection: Hashable, CaseIterable {
+    case cycle, sleep, energy, mood
+}
+
 /// Everything she adds at step 4, plus what she chose to remove at step 3. Kept
 /// separate from the store-derived data so the builder never invents any of it.
 struct GPSummaryInputs: Equatable {
@@ -79,6 +85,7 @@ struct GPSummaryInputs: Equatable {
     var questions: [String] = []         // up to 3, her words
     var removedSymptomNames: Set<String> = []  // rows she removed at step 3
     var removedMedIDs: Set<UUID> = []          // med/supplement rows she removed
+    var removedSections: Set<GPSummarySection> = []  // cycle/sleep/energy/mood she left off
 }
 
 /// The fully-resolved summary, ready to render. The preview and the PDF both read
@@ -124,6 +131,12 @@ struct GPSummaryDocument: Equatable {
     var questions: [String]
 
     var generatedOn: Date
+
+    // Removable auto-populated sections (default in; the review step can turn any off).
+    var includeCycle: Bool = true
+    var includeSleep: Bool = true
+    var includeEnergy: Bool = true
+    var includeMood: Bool = true
 
     /// The symptom section at a chosen row cap. The renderer calls this with the
     /// number of rows that fit; the preview calls it the same way.

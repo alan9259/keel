@@ -107,6 +107,41 @@ final class GPSummaryServiceTests: XCTestCase {
         XCTAssertEqual(doc.treatmentChanges, ["\(styled(d(-3))): changed Oestrogel dose"])
     }
 
+    func testAutoSectionsIncludedByDefaultAndRemovable() {
+        seedFullPicture()
+        var inputs = GPSummaryInputs(); inputs.period = .fourWeeks
+
+        // Default: every auto-populated section is in.
+        let full = service.makeDocument(inputs: inputs, now: now)
+        XCTAssertTrue(full.includeCycle && full.includeSleep && full.includeEnergy && full.includeMood)
+
+        // Removing each section at the review step turns off exactly its flag; the
+        // underlying data is still computed, so nothing else shifts.
+        inputs.removedSections = [.cycle, .sleep, .energy, .mood]
+        let trimmed = service.makeDocument(inputs: inputs, now: now)
+        XCTAssertFalse(trimmed.includeCycle)
+        XCTAssertFalse(trimmed.includeSleep)
+        XCTAssertFalse(trimmed.includeEnergy)
+        XCTAssertFalse(trimmed.includeMood)
+
+        // A single removal leaves the others in.
+        inputs.removedSections = [.mood]
+        let moodOff = service.makeDocument(inputs: inputs, now: now)
+        XCTAssertFalse(moodOff.includeMood)
+        XCTAssertTrue(moodOff.includeCycle && moodOff.includeSleep && moodOff.includeEnergy)
+    }
+
+    func testPDFFileNameIsDateBasedNotHex() {
+        let date = Date(timeIntervalSince1970: 1_756_684_800)  // 2025-09-01 UTC-ish
+        let name = GPSummaryPDFRenderer.fileName(for: date)
+        XCTAssertTrue(name.hasPrefix("GP-Visit-Summary-"))
+        XCTAssertTrue(name.hasSuffix(".pdf"))
+        // The stamp is a yyyy-MM-dd date, so it has three hyphen-separated numbers.
+        let stamp = name.replacingOccurrences(of: "GP-Visit-Summary-", with: "").replacingOccurrences(of: ".pdf", with: "")
+        XCTAssertEqual(stamp.count, 10)  // yyyy-MM-dd
+        XCTAssertTrue(stamp.allSatisfy { $0.isNumber || $0 == "-" })
+    }
+
     func testStoppedTreatmentsShowInMHTAndChangesButNotOtherTables() {
         seedFullPicture()   // active Oestrogel (MHT) + Magnesium (supplement)
         // A stopped MHT and a stopped supplement, both dated inside the 4-week window.

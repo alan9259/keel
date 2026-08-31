@@ -60,13 +60,14 @@ final class GPSummaryTests: XCTestCase {
         let stats = [
             stat("Zed", this: 20), stat("Yan", this: 19), stat("Xer", this: 18),
             stat("Wme", this: 17), stat("Vim", this: 16), stat("Uno", this: 15),
-            stat("Bee", this: 4), stat("Ant", this: 3),  // outside top 6, 3+ days
-            stat("Low", this: 2),                         // under 3 days, omitted
+            stat("Bee", this: 4), stat("Ant", this: 3),  // outside the top 6
+            stat("Low", this: 2),                         // low-frequency, still carried
         ]
         let table = GPSummaryBuilder.symptomTable(
             stats: stats, checkInDaysThisPeriod: 30, checkInDaysPreviousPeriod: 0, previousWindowDayCount: 0)
         XCTAssertEqual(table.rows.count, 6)
-        XCTAssertEqual(table.alsoRecorded, "Also recorded: Ant, Bee.")
+        // Every kept symptom outside the top rows carries through, alphabetically.
+        XCTAssertEqual(table.alsoRecorded, "Also recorded: Ant, Bee, Low.")
     }
 
     func testReducingRowsBumpsTheSixthIntoAlsoRecorded() {

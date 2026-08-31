@@ -18,6 +18,9 @@ final class GPSummaryFlowModel {
     // Everything the chosen period found, before any removal (for the review step).
     private(set) var candidateSymptoms: [GPSymptomStat] = []
     private(set) var reviewMeds: [(id: UUID, name: String, category: GPMedCategory)] = []
+    /// Check-in days in the chosen window, so the review can show the same
+    /// "X of Y check-in days" wording the PDF uses.
+    private(set) var candidateCheckInDays: Int = 0
 
     // Three fixed slots each; blanks are dropped and the list capped when built.
     var priorityDrafts = ["", "", ""]
@@ -62,6 +65,7 @@ final class GPSummaryFlowModel {
         base.removedMedIDs = []
         let document = service.makeDocument(inputs: base)
         candidateSymptoms = GPSummaryBuilder.ranked(document.symptomStats)
+        candidateCheckInDays = document.checkInDaysThisPeriod
         reviewMeds = service.reviewMeds()
     }
 
@@ -77,6 +81,12 @@ final class GPSummaryFlowModel {
     func toggleMed(_ id: UUID) {
         if inputs.removedMedIDs.contains(id) { inputs.removedMedIDs.remove(id) }
         else { inputs.removedMedIDs.insert(id) }
+    }
+
+    func isSectionIncluded(_ section: GPSummarySection) -> Bool { !inputs.removedSections.contains(section) }
+    func toggleSection(_ section: GPSummarySection) {
+        if inputs.removedSections.contains(section) { inputs.removedSections.remove(section) }
+        else { inputs.removedSections.insert(section) }
     }
 
     // MARK: Impact

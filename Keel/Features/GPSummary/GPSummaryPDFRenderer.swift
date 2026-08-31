@@ -134,11 +134,21 @@ final class GPSummaryPDFRenderer {
     }
 
     /// Write the PDF to a temp file for the share sheet. Caller deletes it afterwards.
+    /// The name carries the date she prepared it (what the recipient sees), not a
+    /// random hex suffix.
     func writeTemporaryFile() -> URL {
         let url = FileManager.default.temporaryDirectory
-            .appendingPathComponent("GP-Visit-Summary-\(UUID().uuidString.prefix(8)).pdf")
+            .appendingPathComponent(Self.fileName(for: doc.generatedOn))
         try? render().write(to: url, options: .atomic)
         return url
+    }
+
+    /// "GP-Visit-Summary-2026-09-01.pdf". Pure so the naming is unit-testable.
+    nonisolated static func fileName(for date: Date) -> String {
+        let f = DateFormatter()
+        f.locale = Locale(identifier: "en_AU")
+        f.dateFormat = "yyyy-MM-dd"
+        return "GP-Visit-Summary-\(f.string(from: date)).pdf"
     }
 
     // MARK: Page 1
@@ -146,8 +156,10 @@ final class GPSummaryPDFRenderer {
     private func layoutPage1(symptomRows: Int, draw: Bool) -> CGFloat {
         var y = contentTop
 
-        // Title.
+        // Title + provenance line.
         y += paragraph(attr(GPSummaryCopy.featureName, titleFont, rosewood), y: y, draw: draw)
+        y += 1
+        y += paragraph(attr(GPSummaryCopy.titleSubtitle, captionFont, muted), y: y, draw: draw)
         y += 4
         y += rule(y: y, draw: draw)
         y += 12
@@ -194,16 +206,18 @@ final class GPSummaryPDFRenderer {
             y += 14
         }
 
-        // Periods and cycle (must always fit on page 1).
-        y += heading(GPSummaryCopy.cycleHeading, y: y, draw: draw)
-        let lastStart = doc.cycle.lastPeriodStart.map(dateStyle) ?? GPSummaryCopy.notRecorded
-        y += labelValue(GPSummaryCopy.cycleLastStart, lastStart, y: y, draw: draw)
-        y += labelValue(GPSummaryCopy.cyclePeriodsRecorded, "\(doc.cycle.periodsRecorded)", y: y, draw: draw)
-        y += labelValue(GPSummaryCopy.cycleLengths, doc.cycle.cycleLengthRange, y: y, draw: draw)
-        y += labelValue(GPSummaryCopy.cycleFlow, doc.cycle.flow ?? GPSummaryCopy.notRecorded, y: y, draw: draw)
-        y += labelValue(GPSummaryCopy.cycleBleeding, doc.cycle.intermenstrualBleeding, y: y, draw: draw)
-        if let na = doc.cycle.notApplicable {
-            y += labelValue(GPSummaryCopy.cycleNotApplicable, na, y: y, draw: draw)
+        // Periods and cycle (must always fit on page 1). Omitted if she removed it.
+        if doc.includeCycle {
+            y += heading(GPSummaryCopy.cycleHeading, y: y, draw: draw)
+            let lastStart = doc.cycle.lastPeriodStart.map(dateStyle) ?? GPSummaryCopy.notRecorded
+            y += labelValue(GPSummaryCopy.cycleLastStart, lastStart, y: y, draw: draw)
+            y += labelValue(GPSummaryCopy.cyclePeriodsRecorded, "\(doc.cycle.periodsRecorded)", y: y, draw: draw)
+            y += labelValue(GPSummaryCopy.cycleLengths, doc.cycle.cycleLengthRange, y: y, draw: draw)
+            y += labelValue(GPSummaryCopy.cycleFlow, doc.cycle.flow ?? GPSummaryCopy.notRecorded, y: y, draw: draw)
+            y += labelValue(GPSummaryCopy.cycleBleeding, doc.cycle.intermenstrualBleeding, y: y, draw: draw)
+            if let na = doc.cycle.notApplicable {
+                y += labelValue(GPSummaryCopy.cycleNotApplicable, na, y: y, draw: draw)
+            }
         }
         return y
     }
@@ -231,7 +245,9 @@ final class GPSummaryPDFRenderer {
         if !doc.treatmentChanges.isEmpty {
             add(12) { self.bulletBlock(GPSummaryCopy.treatmentChangesHeading, lines: self.doc.treatmentChanges, y: $0, draw: $1) }
         }
-        add(12) { self.sleepEnergyMoodBlock(y: $0, draw: $1) }
+        if doc.includeSleep || doc.includeEnergy || doc.includeMood {
+            add(12) { self.sleepEnergyMoodBlock(y: $0, draw: $1) }
+        }
         if !doc.questions.isEmpty {
             add(12) { self.bulletBlock(GPSummaryCopy.questionsHeading, lines: self.doc.questions, y: $0, draw: $1) }
         }
@@ -246,9 +262,15 @@ final class GPSummaryPDFRenderer {
 
     private func sleepEnergyMoodBlock(y: CGFloat, draw: Bool) -> CGFloat {
         var used = heading(GPSummaryCopy.sleepEnergyMoodHeading, y: y, draw: draw)
-        used += labelValue(GPSummaryCopy.sleepRowLabel, "\(doc.sleepLine) \(GPSummaryCopy.sleepRowSuffix)", y: y + used, draw: draw)
-        used += labelValue(GPSummaryCopy.energyRowLabel, doc.energyLine ?? GPSummaryCopy.notRecorded, y: y + used, draw: draw)
-        used += labelValue(GPSummaryCopy.moodRowLabel, doc.moodLine ?? GPSummaryCopy.notRecorded, y: y + used, draw: draw)
+        if doc.includeSleep {
+            used += labelValue(GPSummaryCopy.sleepRowLabel, "\(doc.sleepLine) \(GPSummaryCopy.sleepRowSuffix)", y: y + used, draw: draw)
+        }
+        if doc.includeEnergy {
+            used += labelValue(GPSummaryCopy.energyRowLabel, doc.energyLine ?? GPSummaryCopy.notRecorded, y: y + used, draw: draw)
+        }
+        if doc.includeMood {
+            used += labelValue(GPSummaryCopy.moodRowLabel, doc.moodLine ?? GPSummaryCopy.notRecorded, y: y + used, draw: draw)
+        }
         return used
     }
 
