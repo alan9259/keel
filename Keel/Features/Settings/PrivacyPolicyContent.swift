@@ -8,7 +8,7 @@ enum PrivacyPolicyContent {
     static var lines: [String] { markdown.components(separatedBy: "\n") }
 
     static let markdown = """
-**Last updated:** [date]
+**Last updated:** 1 September 2026
 **Applies to:** the Keel iOS app and any associated services (together, "Keel," "we," "us")
 
 ### Who we are
@@ -28,7 +28,7 @@ Keel supports and informs. It does not diagnose, prescribe, or replace your doct
 - Your chosen pathway (natural, medical, or blended) and any changes to it.
 
 **What we pull in automatically, with your permission:**
-- Apple HealthKit data you authorise: sleep, steps, heart rate, and workouts. [Confirm final V1 integration list with Chunru before publishing.]
+- Apple Health data you authorise (read-only; Keel never writes anything back): sleep; activity such as steps, exercise minutes, active energy, flights climbed, and walking or running distance; heart and vitals such as heart rate, resting heart rate, heart rate variability, blood pressure, respiratory rate, blood oxygen, body temperature, wrist temperature, basal body temperature, and body weight; menstrual flow; mindful minutes; and any perimenopause-related symptoms you record in Health (for example hot flushes and night sweats). Keel reads only the categories you approve, and only to fold them into your own record.
 
 **What we collect automatically:**
 - Basic device and usage information needed to keep the app running and secure (app version, crash logs, general performance data). We do not use this for advertising.
@@ -46,26 +46,22 @@ We do not use your health information for advertising or marketing, and we never
 
 ### The AI features, specifically
 
-Some of Keel's features (pattern observations, the GP report) use Anthropic's Claude API to help generate plain-language summaries from your own data. Here's exactly how that works:
+Some of Keel's features (pattern observations, the GP report) use AI to help generate plain-language summaries from your own data. Here's exactly how that works:
 
 - Only the minimum information needed to generate the specific output is sent. [Confirm exact scope with Chunru's system prompt / Edge Function design once finalised - this section needs to match the build precisely.]
-- This processing happens through a secure server-side connection (a Supabase Edge Function); your raw data is not sent directly from your phone to a third party.
-- Anthropic processes this information under its own data handling terms as our processor, not as an independent user of your data. [Confirm current Anthropic API data retention/training terms before publishing - these can change and need verifying at time of writing, not assumed from this draft.]
+- This processing happens through a secure server-side connection; your raw data is not sent directly from your phone to a third party.
 - Any AI-generated observation is written to reflect a possible pattern in your own data, not a clinical assessment or medical opinion, and is always presented for you to review, not as an instruction.
 
 **Automated decision-making disclosure** (required under Australian law from 10 December 2026): Keel's pattern observations and GP report content are generated using automated processing (AI) based on the health and lifestyle information you provide. These outputs are informational only. No automated process makes a decision about your health, treatment, or care on your behalf; every output is something you review, edit, and choose whether to act on or share with your doctor.
 
 ### Where your information is stored
 
-Your information is stored on Supabase infrastructure hosted in Sydney, Australia, with row-level security applied from the first version of the app. This means your data stays in Australia and access is restricted at the database level to your own account.
+Your information is stored on your device, and if you are signed in it syncs to your own private iCloud account using Apple's CloudKit. It lives in the private database tied to your Apple ID, which only you can reach; the Keel team cannot see into it. Apple stores and handles iCloud data on its own infrastructure, which may be located outside Australia, under Apple's iCloud terms and privacy policy.
 
 ### Who we share information with
 
 We work with a small number of service providers to run Keel:
-- **Supabase** (Sydney, Australia) - hosting and database infrastructure.
-- **Anthropic** - AI processing for pattern observations and the GP report, only when you use those features, and only the minimum data needed.
-- **Apple** - for HealthKit data you authorise, and for processing any subscription payment through the App Store (Apple handles payment details directly; we never see your card information).
-- **RevenueCat** - subscription management. [Confirm exact data RevenueCat receives with Chunru.]
+- **Apple** - secure storage and sync of your private data through iCloud (using Apple's CloudKit, in the private database tied to your Apple ID); the HealthKit data you authorise; and processing any subscription payment through the App Store (Apple handles payment details directly; we never see your card information).
 
 We do not sell your information to anyone. We do not share it with advertisers. We only share what's described above, and only for the purposes described above.
 
@@ -74,8 +70,6 @@ If required by law, we may need to disclose information to a regulator or court.
 ### Sensitive information gets extra care
 
 Some of what you log in Keel - cycle data, HRT and treatment details, symptoms - is sensitive health information under Australian privacy law, and we treat it accordingly: stored securely, access restricted to you, never used for anything beyond providing you the service.
-
-[Decide with Chunru: does Keel need an equivalent to Bevel's "reproductive health data isn't sent to the AI layer unless you opt in" pattern? Worth deciding before this section is finalised, particularly for cycle data.]
 
 ### Your choices and rights
 
@@ -86,7 +80,7 @@ You can:
 - Ask us what's been shared and with whom.
 - Turn off any AI feature at any time; the rest of Keel keeps working normally.
 
-To exercise any of these, contact us at [support email].
+To exercise any of these, contact us at keel@therecalibrationyears.com.
 
 ### How long we keep your information
 
@@ -102,7 +96,7 @@ If we make a material change to this policy, we'll let you know before it takes 
 
 ### Contact us
 
-Questions about this policy or your information: [support email].
+Questions about this policy or your information: keel@therecalibrationyears.com.
 If you're not satisfied with our response, you can contact the Office of the Australian Information Commissioner (OAIC) at oaic.gov.au.
 """
 }
