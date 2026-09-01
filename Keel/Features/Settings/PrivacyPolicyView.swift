@@ -1,12 +1,9 @@
 import SwiftUI
 
-/// In-app privacy policy. Renders `PrivacyPolicyContent.markdown` (the draft body,
-/// verbatim) so the app no longer depends on an external page that may not be live.
-///
-/// The content is a DRAFT (see the source doc): bracketed items like `[date]`,
-/// `[support email]` and the company/ABN details are real placeholders a human must
-/// fill, and the `[Confirm ... with Chunru]` notes are internal review notes. They are
-/// shown as-is because this is legal text I must not fabricate or rewrite.
+/// In-app privacy policy. Renders `PrivacyPolicyContent.markdown` verbatim so the app
+/// no longer depends on an external page that may not be live. The body is reconciled
+/// to the shipping build (on-device AI, iCloud/CloudKit) with every placeholder filled;
+/// keep it verbatim, as legal text I must not fabricate or rewrite.
 struct PrivacyPolicyView: View {
     @Environment(\.keelTheme) private var theme
     @Environment(\.dismiss) private var dismiss
@@ -14,8 +11,7 @@ struct PrivacyPolicyView: View {
     var body: some View {
         ScrollView {
             VStack(alignment: .leading, spacing: 12) {
-                ScreenHeader(title: "Privacy Policy", titleSize: 28,
-                             subtitle: "Draft - for review, not yet published") { dismiss() }
+                ScreenHeader(title: "Privacy Policy", titleSize: 28) { dismiss() }
                     .padding(.bottom, 4)
 
                 ForEach(Array(PrivacyPolicyContent.lines.enumerated()), id: \.offset) { _, line in
