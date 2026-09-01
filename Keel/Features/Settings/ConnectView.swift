@@ -1,14 +1,8 @@
 import SwiftUI
-import UIKit
 
 struct ConnectView: View {
     @Environment(\.keelTheme) private var theme
     @Environment(\.dismiss) private var dismiss
-    @Environment(\.openURL) private var openURL
-
-    /// Shown only if opening a draft failed (no mail app set up), so she can still
-    /// reach us by copying the address.
-    @State private var showNoMailApp = false
 
     var body: some View {
         ScrollView {
@@ -25,23 +19,10 @@ struct ConnectView: View {
                                blurb: "Updates, stories and a look at what we're building.")
                 }
 
-                VStack(alignment: .leading, spacing: 14) {
-                    VStack(alignment: .leading, spacing: 8) {
-                        Text("Get in touch directly").font(KeelFont.bodyLarge).foregroundStyle(theme.text)
-                        Text("Have an idea, or something that isn't working? Send it straight to us. It opens in your own email app, and you can change anything before it sends.")
-                            .font(KeelFont.body).foregroundStyle(theme.muted).lineSpacing(3)
-                            .fixedSize(horizontal: false, vertical: true)
-                    }
-
-                    KeelPrimaryButton("Share feedback", systemImage: "envelope.fill") {
-                        compose(.feedback)
-                    }
-                    KeelSecondaryButton("Request a feature", systemImage: "lightbulb") {
-                        compose(.featureRequest)
-                    }
-
-                    Text("\(Text("Or reach us any time at ").foregroundColor(theme.muted))\(Text(FeedbackMail.address).foregroundColor(theme.accent))")
-                        .font(KeelFont.caption).lineSpacing(2)
+                VStack(alignment: .leading, spacing: 8) {
+                    Text("Get in touch directly").font(KeelFont.bodyLarge).foregroundStyle(theme.text)
+                    Text("\(Text("For support, feedback or anything else, reach us at ").foregroundColor(theme.muted))\(Text(FeedbackMail.address).foregroundColor(theme.accent))")
+                        .font(KeelFont.body).lineSpacing(3)
                     Text("We read every message and reply as soon as we can.")
                         .font(KeelFont.caption).foregroundStyle(theme.muted)
                 }
@@ -55,27 +36,6 @@ struct ConnectView: View {
         }
         .background(theme.background.ignoresSafeArea())
         .keelFeatureScreen()
-        .alert("No email app set up", isPresented: $showNoMailApp) {
-            Button("Copy email address") { UIPasteboard.general.string = FeedbackMail.address }
-            Button("OK", role: .cancel) {}
-        } message: {
-            Text("We couldn't find an email app to open. You can copy our address and write to us from anywhere: \(FeedbackMail.address)")
-        }
-    }
-
-    /// Open a pre-filled draft in her default mail app. If nothing handles it
-    /// (no mail account configured), fall back to offering the address to copy.
-    private func compose(_ kind: FeedbackMail.Kind) {
-        guard let url = FeedbackMail.url(kind: kind,
-                                         version: DeviceContext.appVersion,
-                                         os: DeviceContext.osVersion,
-                                         device: DeviceContext.deviceModel) else {
-            showNoMailApp = true
-            return
-        }
-        openURL(url) { accepted in
-            if !accepted { showNoMailApp = true }
-        }
     }
 
     private func socialCard(color: Color, emoji: String, name: String, handle: String, blurb: String) -> some View {

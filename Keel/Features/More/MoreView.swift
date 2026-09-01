@@ -1,15 +1,22 @@
 import SwiftUI
+import UIKit
 
-/// The settings/more hub — sectioned rows that navigate to each feature.
+/// The settings/more hub — sectioned rows that navigate to each feature (or, for
+/// feedback, open a mail draft).
 struct MoreView: View {
     @Environment(\.dismiss) private var dismiss
     @Environment(\.keelTheme) private var theme
+    @Environment(\.openURL) private var openURL
+
+    /// Shown if opening a feedback draft fails (no mail app), so she can copy the address.
+    @State private var showNoMailApp = false
 
     private struct Item: Identifiable {
         let title: String
         let symbol: String
         let tint: Color
-        let route: MainRoute
+        var route: MainRoute? = nil
+        var action: (() -> Void)? = nil
         var id: String { title }
     }
 
@@ -30,6 +37,11 @@ struct MoreView: View {
             ("Data", [
                 Item(title: "Backup & Restore", symbol: "icloud.fill", tint: theme.accent, route: .backup),
                 Item(title: "Apple Health", symbol: "heart.fill", tint: Color(hex: 0xE91E63), route: .appleHealth),
+            ]),
+            ("Feedback", [
+                // Open a pre-filled draft in her own mail app (see compose(_:)).
+                Item(title: "Share feedback", symbol: "envelope.fill", tint: theme.accent, action: { compose(.feedback) }),
+                Item(title: "Request a feature", symbol: "lightbulb.fill", tint: theme.plum, action: { compose(.featureRequest) }),
             ]),
             ("Account", [
                 Item(title: "Profile", symbol: "person.crop.circle", tint: theme.accent, route: .profile),
@@ -52,8 +64,14 @@ struct MoreView: View {
                             .foregroundStyle(theme.muted).padding(.leading, 4)
                         VStack(spacing: 0) {
                             ForEach(Array(section.1.enumerated()), id: \.element.id) { idx, item in
-                                NavigationLink(value: item.route) { row(item) }
-                                    .buttonStyle(.plain)
+                                Group {
+                                    if let route = item.route {
+                                        NavigationLink(value: route) { row(item) }
+                                    } else {
+                                        Button { Haptics.light(); item.action?() } label: { row(item) }
+                                    }
+                                }
+                                .buttonStyle(.plain)
                                 if idx < section.1.count - 1 { Divider().background(theme.border) }
                             }
                         }
@@ -72,6 +90,27 @@ struct MoreView: View {
         }
         .background(theme.background.ignoresSafeArea())
         .keelFeatureScreen()
+        .alert("No email app set up", isPresented: $showNoMailApp) {
+            Button("Copy email address") { UIPasteboard.general.string = FeedbackMail.address }
+            Button("OK", role: .cancel) {}
+        } message: {
+            Text("We couldn't find an email app to open. You can copy our address and write to us from anywhere: \(FeedbackMail.address)")
+        }
+    }
+
+    /// Open a pre-filled feedback / feature-request draft in her default mail app.
+    /// If nothing handles it (no mail account), offer the address to copy instead.
+    private func compose(_ kind: FeedbackMail.Kind) {
+        guard let url = FeedbackMail.url(kind: kind,
+                                         version: DeviceContext.appVersion,
+                                         os: DeviceContext.osVersion,
+                                         device: DeviceContext.deviceModel) else {
+            showNoMailApp = true
+            return
+        }
+        openURL(url) { accepted in
+            if !accepted { showNoMailApp = true }
+        }
     }
 
     private func row(_ item: Item) -> some View {
