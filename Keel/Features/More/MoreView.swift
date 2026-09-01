@@ -10,6 +10,8 @@ struct MoreView: View {
 
     /// Shown if opening a feedback draft fails (no mail app), so she can copy the address.
     @State private var showNoMailApp = false
+    /// Presents the iOS share sheet for "Tell your friends".
+    @State private var showShareSheet = false
 
     private struct Item: Identifiable {
         let title: String
@@ -48,6 +50,7 @@ struct MoreView: View {
                 Item(title: "Settings", symbol: "gearshape.fill", tint: theme.muted, route: .settings),
                 Item(title: "Get Support", symbol: "lifepreserver.fill", tint: theme.accent, route: .support),
                 Item(title: "Connect with Us", symbol: "bubble.left.and.bubble.right.fill", tint: theme.sage, route: .connect),
+                Item(title: "Tell your friends", symbol: "square.and.arrow.up", tint: theme.accent, action: { showShareSheet = true }),
                 Item(title: "About Keel", symbol: "info.circle.fill", tint: theme.muted, route: .about),
             ]),
         ]
@@ -96,6 +99,9 @@ struct MoreView: View {
         } message: {
             Text("We couldn't find an email app to open. You can copy our address and write to us from anywhere: \(FeedbackMail.address)")
         }
+        .sheet(isPresented: $showShareSheet) {
+            ShareSheet(items: ShareInvite.activityItems)
+        }
     }
 
     /// Open a pre-filled feedback / feature-request draft in her default mail app.
@@ -127,4 +133,13 @@ struct MoreView: View {
         .padding(.horizontal, 16).padding(.vertical, 13)
         .contentShape(Rectangle())
     }
+}
+
+/// Wraps `UIActivityViewController` so "Tell your friends" uses the system share sheet.
+private struct ShareSheet: UIViewControllerRepresentable {
+    let items: [Any]
+    func makeUIViewController(context: Context) -> UIActivityViewController {
+        UIActivityViewController(activityItems: items, applicationActivities: nil)
+    }
+    func updateUIViewController(_ controller: UIActivityViewController, context: Context) {}
 }
