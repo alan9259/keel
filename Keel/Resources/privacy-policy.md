@@ -1,4 +1,4 @@
-**Last updated:** 1 September 2026
+**Last updated:** 3 September 2026
 **Applies to:** the Keel iOS app and any associated services (together, "Keel," "we," "us")
 
 ### Who we are
@@ -46,12 +46,12 @@ Some of Keel's features (pattern observations, the GP report) use AI to help gen
 
 ### Where your information is stored
 
-Your information is stored on your device, and if you are signed in it syncs to your own private iCloud account using Apple's CloudKit. It lives in the private database tied to your Apple ID, which only you can reach; the Keel team cannot see into it. Apple stores and handles iCloud data on its own infrastructure, which may be located outside Australia, under Apple's iCloud terms and privacy policy.
+Your information is stored on your device. Keel does not upload your health information to iCloud or to any server of ours: your check-ins, symptoms, cycle, treatments, notes, and imported Apple Health data stay on your phone. You can export a backup file yourself at any time from Backup & Restore and keep it wherever you choose.
 
 ### Who we share information with
 
 We work with a small number of service providers to run Keel:
-- **Apple** - secure storage and sync of your private data through iCloud (using Apple's CloudKit, in the private database tied to your Apple ID); the HealthKit data you authorise; and processing any subscription payment through the App Store (Apple handles payment details directly; we never see your card information).
+- **Apple** - the HealthKit data you authorise (read only, kept on your device); and processing any subscription payment through the App Store (Apple handles payment details directly; we never see your card information).
 
 We do not sell your information to anyone. We do not share it with advertisers. We only share what's described above, and only for the purposes described above.
 
@@ -66,7 +66,7 @@ Some of what you log in Keel - cycle data, HRT and treatment details, symptoms -
 You can:
 - See what information Keel holds about you.
 - Correct anything that's wrong.
-- Delete your account and data at any time, directly in the app. This removes it from your device and from your private iCloud storage.
+- Delete your account and data at any time, directly in the app. Because your data lives on your device, this erases it straight away.
 - Ask us what's been shared and with whom.
 - Turn off any AI feature at any time; the rest of Keel keeps working normally.
 
@@ -74,7 +74,7 @@ To exercise any of these, contact us at keel@therecalibrationyears.com.
 
 ### How long we keep your information
 
-We keep your information for as long as your account is active, plus a short period afterwards to handle any outstanding requests or legal obligations. When you delete your account, your personal information is deleted from your device and your private iCloud storage within 30 days, except where we are required to retain something by law.
+Your information lives on your device, not on our servers, so Keel does not hold a copy to retain. It stays on your device for as long as you keep the app and your account, and is erased when you delete your account or remove the app. Anything you have separately exported to your own backup file is yours to keep or delete as you choose.
 
 ### Keeping your information secure
 

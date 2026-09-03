@@ -3,10 +3,10 @@ import SwiftData
 
 /// Central definition of the SwiftData schema + container construction.
 ///
-/// SwiftData is the local source of truth. We deliberately do **not** attach
-/// SwiftData's automatic CloudKit mirroring here — sync goes through the
-/// backend-agnostic `SyncEngine`/`SyncProvider` instead, which is what keeps the
-/// Supabase migration a drop-in swap.
+/// SwiftData is the on-device source of truth, and it is deliberately **local-only**:
+/// CloudKit mirroring is off, so no personal health information is stored in iCloud
+/// (App Store Review Guideline 5.1.3(ii)). Any future cross-device sync must go through
+/// a first-party backend, not iCloud.
 enum KeelSchema {
     static let models: [any PersistentModel.Type] = [
         UserProfile.self,
@@ -32,16 +32,15 @@ enum KeelSchema {
     /// and a destructive change gets a `MigrationStage` in `KeelMigrationPlan`
     /// rather than a data-losing reset.
     static func makeContainer(inMemory: Bool = false) -> ModelContainer {
-        // Sync is SwiftData's automatic CloudKit mirroring (private database). It
-        // activates only when the app carries the CloudKit entitlement — a signed
-        // device build — and stays inert on the unsigned simulator and for the
-        // in-memory store (tests/previews), which can't use CloudKit. Every model
-        // is CloudKit-shaped for this: no `@Attribute(.unique)`, every attribute
-        // optional or defaulted, and every relationship optional with an inverse.
-        // The old backend-agnostic `SyncProvider`/`SyncEngine` path is left inert
-        // (the provider is a no-op) so nothing double-syncs.
+        // Local-only: CloudKit mirroring is OFF (`.none`), so personal health
+        // information never leaves the device for iCloud (App Store Guideline
+        // 5.1.3(ii)). Every model is still CloudKit-shaped (no `@Attribute(.unique)`,
+        // every attribute optional or defaulted, relationships optional with an
+        // inverse), so a compliant non-health container could mirror later; today
+        // nothing does. The `SyncProvider`/`SyncEngine` path is also inert (no-op
+        // provider), so nothing syncs anywhere.
         let configuration = ModelConfiguration(schema: schema, isStoredInMemoryOnly: inMemory,
-                                               cloudKitDatabase: inMemory ? .none : .automatic)
+                                               cloudKitDatabase: .none)
         do {
             return try ModelContainer(for: schema, migrationPlan: KeelMigrationPlan.self,
                                       configurations: configuration)

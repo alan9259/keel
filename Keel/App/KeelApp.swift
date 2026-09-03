@@ -38,9 +38,6 @@ private struct ThemedRoot: View {
             .preferredColorScheme(env.settings.colourMode.preferredColorScheme)
             .onChange(of: scenePhase) { _, phase in
                 switch phase {
-                case .background:
-                    // Save-on-exit: back up to iCloud when she leaves, if opted in.
-                    env.autoBackupToICloud()
                 case .active:
                     // Fill in today's due doses for auto-log medicines on return.
                     env.autoLogTodaysDoses()

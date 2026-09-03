@@ -29,9 +29,6 @@ final class AppEnvironment {
     let sync: SyncEngine
     let health: HealthKitService
     let healthIngestor: HealthIngestor
-    /// Snapshot backup of the whole archive to the user's private iCloud.
-    let icloudBackup: ICloudBackupService
-    private var lastAutoICloudBackup: Date?
     let notifications: NotificationService
     /// Delegate for medication-reminder taps (mark taken / always mark taken).
     private let notificationCoordinator = NotificationCoordinator()
@@ -76,7 +73,6 @@ final class AppEnvironment {
         self.sync = SyncEngine(context: context, provider: provider)
         self.health = HealthKitService()
         self.healthIngestor = HealthIngestor(context: context, ownerID: ownerID, symptoms: symptoms)
-        self.icloudBackup = ICloudBackupService(containerIdentifier: AppEnvironment.cloudContainerID, context: context)
         self.notifications = NotificationService()
         self.speech = SpeechRecognitionService()
 
@@ -354,30 +350,9 @@ final class AppEnvironment {
         NoopSyncProvider()
     }
 
-    /// The private CloudKit container, shared by the sync provider and iCloud
-    /// backup. Must match the container declared in `Config/Keel.entitlements`.
-    static let cloudContainerID = "iCloud.com.keel"
-
-    /// Back up to iCloud when she's opted in and it's available. Fire-and-forget:
-    /// failures are silent (a manual "Back up now" surfaces errors), and it's
-    /// throttled so a background cycle can't hammer CloudKit.
-    func autoBackupToICloud() {
-        guard settings.icloudBackup, settings.autoBackup else { return }
-        if let last = lastAutoICloudBackup, Date().timeIntervalSince(last) < 3600 { return }
-        // The app is heading to the background, so ask UIKit for time to finish the
-        // upload — otherwise the task is suspended before it completes and nothing
-        // is backed up.
-        var bgTask = UIBackgroundTaskIdentifier.invalid
-        bgTask = UIApplication.shared.beginBackgroundTask(withName: "keel.icloudBackup") {
-            if bgTask != .invalid { UIApplication.shared.endBackgroundTask(bgTask); bgTask = .invalid }
-        }
-        Task {
-            defer { if bgTask != .invalid { UIApplication.shared.endBackgroundTask(bgTask); bgTask = .invalid } }
-            guard await icloudBackup.availability().isAvailable else { return }
-            lastAutoICloudBackup = Date()
-            _ = try? await icloudBackup.backUpNow()
-        }
-    }
+    // iCloud backup was removed: personal health information must not be stored in
+    // iCloud (App Store Guideline 5.1.3(ii)). Backups are on-device files only (see
+    // BackupService / the Backup & Restore screen).
 
     /// Assembles the companion: Apple Intelligence first (on eligible devices
     /// running iOS 26+), then Gemini if `KEEL_GEMINI_BASE_URL` is configured, then

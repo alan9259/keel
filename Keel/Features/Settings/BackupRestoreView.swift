@@ -17,19 +17,11 @@ struct BackupRestoreView: View {
     @State private var showImporter = false
     @State private var errorMessage: String?
 
-    // iCloud backup (real, via CloudKit private database).
-    @State private var icloudAvailability: ICloudBackupService.Availability?
-    @State private var icloudInfo: ICloudBackupService.Info?
-    @State private var icloudBusy = false
-    @State private var icloudStatus: String?
-    @State private var confirmICloudRestore = false
-
     var body: some View {
         ScrollView {
             VStack(alignment: .leading, spacing: 20) {
                 ScreenHeader(title: "Backup & Restore", subtitle: "Your data, safely yours") { dismiss() }
 
-                icloudSection
                 localSection
                 restoreSection
             }
@@ -39,7 +31,6 @@ struct BackupRestoreView: View {
         .keelFeatureScreen()
         .onAppear {
             refreshExport()
-            loadICloud()
             #if DEBUG
             applyDebugStage()
             #endif
@@ -52,99 +43,20 @@ struct BackupRestoreView: View {
         } message: {
             Text(errorMessage ?? "")
         }
-        .alert("Restore from iCloud?", isPresented: $confirmICloudRestore) {
-            Button("Cancel", role: .cancel) {}
-            Button("Restore", role: .destructive) { restoreFromICloud() }
-        } message: {
-            Text("This replaces all data on this device with your iCloud backup\(icloudInfo.map { " from \($0.date.formatted(date: .abbreviated, time: .shortened))" } ?? "").")
-        }
-    }
-
-    // MARK: - iCloud
-
-    private var icloudSection: some View {
-        VStack(alignment: .leading, spacing: 12) {
-            Text("iCloud").font(KeelFont.serif(18, weight: .semibold)).foregroundStyle(theme.heading)
-            VStack(spacing: 0) {
-                toggleRow(symbol: "icloud.fill", tint: Color(hex: 0x3B82F6), title: "iCloud Backup",
-                          subtitle: icloudSubtitle,
-                          isOn: Binding(get: { env.settings.icloudBackup }, set: { setICloudEnabled($0) }))
-                if env.settings.icloudBackup {
-                    if let availability = icloudAvailability, !availability.isAvailable {
-                        Divider().background(theme.border)
-                        unavailableRow(availability)
-                    } else {
-                        Divider().background(theme.border)
-                        toggleRow(symbol: nil, tint: theme.muted, title: "Auto backup",
-                                  subtitle: "Backs up when you leave the app",
-                                  isOn: Binding(get: { env.settings.autoBackup }, set: { env.settings.autoBackup = $0 }))
-                        Divider().background(theme.border)
-                        icloudActionsRow
-                    }
-                }
-            }
-            .background(theme.card)
-            .clipShape(RoundedRectangle(cornerRadius: Radius.card, style: .continuous))
-            .overlay(RoundedRectangle(cornerRadius: Radius.card, style: .continuous).stroke(theme.border, lineWidth: 1))
-
-            if let status = icloudStatus {
-                Text(status).font(KeelFont.caption).foregroundStyle(theme.muted).padding(.horizontal, 4)
-            }
-        }
-    }
-
-    private var icloudSubtitle: String {
-        if !env.settings.icloudBackup { return "Keep a copy in your Apple account" }
-        guard let availability = icloudAvailability else { return "Checking iCloud…" }
-        switch availability {
-        case .unavailable: return "iCloud unavailable"
-        case .available:
-            if let info = icloudInfo { return "Last backed up \(relative(info.date))" }
-            return "No backup yet"
-        }
-    }
-
-    private func unavailableRow(_ availability: ICloudBackupService.Availability) -> some View {
-        let reason: String = { if case .unavailable(let r) = availability { return r } else { return "" } }()
-        return HStack(alignment: .top, spacing: 10) {
-            Image(systemName: "info.circle").font(.system(size: 14)).foregroundStyle(theme.muted).padding(.top, 1)
-            Text(reason).font(KeelFont.caption).foregroundStyle(theme.muted).fixedSize(horizontal: false, vertical: true)
-            Spacer(minLength: 0)
-        }.padding(14)
-    }
-
-    private var icloudActionsRow: some View {
-        HStack(spacing: 10) {
-            Button { backupNow() } label: {
-                HStack(spacing: 6) {
-                    if icloudBusy { ProgressView().controlSize(.small) } else { Image(systemName: "arrow.up.to.line") }
-                    Text(icloudBusy ? "Backing up…" : "Back up now")
-                }
-                .font(KeelFont.sans(13, weight: .medium)).foregroundStyle(theme.accent)
-                .frame(maxWidth: .infinity).padding(.vertical, 11)
-                .overlay(RoundedRectangle(cornerRadius: 12, style: .continuous).stroke(theme.accent.opacity(0.35), lineWidth: 1))
-            }.buttonStyle(.plain).disabled(icloudBusy)
-            Button { confirmICloudRestore = true } label: {
-                Text("Restore")
-                    .font(KeelFont.sans(13, weight: .medium)).foregroundStyle(theme.sage)
-                    .frame(maxWidth: .infinity).padding(.vertical, 11)
-                    .overlay(RoundedRectangle(cornerRadius: 12, style: .continuous).stroke(theme.sage.opacity(0.35), lineWidth: 1))
-            }.buttonStyle(.plain).disabled(icloudBusy || icloudInfo == nil)
-        }.padding(12)
     }
 
     // MARK: - Local (real export)
 
     private var localSection: some View {
         VStack(alignment: .leading, spacing: 12) {
-            Text("Local Backup").font(KeelFont.serif(18, weight: .semibold)).foregroundStyle(theme.heading)
+            Text("Save a backup").font(KeelFont.serif(18, weight: .semibold)).foregroundStyle(theme.heading)
             VStack(spacing: 0) {
                 HStack(spacing: 12) {
                     Image(systemName: "iphone").font(.system(size: 18)).foregroundStyle(theme.text).frame(width: 40, height: 40)
                         .background(theme.track).clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
                     VStack(alignment: .leading, spacing: 2) {
-                        Text("Save to device").font(KeelFont.body).foregroundStyle(theme.text)
-                        Text("Export everything as a .keelbackup file").font(KeelFont.caption).foregroundStyle(theme.muted)
+                        Text("Save to a file").font(KeelFont.body).foregroundStyle(theme.text)
+                        Text("Export everything as a .keelbackup file you keep").font(KeelFont.caption).foregroundStyle(theme.muted)
                     }
                     Spacer()
                 }.padding(14)
@@ -167,6 +79,10 @@ struct BackupRestoreView: View {
             .background(theme.card)
             .clipShape(RoundedRectangle(cornerRadius: Radius.card, style: .continuous))
             .overlay(RoundedRectangle(cornerRadius: Radius.card, style: .continuous).stroke(theme.border, lineWidth: 1))
+
+            Text("Your data stays on this device. A backup file is yours to keep and store wherever you like.")
+                .font(KeelFont.caption).foregroundStyle(theme.muted).padding(.horizontal, 4)
+                .fixedSize(horizontal: false, vertical: true)
         }
     }
 
@@ -262,58 +178,6 @@ struct BackupRestoreView: View {
         exportURL = try? BackupService.exportFile(context: env.context)
     }
 
-    // MARK: iCloud actions
-
-    private func loadICloud() {
-        Task {
-            let availability = await env.icloudBackup.availability()
-            icloudAvailability = availability
-            icloudInfo = availability.isAvailable ? (try? await env.icloudBackup.latest()) : nil
-        }
-    }
-
-    private func setICloudEnabled(_ on: Bool) {
-        env.settings.icloudBackup = on
-        icloudStatus = nil
-        if on { loadICloud() }
-    }
-
-    private func backupNow() {
-        icloudBusy = true; icloudStatus = nil
-        Task {
-            do {
-                let date = try await env.icloudBackup.backUpNow()
-                icloudInfo = try? await env.icloudBackup.latest()
-                icloudStatus = "Backed up \(relative(date))."
-                Haptics.success()
-            } catch {
-                errorMessage = error.localizedDescription
-            }
-            icloudBusy = false
-        }
-    }
-
-    private func restoreFromICloud() {
-        icloudBusy = true
-        Task {
-            do {
-                summary = try await env.icloudBackup.restore()
-                refreshExport()
-                Haptics.success()
-                withAnimation { restore = .done }
-            } catch {
-                errorMessage = error.localizedDescription
-            }
-            icloudBusy = false
-        }
-    }
-
-    private func relative(_ date: Date) -> String {
-        let formatter = RelativeDateTimeFormatter()
-        formatter.unitsStyle = .full
-        return formatter.localizedString(for: date, relativeTo: .now)
-    }
-
     private func handleImport(_ result: Result<URL, Error>) {
         switch result {
         case .failure(let error):
@@ -342,24 +206,6 @@ struct BackupRestoreView: View {
         } catch {
             errorMessage = error.localizedDescription
         }
-    }
-
-    // MARK: - Rows
-
-    private func toggleRow(symbol: String?, tint: Color, title: String, subtitle: String, isOn: Binding<Bool>) -> some View {
-        HStack(spacing: 12) {
-            if let symbol {
-                Image(systemName: symbol).font(.system(size: 16)).foregroundStyle(tint).frame(width: 40, height: 40)
-                    .background(tint.opacity(0.1)).clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
-            }
-            VStack(alignment: .leading, spacing: 2) {
-                Text(title).font(KeelFont.body).foregroundStyle(theme.text)
-                Text(subtitle).font(KeelFont.caption).foregroundStyle(theme.muted)
-            }
-            Spacer()
-            Toggle("", isOn: isOn).labelsHidden().tint(theme.accent)
-        }
-        .padding(14)
     }
 
     #if DEBUG
