@@ -13,9 +13,9 @@ struct ConnectView: View {
                     .font(KeelFont.bodyLarge).foregroundStyle(theme.text.opacity(0.7)).lineSpacing(4)
 
                 VStack(spacing: 12) {
-                    socialCard(color: Color(hex: 0xEC4899), emoji: "📷", name: "Instagram", handle: "@keel.app",
+                    socialCard(color: Color(hex: 0xEC4899), emoji: "📷", name: "Instagram", handle: "@keelperiapp",
                                blurb: "Gentle reminders, tips and a glimpse behind the product.")
-                    socialCard(color: Color(hex: 0x2563EB), emoji: "📘", name: "Facebook", handle: "@keelapp",
+                    socialCard(color: Color(hex: 0x2563EB), emoji: "📘", name: "Facebook", handle: "@KeelPeriApp",
                                blurb: "Updates, stories and a look at what we're building.")
                 }
 
