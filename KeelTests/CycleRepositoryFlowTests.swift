@@ -67,19 +67,18 @@ final class CycleRepositoryFlowTests: XCTestCase {
         XCTAssertEqual(repo.estimatedPhase(on: base), .menstrual) // day 3
     }
 
-    func testHealthFlowPreservesManualAndFillsGaps() {
+    func testHealthFlowIsNoLongerImported() {
         let base = Date.now.startOfDay
         let manualDay = base.adding(days: -1)
         repo.setFlow(.heavy, on: manualDay) // she logged this by hand
 
+        // Apple Health menstrual flow is no longer imported (the snapshot has no flow
+        // field). Ingesting Health data must not create or change any cycle entry.
         let symptoms = SymptomRepository(context: context, ownerID: TestStore.ownerID)
         let ingestor = HealthIngestor(context: context, ownerID: TestStore.ownerID, symptoms: symptoms)
-        _ = ingestor.ingest(HealthSnapshot(menstrualFlow: [
-            manualDay: .light,               // Health disagrees, must NOT overwrite her entry
-            base.adding(days: -3): .medium,  // a gap Health fills
-        ]))
+        _ = ingestor.ingest(HealthSnapshot(sleepByDay: [base.adding(days: -3): 7.0]))
 
-        XCTAssertEqual(repo.flow(on: manualDay), .heavy) // her value stands
-        XCTAssertEqual(repo.flow(on: base.adding(days: -3)), .medium) // gap filled from Health
+        XCTAssertEqual(repo.flow(on: manualDay), .heavy)          // her value stands
+        XCTAssertNil(repo.flow(on: base.adding(days: -3)))        // Health did not fill any gap
     }
 }

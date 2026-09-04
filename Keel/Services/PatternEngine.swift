@@ -338,9 +338,8 @@ extension PatternEngine {
             return DietTriggerCorrelation.Input(label: item.label, yes: yes, no: no)
         }
 
-        // One Apple Health fetch for the window, split into the series the detectors
-        // need: resting heart rate (one daily aggregate per day) and archived symptom
-        // occurrences (`symptom.*` rows for days she logged only in Health).
+        // One Apple Health fetch for the window, for the vitals the detectors need:
+        // resting heart rate and overnight wrist temperature (daily aggregates).
         let sampleDescriptor = FetchDescriptor<HealthSample>(
             predicate: #Predicate<HealthSample> { $0.deletedAt == nil && $0.day >= floor }
         )
@@ -356,15 +355,10 @@ extension PatternEngine {
             }
         }
 
-        // Symptom days merged from her check-ins and Apple Health's own logs.
+        // Symptom days from her check-ins. Apple Health symptoms are no longer imported.
         var symptomDaysByName: [String: Set<Date>] = [:]
         for entry in checkIns {
             for name in entry.symptoms { symptomDaysByName[name, default: []].insert(entry.day) }
-        }
-        for sample in healthSamples {
-            if let name = SymptomTally.name(fromHealthTypeID: sample.typeID) {
-                symptomDaysByName[name, default: []].insert(sample.day.startOfDay)
-            }
         }
 
         let cycleDescriptor = FetchDescriptor<CycleEntry>(

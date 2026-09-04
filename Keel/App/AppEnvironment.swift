@@ -104,6 +104,9 @@ final class AppEnvironment {
         CloudKitDebugProbe.start()
         #endif
         symptoms.syncBuiltIns()
+        // One-time cleanup: Keel no longer imports symptoms or menstrual flow from Apple
+        // Health, so remove any previously-imported ones. Idempotent.
+        healthIngestor.purgeDiscontinuedHealthImports()
         insights.refreshDerived()
         medications.migrateLegacySchedules()
         // Lifestyle reminders first: they're few and always wanted, so they claim

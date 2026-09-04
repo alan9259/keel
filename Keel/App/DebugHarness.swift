@@ -828,8 +828,7 @@ enum DebugHarness {
 
         let owner = env.auth.ownerID
         let today = Date().startOfDay
-        let noCheckInDay = today.adding(days: -3)
-        // An existing check-in today, so a Health symptom has something to attach to.
+        // A check-in today, to confirm imported symptoms are NOT attached to it anymore.
         env.context.insert(CheckIn(date: today, mood: .okay, energy: 60, ownerID: owner))
         try? env.context.save()
 
@@ -845,12 +844,8 @@ enum DebugHarness {
             .init(typeID: "hrv", unit: "ms", byDay: [today: 42]),
             .init(typeID: "activeEnergy", unit: "kcal", byDay: [today: 430]),
         ]
-        snap.symptoms = [
-            .init(day: today, hkIdentifier: HKCategoryTypeIdentifier.hotFlashes.rawValue, severity: 2),
-            .init(day: today, hkIdentifier: HKCategoryTypeIdentifier.moodChanges.rawValue, severity: 1),
-            .init(day: noCheckInDay, hkIdentifier: HKCategoryTypeIdentifier.nightSweats.rawValue, severity: 3),
-        ]
-        snap.menstrualFlow = [today.adding(days: -2): .medium]
+        // Symptoms and menstrual flow are no longer imported from Apple Health; the
+        // hkSymptomLinks / hkCycleEntries / archivedSymptomSamples counts below should be 0.
 
         env.ingestHealthSnapshot(snap)
         let afterFirst = healthRowTotals(env)

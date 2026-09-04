@@ -11,23 +11,11 @@ struct HealthSnapshot {
     var activityAmounts: [String: [Date: Double]] = [:]
     /// Vitals and workload with no natural Keel home, stored as `HealthSample`.
     var vitals: [VitalSeries] = []
-    /// Symptom occurrences from Health's own Symptoms category.
-    var symptoms: [SymptomOccurrence] = []
-    /// Days Apple Health recorded menstrual flow (any level but "none").
-    /// Menstrual-flow days from Apple Health, keyed to the heaviness she recorded.
-    var menstrualFlow: [Date: FlowLevel] = [:]
 
     struct VitalSeries {
         let typeID: String
         let unit: String
         let byDay: [Date: Double]
-    }
-    struct SymptomOccurrence {
-        let day: Date
-        /// Raw HealthKit identifier, e.g. "HKCategoryTypeIdentifierHotFlashes".
-        let hkIdentifier: String
-        /// 1 mild … 3 severe.
-        let severity: Int
     }
 }
 
@@ -74,27 +62,18 @@ final class HealthKitService {
         ("distance", .distanceWalkingRunning, .meterUnit(with: .kilo), "km", false),
     ]
 
-    /// Health's own Symptoms category. These merge into Keel's symptom catalog.
-    private static let symptomIdentifiers: [HKCategoryTypeIdentifier] = [
-        .hotFlashes, .nightSweats, .moodChanges, .fatigue, .headache, .sleepChanges,
-        .vaginalDryness, .memoryLapse, .rapidPoundingOrFlutteringHeartbeat, .dizziness,
-        .bloating, .nausea, .constipation, .heartburn, .appetiteChanges, .drySkin,
-        .hairLoss, .lowerBackPain, .generalizedBodyAche, .chills, .breastPain, .pelvicPain,
-    ]
-
     private var readTypes: Set<HKObjectType> {
+        // Symptoms and menstrual flow are deliberately NOT read: Keel no longer imports
+        // them from Apple Health (she logs symptoms and cycle in Keel directly). Only
+        // sleep, activity and vitals are imported. See HealthIngestor.
         var types = Set<HKObjectType>()
         if let sleep = HKObjectType.categoryType(forIdentifier: .sleepAnalysis) { types.insert(sleep) }
         if let mindful = HKObjectType.categoryType(forIdentifier: .mindfulSession) { types.insert(mindful) }
-        if let flow = HKObjectType.categoryType(forIdentifier: .menstrualFlow) { types.insert(flow) }
         for (_, id, _) in Self.activityQuantities {
             if let t = HKObjectType.quantityType(forIdentifier: id) { types.insert(t) }
         }
         for entry in Self.vitalQuantities {
             if let t = HKObjectType.quantityType(forIdentifier: entry.id) { types.insert(t) }
-        }
-        for id in Self.symptomIdentifiers {
-            if let t = HKObjectType.categoryType(forIdentifier: id) { types.insert(t) }
         }
         return types
     }
@@ -140,8 +119,6 @@ final class HealthKitService {
             }
         }
 
-        snapshot.symptoms = await symptomOccurrences(lastDays: lastDays)
-        snapshot.menstrualFlow = await menstrualFlow(lastDays: lastDays)
         return snapshot
     }
 
@@ -251,79 +228,6 @@ final class HealthKitService {
                 continuation.resume(returning: perDay)
             }
             store.execute(query)
-        }
-    }
-
-    // MARK: Symptoms
-
-    private func symptomOccurrences(lastDays: Int) async -> [HealthSnapshot.SymptomOccurrence] {
-        var out: [HealthSnapshot.SymptomOccurrence] = []
-        for id in Self.symptomIdentifiers {
-            out.append(contentsOf: await symptomOccurrences(id, lastDays: lastDays))
-        }
-        return out
-    }
-
-    private func symptomOccurrences(_ id: HKCategoryTypeIdentifier, lastDays: Int) async -> [HealthSnapshot.SymptomOccurrence] {
-        guard let type = HKObjectType.categoryType(forIdentifier: id) else { return [] }
-        let predicate = HKQuery.predicateForSamples(withStart: floor(lastDays), end: Date(), options: [])
-        return await withCheckedContinuation { continuation in
-            let query = HKSampleQuery(sampleType: type, predicate: predicate,
-                                      limit: HKObjectQueryNoLimit, sortDescriptors: nil) { [calendar] _, samples, _ in
-                var out: [HealthSnapshot.SymptomOccurrence] = []
-                for sample in (samples as? [HKCategorySample]) ?? [] {
-                    guard let severity = Self.severity(from: sample.value) else { continue }
-                    let day = calendar.startOfDay(for: sample.startDate)
-                    out.append(.init(day: day, hkIdentifier: id.rawValue, severity: severity))
-                }
-                continuation.resume(returning: out)
-            }
-            store.execute(query)
-        }
-    }
-
-    /// Map Health's severity scale to Keel's 1–3, dropping explicit "not present".
-    nonisolated private static func severity(from value: Int) -> Int? {
-        guard let severity = HKCategoryValueSeverity(rawValue: value) else { return 1 }
-        switch severity {
-        case .notPresent: return nil
-        case .mild: return 1
-        case .moderate: return 2
-        case .severe: return 3
-        default: return 1 // unspecified but logged: treat as a mild occurrence
-        }
-    }
-
-    // MARK: Menstrual flow
-
-    private func menstrualFlow(lastDays: Int) async -> [Date: FlowLevel] {
-        guard let type = HKObjectType.categoryType(forIdentifier: .menstrualFlow) else { return [:] }
-        let predicate = HKQuery.predicateForSamples(withStart: floor(lastDays), end: Date(), options: [])
-        return await withCheckedContinuation { continuation in
-            let query = HKSampleQuery(sampleType: type, predicate: predicate,
-                                      limit: HKObjectQueryNoLimit, sortDescriptors: nil) { [calendar] _, samples, _ in
-                var byDay: [Date: FlowLevel] = [:]
-                for sample in (samples as? [HKCategorySample]) ?? [] {
-                    guard let level = Self.flowLevel(from: sample.value) else { continue } // skips "none"
-                    let day = calendar.startOfDay(for: sample.startDate)
-                    // If several samples fall on a day, keep the heaviest.
-                    if let existing = byDay[day], existing.intensity >= level.intensity { continue }
-                    byDay[day] = level
-                }
-                continuation.resume(returning: byDay)
-            }
-            store.execute(query)
-        }
-    }
-
-    /// Map Apple Health's bleeding level to ours; `none` returns nil (not a period day).
-    nonisolated private static func flowLevel(from value: Int) -> FlowLevel? {
-        switch HKCategoryValueVaginalBleeding(rawValue: value) {
-        case .light: return .light
-        case .medium: return .medium
-        case .heavy: return .heavy
-        case .unspecified: return .unspecified
-        default: return nil // .none or unknown
         }
     }
 
