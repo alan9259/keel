@@ -8,7 +8,9 @@ import SwiftData
 /// (App Store Review Guideline 5.1.3(ii)). Any future cross-device sync must go through
 /// a first-party backend, not iCloud.
 enum KeelSchema {
-    static let models: [any PersistentModel.Type] = [
+    /// User-entered models. These live in the main store and may sync to a first-party
+    /// backend later.
+    static let mainModels: [any PersistentModel.Type] = [
         UserProfile.self,
         CheckIn.self,
         Symptom.self,
@@ -20,8 +22,16 @@ enum KeelSchema {
         ChatMessage.self,
         ActivityLog.self,
         DailySummary.self,
-        HealthSample.self,
     ]
+
+    /// Apple Health imports. These live in a separate, local-only store and are NOT
+    /// `RemoteMappable`, so they are structurally excluded from any sync (5.1.3(ii)).
+    static let healthModels: [any PersistentModel.Type] = [
+        HealthSample.self,
+        HealthActivitySample.self,
+    ]
+
+    static let models: [any PersistentModel.Type] = mainModels + healthModels
 
     static var schema: Schema { Schema(versionedSchema: KeelSchemaV1.self) }
 
@@ -32,18 +42,20 @@ enum KeelSchema {
     /// and a destructive change gets a `MigrationStage` in `KeelMigrationPlan`
     /// rather than a data-losing reset.
     static func makeContainer(inMemory: Bool = false) -> ModelContainer {
-        // Local-only: CloudKit mirroring is OFF (`.none`), so personal health
-        // information never leaves the device for iCloud (App Store Guideline
-        // 5.1.3(ii)). Every model is still CloudKit-shaped (no `@Attribute(.unique)`,
-        // every attribute optional or defaulted, relationships optional with an
-        // inverse), so a compliant non-health container could mirror later; today
-        // nothing does. The `SyncProvider`/`SyncEngine` path is also inert (no-op
-        // provider), so nothing syncs anywhere.
-        let configuration = ModelConfiguration(schema: schema, isStoredInMemoryOnly: inMemory,
-                                               cloudKitDatabase: .none)
+        // TWO stores, both local-only (CloudKit mirroring OFF): the main store for
+        // user-entered data (may sync to a first-party backend later) and a separate,
+        // unnamed-default... no: the main store keeps the DEFAULT url (so existing data
+        // stays put) and the HEALTH store is a named, separate file for Apple Health
+        // imports. Health models are not `RemoteMappable`, so health data is
+        // structurally excluded from any sync (App Store Guideline 5.1.3(ii)). Nothing
+        // syncs today regardless (the `SyncProvider`/`SyncEngine` path is a no-op).
+        let main = ModelConfiguration(schema: Schema(mainModels), isStoredInMemoryOnly: inMemory,
+                                      cloudKitDatabase: .none)
+        let health = ModelConfiguration("health", schema: Schema(healthModels), isStoredInMemoryOnly: inMemory,
+                                        cloudKitDatabase: .none)
         do {
             return try ModelContainer(for: schema, migrationPlan: KeelMigrationPlan.self,
-                                      configurations: configuration)
+                                      configurations: main, health)
         } catch {
             // The local store is a cache (the sync backend is the source of truth).
             // If it can't be opened — most often an on-disk store left by an earlier
@@ -58,10 +70,11 @@ enum KeelSchema {
             // for each shipped schema change and make this reset a true last resort,
             // so an upgrade never silently wipes someone's history.
             if !inMemory {
-                NSLog("Keel: SwiftData store could not be opened (%@). Rebuilding the local store.", String(describing: error))
-                destroyStore(at: configuration.url)
+                NSLog("Keel: SwiftData store could not be opened (%@). Rebuilding the local store(s).", String(describing: error))
+                destroyStore(at: main.url)
+                destroyStore(at: health.url)
                 if let container = try? ModelContainer(for: schema, migrationPlan: KeelMigrationPlan.self,
-                                                       configurations: configuration) {
+                                                       configurations: main, health) {
                     return container
                 }
             }
