@@ -15,12 +15,13 @@ enum RecordType {
     static let activityLog = "activity_logs"
     static let chatMessage = "chat_messages"
     static let dailySummary = "daily_summaries"
-    static let healthSample = "health_samples"
+    // Apple Health imports (HealthSample, HealthActivitySample) are deliberately NOT
+    // RemoteMappable: they live in the local-only health store and never sync (5.1.3(ii)).
 
     static let all = [
         profile, checkIn, symptom, checkInSymptom,
         cycleEntry, medication, medicationLog, insight,
-        activityLog, chatMessage, dailySummary, healthSample,
+        activityLog, chatMessage, dailySummary,
     ]
 }
 
@@ -206,19 +207,6 @@ extension DailySummary: RemoteMappable {
     }
 }
 
-extension HealthSample: RemoteMappable {
-    static var recordType: String { RecordType.healthSample }
-    func remoteFields() -> [String: RemoteValue] {
-        [
-            "typeID": .string(typeID),
-            "day": .date(day),
-            "value": .double(value),
-            "unit": .string(unit),
-            "sourceRaw": .string(sourceRaw),
-        ]
-    }
-}
-
 // MARK: - Decoding (RemoteRecord → model upsert)
 
 /// Applies pulled records into SwiftData: find-or-create by `id`, resolve
@@ -249,7 +237,6 @@ struct RemoteApplier {
         case RecordType.activityLog: applyActivityLog(r)
         case RecordType.chatMessage: applyChatMessage(r)
         case RecordType.dailySummary: applyDailySummary(r)
-        case RecordType.healthSample: applyHealthSample(r)
         default: break
         }
     }
@@ -582,27 +569,4 @@ struct RemoteApplier {
         }
     }
 
-    private func applyHealthSample(_ r: RemoteRecord) {
-        let id = r.id
-        let source = DataSource(rawValue: r.fields["sourceRaw"]?.asString ?? "") ?? .healthKit
-        if let existing = fetchByID(FetchDescriptor<HealthSample>(predicate: #Predicate { $0.id == id })) {
-            guard !isStale(existing, r) else { return }
-            existing.typeID = r.fields["typeID"]?.asString ?? existing.typeID
-            if let d = r.fields["day"]?.asDate { existing.day = d }
-            existing.value = r.fields["value"]?.asDouble ?? existing.value
-            existing.unit = r.fields["unit"]?.asString ?? existing.unit
-            existing.source = source
-            applyEnvelope(r, to: existing)
-        } else {
-            let m = HealthSample(
-                id: id, typeID: r.fields["typeID"]?.asString ?? "",
-                day: r.fields["day"]?.asDate ?? r.createdAt,
-                value: r.fields["value"]?.asDouble ?? 0,
-                unit: r.fields["unit"]?.asString ?? "", source: source,
-                ownerID: r.ownerID, createdAt: r.createdAt, updatedAt: r.updatedAt,
-                deletedAt: r.deletedAt, syncStatus: .synced
-            )
-            context.insert(m)
-        }
-    }
 }

@@ -77,6 +77,18 @@ final class HealthIngestor {
         return removed
     }
 
+    /// Delete ALL Apple Health imports (activity + vitals) from the local health store,
+    /// on her request ("Remove imported Apple Health data"). They re-import on the next
+    /// sync if she keeps Health connected. Returns how many rows it removed.
+    @discardableResult
+    func purgeAllImportedHealthData() -> Int {
+        var removed = 0
+        for row in (try? context.fetch(FetchDescriptor<HealthActivitySample>())) ?? [] { context.delete(row); removed += 1 }
+        for row in (try? context.fetch(FetchDescriptor<HealthSample>())) ?? [] { context.delete(row); removed += 1 }
+        if removed > 0 { try? context.save() }
+        return removed
+    }
+
     // MARK: Activity log (sleep, steps, exercise, meditation)
 
     private func ingestActivity(_ activityID: String, _ byDay: [Date: Double]) -> Int {

@@ -159,6 +159,7 @@ struct SettingsView: View {
         try? ctx.delete(model: ActivityLog.self)
         try? ctx.delete(model: DailySummary.self)
         try? ctx.delete(model: HealthSample.self)
+        try? ctx.delete(model: HealthActivitySample.self)
         try? ctx.save()
         // The built-in symptoms are reference data, not personal data. Re-seed them
         // so the next sign-up has its default check-in symptoms (bootstrap only

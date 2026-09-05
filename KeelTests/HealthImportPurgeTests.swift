@@ -53,4 +53,27 @@ final class HealthImportPurgeTests: XCTestCase {
         // Idempotent.
         XCTAssertEqual(ingestor.purgeDiscontinuedHealthImports(), 0)
     }
+
+    func testPurgeAllImportedHealthDataClearsHealthStoreOnly() throws {
+        let context = TestStore.makeContext()
+        let owner = TestStore.ownerID()
+        let day = Date.now.startOfDay
+
+        // Imported activity + vitals (health store) and a manual activity entry.
+        context.insert(HealthActivitySample(date: day, activityID: "steps", amount: 8000, ownerID: owner))
+        context.insert(HealthSample(typeID: "restingHeartRate", day: day, value: 62, unit: "bpm", ownerID: owner))
+        context.insert(ActivityLog(date: day, activityID: "water", amount: 6, source: .manual, ownerID: owner))
+        try context.save()
+
+        let ingestor = HealthIngestor(
+            context: context, ownerID: TestStore.ownerID,
+            symptoms: SymptomRepository(context: context, ownerID: TestStore.ownerID))
+
+        XCTAssertEqual(ingestor.purgeAllImportedHealthData(), 2) // activity + vitals sample
+
+        XCTAssertTrue(try context.fetch(FetchDescriptor<HealthActivitySample>()).isEmpty)
+        XCTAssertTrue(try context.fetch(FetchDescriptor<HealthSample>()).isEmpty)
+        // Her manual entry is untouched.
+        XCTAssertEqual(try context.fetch(FetchDescriptor<ActivityLog>()).count, 1)
+    }
 }

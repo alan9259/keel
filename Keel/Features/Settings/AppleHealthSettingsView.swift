@@ -7,6 +7,8 @@ struct AppleHealthSettingsView: View {
 
     @State private var connected = false
     @State private var connecting = false
+    @State private var showRemoveConfirm = false
+    @State private var removeStatus: String?
 
     /// What Keel reads from Health. Read-only, and matched to the set requested in
     /// `HealthKitService`.
@@ -16,13 +18,11 @@ struct AppleHealthSettingsView: View {
         ("heart", "Heart & vitals", "Heart rate, resting HR, HRV, respiratory rate, blood oxygen"),
         ("temperature", "Body temperature", "Basal, wrist and body temperature"),
         ("weight", "Body weight", "Weight over time"),
-        ("cycle", "Cycle & flow", "Period days and menstrual flow"),
-        ("symptoms", "Symptoms", "Hot flushes, night sweats, mood changes, fatigue and more"),
         ("mindful", "Mindful minutes", "Meditation and breathwork"),
     ]
 
     private let why: [(String, String)] = [
-        ("Less to log", "Sleep, activity, cycle and symptoms flow in automatically."),
+        ("Less to log", "Sleep and activity flow in automatically."),
         ("Richer patterns", "More signals means clearer connections over time."),
         ("Read-only", "Keel reads from Health. It never writes anything back."),
         ("Private by design", "Data stays on your device and in your Apple account."),
@@ -50,6 +50,18 @@ struct AppleHealthSettingsView: View {
         .onAppear {
             connected = env.users.currentProfile()?.healthKitAuthorized ?? false
         }
+        .alert("Remove imported Apple Health data?", isPresented: $showRemoveConfirm) {
+            Button("Cancel", role: .cancel) {}
+            Button("Remove", role: .destructive) { removeImported() }
+        } message: {
+            Text("This deletes the sleep, activity and vitals imported from Apple Health on this device. It does not change Apple Health, and does not touch anything you entered in Keel yourself. Imported data returns on the next sync if you stay connected.")
+        }
+    }
+
+    private func removeImported() {
+        let removed = env.healthIngestor.purgeAllImportedHealthData()
+        removeStatus = removed > 0 ? "Removed imported Apple Health data." : "No imported data to remove."
+        Haptics.success()
     }
 
     private var connectionCard: some View {
@@ -124,10 +136,21 @@ struct AppleHealthSettingsView: View {
             .clipShape(RoundedRectangle(cornerRadius: Radius.card, style: .continuous))
             .overlay(RoundedRectangle(cornerRadius: Radius.card, style: .continuous).stroke(theme.border, lineWidth: 1))
 
-            Text("You choose exactly what to share when you connect, and can change it any time in the Health app under Sharing. Keel only ever reads what you allow, and never writes back.")
+            Text("You choose exactly what to share when you connect, and can change it any time in the Health app under Sharing. Keel only ever reads what you allow, and never writes back. Imported data is kept in a separate area on your device and never leaves it.")
                 .font(KeelFont.caption).foregroundStyle(theme.muted)
                 .fixedSize(horizontal: false, vertical: true)
                 .padding(.horizontal, 4).padding(.top, 2)
+
+            Button { showRemoveConfirm = true } label: {
+                Text("Remove imported Apple Health data")
+                    .font(KeelFont.sans(13, weight: .medium)).foregroundStyle(Color(hex: 0xA9762F))
+                    .frame(maxWidth: .infinity).padding(.vertical, 11)
+                    .overlay(RoundedRectangle(cornerRadius: 12, style: .continuous).stroke(Color(hex: 0xA9762F).opacity(0.35), lineWidth: 1))
+            }
+            .buttonStyle(.plain).padding(.top, 6)
+            if let removeStatus {
+                Text(removeStatus).font(KeelFont.caption).foregroundStyle(theme.muted).padding(.horizontal, 4)
+            }
         }
     }
 

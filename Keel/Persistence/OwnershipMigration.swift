@@ -22,6 +22,7 @@ enum OwnershipMigration {
         moved += restamp(Symptom.self, in: context, from: old, to: new)
         moved += restamp(ActivityLog.self, in: context, from: old, to: new)
         moved += restamp(HealthSample.self, in: context, from: old, to: new)
+        moved += restamp(HealthActivitySample.self, in: context, from: old, to: new)
         moved += restamp(CycleEntry.self, in: context, from: old, to: new)
         moved += restamp(Medication.self, in: context, from: old, to: new)
         moved += restamp(MedicationLog.self, in: context, from: old, to: new)
