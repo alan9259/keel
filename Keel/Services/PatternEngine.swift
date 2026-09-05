@@ -318,17 +318,15 @@ extension PatternEngine {
                        symptoms: ci.symptoms.map(\.name))
         }
 
-        // One ActivityLog fetch for the window: sleep hours + her yes/no diet-trigger
-        // logs (from the eating panel), split by activityID.
+        // Activity for the window. Sleep merges her manual entries with Apple Health
+        // imports (health store); diet-trigger logs (the eating panel) are manual only.
         let activityDescriptor = FetchDescriptor<ActivityLog>(
             predicate: #Predicate<ActivityLog> { $0.deletedAt == nil && $0.date >= floor }
         )
         let activityLogs = (try? context.fetch(activityDescriptor)) ?? []
-        var sleepByDay: [Date: Double] = [:]
-        for log in activityLogs where log.activityID == "sleep" && log.amount > 0 {
-            let day = log.date.startOfDay
-            if sleepByDay[day] == nil { sleepByDay[day] = log.amount }
-        }
+        let importedActivity = (try? context.fetch(FetchDescriptor<HealthActivitySample>(
+            predicate: #Predicate<HealthActivitySample> { $0.deletedAt == nil && $0.date >= floor }))) ?? []
+        let sleepByDay = MergedActivity.byDay("sleep", manual: activityLogs, imported: importedActivity)
         let dietTriggers: [DietTriggerCorrelation.Input] = EatingCatalog.triggers.map { item in
             var yes: Set<Date> = [], no: Set<Date> = []
             for log in activityLogs where log.activityID == item.id {

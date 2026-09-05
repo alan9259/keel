@@ -12,6 +12,7 @@ struct ReportsView: View {
     @Query(filter: #Predicate<MedicationLog> { $0.deletedAt == nil })
     private var medLogs: [MedicationLog]
     @Query private var activities: [ActivityLog]
+    @Query private var importedActivity: [HealthActivitySample]
     @Query(filter: #Predicate<HealthSample> { $0.deletedAt == nil })
     private var samples: [HealthSample]
 
@@ -371,7 +372,7 @@ struct ReportsView: View {
     /// stays empty (the section shows an honest "nothing logged" state instead).
     private var sleepSeries: [Double] {
         sleepDays.map { day in
-            activities.first { $0.deletedAt == nil && $0.activityID == "sleep" && $0.date.isSameDay(as: day) }?.amount ?? 0
+            MergedActivity.amount("sleep", on: day, manual: activities, imported: importedActivity) ?? 0
         }
     }
 

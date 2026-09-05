@@ -2,10 +2,11 @@ import XCTest
 import SwiftData
 @testable import Keel
 
-/// Apple Health is the source of truth for sleep, but a value she typed by hand
-/// must not be overwritten: Health and manual entries own different days and never
-/// compete. Health also self-corrects its own earlier readings (the inflated 13.2
-/// hrs bug was a Health row).
+/// Imported Apple Health sleep now lives in the local-only health store
+/// (`HealthActivitySample`), separate from her manual `ActivityLog` entries. The merge
+/// (`MergedActivity`) prefers her own value for a day and fills gaps from Health; Health
+/// still self-corrects its own earlier readings (the inflated 13.2 hrs bug was a Health
+/// row).
 @MainActor
 final class HealthSleepSourceTests: XCTestCase {
 
@@ -22,34 +23,43 @@ final class HealthSleepSourceTests: XCTestCase {
 
     private func day(_ offset: Int) -> Date { Date.now.startOfDay.adding(days: offset) }
 
-    private func sleepRow(on d: Date) -> ActivityLog? {
-        let all = (try? context.fetch(FetchDescriptor<ActivityLog>(
-            predicate: #Predicate { $0.activityID == "sleep" && $0.deletedAt == nil }))) ?? []
-        return all.first { $0.date.startOfDay == d.startOfDay }
+    private func manualSleep(on d: Date) -> ActivityLog? {
+        (((try? context.fetch(FetchDescriptor<ActivityLog>(
+            predicate: #Predicate { $0.activityID == "sleep" && $0.deletedAt == nil }))) ?? []))
+            .first { $0.date.startOfDay == d.startOfDay }
+    }
+    private func importedSleep(on d: Date) -> HealthActivitySample? {
+        (((try? context.fetch(FetchDescriptor<HealthActivitySample>(
+            predicate: #Predicate { $0.activityID == "sleep" && $0.deletedAt == nil }))) ?? []))
+            .first { $0.date.startOfDay == d.startOfDay }
     }
 
-    func testHealthPreservesManualFillsGapsAndSelfCorrects() {
+    func testImportedSleepLandsInHealthStoreAndMergePrefersManual() {
         let manualDay = day(-1), gapDay = day(-2), staleDay = day(-3)
-        // A manual entry she typed, and a stale Health entry (the 13.2 hrs bug).
+        // A manual entry she typed, and a stale imported Health value (the 13.2 hrs bug).
         context.insert(ActivityLog(date: manualDay, activityID: "sleep", amount: 6, source: .manual, ownerID: "o"))
-        context.insert(ActivityLog(date: staleDay, activityID: "sleep", amount: 13.2, source: .healthKit, ownerID: "o"))
+        context.insert(HealthActivitySample(date: staleDay, activityID: "sleep", amount: 13.2, ownerID: "o"))
         try? context.save()
 
         _ = ingestor.ingest(HealthSnapshot(sleepByDay: [manualDay: 7.5, gapDay: 8.0, staleDay: 7.0]))
 
-        // Her manual entry is untouched (Health didn't compete over her day).
-        XCTAssertEqual(sleepRow(on: manualDay)?.amount, 6)
-        XCTAssertEqual(sleepRow(on: manualDay)?.source, .manual)
-        // A day she never logged is filled from Health.
-        XCTAssertEqual(sleepRow(on: gapDay)?.amount, 8.0)
-        XCTAssertEqual(sleepRow(on: gapDay)?.source, .healthKit)
-        // Health's own earlier (inflated) reading is corrected.
-        XCTAssertEqual(sleepRow(on: staleDay)?.amount, 7.0)
-        XCTAssertEqual(sleepRow(on: staleDay)?.source, .healthKit)
+        // Imports go to the health store, never ActivityLog. Her manual entry is untouched.
+        XCTAssertEqual(manualSleep(on: manualDay)?.amount, 6)
+        XCTAssertNil(manualSleep(on: gapDay))
+        XCTAssertEqual(importedSleep(on: gapDay)?.amount, 8.0)
+        XCTAssertEqual(importedSleep(on: staleDay)?.amount, 7.0) // Health self-corrected
+
+        // The merge: her own value wins her day; gaps + corrections come from Health.
+        let manual = (try? context.fetch(FetchDescriptor<ActivityLog>())) ?? []
+        let imported = (try? context.fetch(FetchDescriptor<HealthActivitySample>())) ?? []
+        XCTAssertEqual(MergedActivity.amount("sleep", on: manualDay, manual: manual, imported: imported), 6)
+        XCTAssertEqual(MergedActivity.amount("sleep", on: gapDay, manual: manual, imported: imported), 8.0)
+        XCTAssertEqual(MergedActivity.amount("sleep", on: staleDay, manual: manual, imported: imported), 7.0)
     }
 
-    func testNewSleepFromHealthIsTaggedHealthKit() {
+    func testNewSleepFromHealthGoesToHealthStoreOnly() {
         _ = ingestor.ingest(HealthSnapshot(sleepByDay: [day(-1): 7.0]))
-        XCTAssertEqual(sleepRow(on: day(-1))?.source, .healthKit)
+        XCTAssertEqual(importedSleep(on: day(-1))?.amount, 7.0)
+        XCTAssertNil(manualSleep(on: day(-1)))
     }
 }

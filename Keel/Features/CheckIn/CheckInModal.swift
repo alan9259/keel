@@ -405,12 +405,22 @@ struct CheckInModal: View {
     /// (`sleepFromHealth`); a manual row (or none) stays editable.
     private func loadSleep() {
         let day = entryDate.startOfDay
-        let descriptor = FetchDescriptor<ActivityLog>(
+        // Her own manual entry (editable) takes priority.
+        let manual = FetchDescriptor<ActivityLog>(
             predicate: #Predicate { $0.activityID == "sleep" && $0.date == day && $0.deletedAt == nil }
         )
-        if let row = try? env.context.fetch(descriptor).first {
+        if let row = try? env.context.fetch(manual).first {
             sleepHours = row.amount
-            sleepFromHealth = row.source == .healthKit
+            sleepFromHealth = false
+            return
+        }
+        // Otherwise, show the Apple Health import (health store) read-only.
+        let imported = FetchDescriptor<HealthActivitySample>(
+            predicate: #Predicate { $0.activityID == "sleep" && $0.date == day && $0.deletedAt == nil }
+        )
+        if let row = try? env.context.fetch(imported).first {
+            sleepHours = row.amount
+            sleepFromHealth = true
         } else {
             sleepHours = nil
             sleepFromHealth = false

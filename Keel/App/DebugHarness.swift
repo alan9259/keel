@@ -852,17 +852,18 @@ enum DebugHarness {
         env.ingestHealthSnapshot(snap) // idempotency
         let afterSecond = healthRowTotals(env)
 
-        // Changed Health data should REFRESH (steps updated); sleep stays backfill-only.
+        // Changed Health data should REFRESH (imported activity self-corrects).
         var changed = snap
         changed.activityAmounts["steps"] = [today: 12000]
-        changed.sleepByDay = [today: 9.9] // must NOT overwrite the existing 7.4
+        changed.sleepByDay = [today: 9.9]
         env.ingestHealthSnapshot(changed)
+        // Imported activity now lives in HealthActivitySample (the health store).
         func amount(_ id: String, _ day: Date) -> Double? {
-            (try? env.context.fetch(FetchDescriptor<ActivityLog>()))?
+            (try? env.context.fetch(FetchDescriptor<HealthActivitySample>()))?
                 .first { $0.deletedAt == nil && $0.activityID == id && $0.date.isSameDay(as: day) }?.amount
         }
         let stepsUpdated = amount("steps", today) == 12000
-        let sleepPreserved = amount("sleep", today) == 7.4
+        let sleepRefreshed = amount("sleep", today) == 9.9
 
         let links = (try? env.context.fetch(FetchDescriptor<CheckInSymptom>())) ?? []
         let hkLinks = links.filter { $0.source == .healthKit }
@@ -875,14 +876,14 @@ enum DebugHarness {
             $0.source == .healthKit && $0.symptom?.name == "Hot flushes"
         }
 
-        print("KEEL_HKIMPORT activityLogs=\(afterFirst.activity) healthSamples=\(afterFirst.samples) hkSymptomLinks=\(hkLinks.count) hkCycleEntries=\(hkCycles.count) archivedSymptomSamples=\(archived.count) todayHotFlushesTagged=\(hotFlushesTagged) secondRunAddedNothing=\(afterFirst == afterSecond) stepsUpdated=\(stepsUpdated) sleepPreserved=\(sleepPreserved)")
+        print("KEEL_HKIMPORT healthActivity=\(afterFirst.activity) healthSamples=\(afterFirst.samples) hkSymptomLinks=\(hkLinks.count) hkCycleEntries=\(hkCycles.count) archivedSymptomSamples=\(archived.count) todayHotFlushesTagged=\(hotFlushesTagged) secondRunAddedNothing=\(afterFirst == afterSecond) stepsUpdated=\(stepsUpdated) sleepRefreshed=\(sleepRefreshed)")
         fflush(stdout)
     }
 
     @MainActor
     private static func healthRowTotals(_ env: AppEnvironment) -> (activity: Int, samples: Int, links: Int, cycles: Int) {
         (
-            (try? env.context.fetchCount(FetchDescriptor<ActivityLog>())) ?? -1,
+            (try? env.context.fetchCount(FetchDescriptor<HealthActivitySample>())) ?? -1,
             (try? env.context.fetchCount(FetchDescriptor<HealthSample>())) ?? -1,
             (try? env.context.fetchCount(FetchDescriptor<CheckInSymptom>())) ?? -1,
             (try? env.context.fetchCount(FetchDescriptor<CycleEntry>())) ?? -1

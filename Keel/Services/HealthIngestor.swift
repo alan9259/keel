@@ -52,9 +52,11 @@ final class HealthIngestor {
     }
 
     /// One-time cleanup for the discontinued symptom + flow imports: remove any
-    /// previously-imported HealthKit symptom links, `symptom.*` archive samples, and
-    /// HealthKit-sourced cycle entries. Idempotent — nothing re-creates them, since the
-    /// ingestor no longer writes them. Returns how many rows it removed.
+    /// previously-imported HealthKit symptom links, `symptom.*` archive samples,
+    /// HealthKit-sourced cycle entries, and legacy HealthKit `ActivityLog` rows (which
+    /// now re-import into `HealthActivitySample`). Idempotent — nothing re-creates the
+    /// symptom/cycle rows, and imported activity re-populates the health store on the
+    /// next sync. Returns how many rows it removed.
     @discardableResult
     func purgeDiscontinuedHealthImports() -> Int {
         var removed = 0
@@ -67,6 +69,10 @@ final class HealthIngestor {
         let samples = (try? context.fetch(FetchDescriptor<HealthSample>())) ?? []
         for sample in samples where sample.typeID.hasPrefix("symptom.") { context.delete(sample); removed += 1 }
 
+        // Legacy imported activity moves out of ActivityLog into HealthActivitySample.
+        let activity = (try? context.fetch(FetchDescriptor<ActivityLog>())) ?? []
+        for log in activity where log.source == .healthKit { context.delete(log); removed += 1 }
+
         if removed > 0 { try? context.save() }
         return removed
     }
@@ -75,10 +81,11 @@ final class HealthIngestor {
 
     private func ingestActivity(_ activityID: String, _ byDay: [Date: Double]) -> Int {
         var wrote = 0
-        // One fetch for the whole type, indexed by day, rather than a fetch per day:
-        // this runs on the main actor on every sync, and per-day fetches over a year
-        // (times several metrics) froze the UI.
-        let descriptor = FetchDescriptor<ActivityLog>(
+        // Imported activity lives in the local-only health store (`HealthActivitySample`),
+        // kept separate from her manual `ActivityLog` entries; readers merge the two,
+        // with her manual value winning for a day. One fetch for the whole type, indexed
+        // by day (per-day fetches over a year froze the UI).
+        let descriptor = FetchDescriptor<HealthActivitySample>(
             predicate: #Predicate { $0.deletedAt == nil && $0.activityID == activityID }
         )
         let existingByDay = Dictionary(
@@ -89,19 +96,15 @@ final class HealthIngestor {
             let day = rawDay.startOfDay
             let value = (rawValue * 10).rounded() / 10
             if let existing = existingByDay[day] {
-                // Never overwrite a value she typed by hand: Health and her manual
-                // entries own different days and don't compete. For Health-authored
-                // rows, refresh to the latest (steps/exercise/energy change through
-                // the day, Apple revises recent days, and a corrected sleep reading
-                // should win over the earlier inflated one).
-                if existing.source != .manual, existing.amount != value {
+                // Health-authored: refresh to the latest (Apple revises recent days).
+                if existing.amount != value {
                     existing.amount = value
                     existing.touch()
                     wrote += 1
                 }
             } else {
-                context.insert(ActivityLog(date: day, activityID: activityID, amount: value,
-                                           source: .healthKit, ownerID: ownerID()))
+                context.insert(HealthActivitySample(date: day, activityID: activityID, amount: value,
+                                                    ownerID: ownerID()))
                 wrote += 1
             }
         }

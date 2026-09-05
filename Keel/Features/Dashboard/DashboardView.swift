@@ -20,6 +20,7 @@ struct DashboardView: View {
     @Query(filter: #Predicate<UserProfile> { $0.deletedAt == nil })
     private var profiles: [UserProfile]
     @Query private var activityLogs: [ActivityLog]
+    @Query private var importedActivity: [HealthActivitySample]
 
     @State private var selDate: Date = {
         #if DEBUG
@@ -547,9 +548,8 @@ struct DashboardView: View {
     // Sleep (hours logged in Activities, activityID "sleep").
 
     private func sleepHours(for day: Date) -> Double? {
-        let logs = activityLogs.filter { $0.activityID == "sleep" && $0.date.isSameDay(as: day) && $0.amount > 0 }
-        guard !logs.isEmpty else { return nil }
-        return logs.map(\.amount).reduce(0, +)
+        // Her manual sleep entry wins; otherwise the Apple Health import (health store).
+        MergedActivity.amount("sleep", on: day, manual: activityLogs, imported: importedActivity)
     }
 
     private var sleepBars: [(day: Date, value: Double?)] {

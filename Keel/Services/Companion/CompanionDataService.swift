@@ -109,7 +109,7 @@ struct CompanionDataService {
         let span = max(days, 1)
         let dayStarts = (0..<span).map { Date.now.startOfDay.adding(days: -($0)) }.reversed()
         let all = checkIns.all()
-        let sleepLogs = activityLogs(activityID: "sleep", since: windowStart(days: span))
+        let sleepLogs = mergedActivity(activityID: "sleep", since: windowStart(days: span))
 
         var points: [DayPoint] = []
         var energies: [Int] = []
@@ -348,8 +348,10 @@ struct CompanionDataService {
         return "  Blood pressure: avg \(sys)/\(dia) mmHg"
     }
 
-    // MARK: Activity helper (no repository exists for ActivityLog)
+    // MARK: Activity helpers (no repository exists for ActivityLog)
 
+    /// Manual activity only (used for the eating-panel diet triggers, which are always
+    /// hers).
     private func activityLogs(activityID: String, since: Date) -> [ActivityLog] {
         let start = since.startOfDay
         let descriptor = FetchDescriptor<ActivityLog>(
@@ -357,5 +359,18 @@ struct CompanionDataService {
             sortBy: [SortDescriptor(\.date)]
         )
         return (try? context.fetch(descriptor)) ?? []
+    }
+
+    /// Manual + imported Apple Health activity, merged by day (her entry wins). Used for
+    /// metrics like sleep that can come from either.
+    private func mergedActivity(activityID: String, since: Date) -> [(date: Date, amount: Double)] {
+        let start = since.startOfDay
+        let manual = (try? context.fetch(FetchDescriptor<ActivityLog>(
+            predicate: #Predicate { $0.deletedAt == nil && $0.activityID == activityID && $0.date >= start }))) ?? []
+        let imported = (try? context.fetch(FetchDescriptor<HealthActivitySample>(
+            predicate: #Predicate { $0.deletedAt == nil && $0.activityID == activityID && $0.date >= start }))) ?? []
+        return MergedActivity.byDay(activityID, manual: manual, imported: imported)
+            .map { (date: $0.key, amount: $0.value) }
+            .sorted { $0.date < $1.date }
     }
 }

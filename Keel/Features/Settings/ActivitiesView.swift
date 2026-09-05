@@ -13,6 +13,7 @@ struct ActivitiesView: View {
     @Environment(\.dismiss) private var dismiss
 
     @Query(filter: #Predicate<ActivityLog> { $0.deletedAt == nil }) private var logs: [ActivityLog]
+    @Query(filter: #Predicate<HealthActivitySample> { $0.deletedAt == nil }) private var importedActivity: [HealthActivitySample]
     @Query(filter: #Predicate<HealthSample> { $0.deletedAt == nil }) private var samples: [HealthSample]
     @Query(filter: #Predicate<CheckIn> { $0.deletedAt == nil }) private var checkIns: [CheckIn]
 
@@ -391,7 +392,8 @@ struct ActivitiesView: View {
     private func todayValue(_ metric: Metric) -> Double? {
         switch metric.source {
         case .activity:
-            return logs.first { $0.activityID == metric.id && $0.date.isSameDay(as: today) }.map(\.amount).flatMap { $0 > 0 ? $0 : nil }
+            // Her manual entry wins; otherwise the Apple Health import (health store).
+            return MergedActivity.amount(metric.id, on: today, manual: logs, imported: importedActivity)
         case .sample:
             return samples.first { $0.typeID == metric.id && $0.day.isSameDay(as: today) }.map(\.value)
         }
@@ -408,7 +410,9 @@ struct ActivitiesView: View {
         let past: [Double]
         switch metric.source {
         case .activity:
-            past = logs.filter { $0.activityID == metric.id && $0.date >= start && !$0.date.isSameDay(as: today) && $0.amount > 0 }.map(\.amount)
+            past = MergedActivity.byDay(metric.id, manual: logs, imported: importedActivity)
+                .filter { $0.key >= start && !$0.key.isSameDay(as: today) && $0.value > 0 }
+                .map(\.value)
         case .sample:
             past = samples.filter { $0.typeID == metric.id && $0.day >= start && !$0.day.isSameDay(as: today) }.map(\.value)
         }
