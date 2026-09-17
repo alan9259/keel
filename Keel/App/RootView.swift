@@ -19,6 +19,9 @@ struct RootView: View {
                 OnboardingFlow {
                     env.auth.markOnboarded()
                     completedThisLaunch = true
+                    // Ask for notification permission now (on the way into the app),
+                    // not on the welcome screen, and set up her default reminders.
+                    env.completeOnboarding()
                     env.requestSync()
                 }
             }

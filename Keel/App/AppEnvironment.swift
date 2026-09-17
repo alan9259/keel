@@ -125,6 +125,18 @@ final class AppEnvironment {
         Task { await dailySummary.refreshIfNeeded() }
     }
 
+    /// She just finished onboarding. This is the moment to ask for notification
+    /// permission (in context, on the way into the app) rather than on the welcome
+    /// screen, and then lay down the reminders she has on by default. Bootstrap
+    /// deliberately never asks, so this is the first prompt a new user sees.
+    func completeOnboarding() {
+        Task {
+            _ = await notifications.requestAuthorization()
+            refreshLifestyleReminders()
+            refreshMedicationReminders()
+        }
+    }
+
     /// How far back to import on a sync. A year gives the cycle and premenstrual
     /// detectors enough history; dedup keeps repeat launches cheap on writes.
     private static let healthImportDays = 365
@@ -263,7 +275,12 @@ final class AppEnvironment {
         guard !enabled.isDisjoint(with: ["dailyCheckIn", "hydration", "movement", "winddown"]) else { return }
         let c = settings.reminderConfig
         Task {
-            guard await notifications.requestAuthorization() else { return }
+            // Never ASK for permission here: this runs on every launch (bootstrap), and
+            // asking would pop the prompt over the welcome screen. Only re-arm reminders
+            // when she has already allowed notifications. The first ask happens when she
+            // finishes onboarding (`completeOnboarding`), toggles the master switch, or
+            // turns a reminder on.
+            guard NotificationService.gate(for: await notifications.authorizationStatus()) == .proceed else { return }
             if enabled.contains("dailyCheckIn") { notifications.scheduleDailyCheckInReminder(hour: c.checkInHour, minute: c.checkInMinute) }
             // Each recurring lifestyle nudge gets a fresh Apple-Intelligence tip in
             // its area when the device can make one; otherwise the static copy stands.
