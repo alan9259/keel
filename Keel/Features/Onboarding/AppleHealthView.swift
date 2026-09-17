@@ -65,9 +65,7 @@ struct AppleHealthView: View {
     private func connect() {
         connecting = true
         Task {
-            let granted = await env.health.requestAuthorization()
-            env.users.setHealthKitAuthorized(granted)
-            if granted { env.syncHealthData(force: true) }
+            await env.connectAppleHealth()
             connecting = false
             onContinue()
         }

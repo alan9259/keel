@@ -190,18 +190,8 @@ struct AppleHealthSettingsView: View {
     private func connect() {
         connecting = true
         Task {
-            let granted = await env.health.requestAuthorization()
-            #if targetEnvironment(simulator)
-            // HealthKit is unavailable on the unsigned Simulator, so reflect intent
-            // there for the demo. On device we honour the actual result.
-            let effective = true
-            #else
-            let effective = granted
-            #endif
-            env.users.setHealthKitAuthorized(effective)
-            if effective { env.syncHealthData(force: true) }
+            connected = await env.connectAppleHealth()
             connecting = false
-            connected = effective
             Haptics.success()
         }
     }

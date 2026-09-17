@@ -70,4 +70,18 @@ final class HealthSyncGatingTests: XCTestCase {
         XCTAssertNotNil(repo.currentProfile())
         XCTAssertEqual(repo.currentProfile()?.healthKitAuthorized, true)
     }
+
+    /// Regression: the shared connect path (used by both onboarding and Settings)
+    /// persists the connected flag, so the menu doesn't still show "Connect" after
+    /// onboarding. Tests run on the Simulator, where the shared path treats her as
+    /// connected for the demo, so this asserts the persistence the two screens rely on.
+    func testConnectAppleHealthPersistsTheFlag() async {
+        let env = AppEnvironment(container: KeelSchema.makeContainer(inMemory: true), provider: NoopSyncProvider())
+        env.users.upsertProfile(firstName: "Mischa", email: nil, appleUserID: nil)
+
+        let connected = await env.connectAppleHealth()
+
+        XCTAssertTrue(connected)
+        XCTAssertEqual(env.users.currentProfile()?.healthKitAuthorized, true)
+    }
 }

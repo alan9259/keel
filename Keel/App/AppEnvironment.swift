@@ -152,6 +152,26 @@ final class AppEnvironment {
         return now.timeIntervalSince(last) >= minInterval
     }
 
+    /// Connect Apple Health from either the onboarding step or the Settings screen:
+    /// request authorization, persist the result, and pull an initial sync. Returns
+    /// whether we treat her as connected. Shared by both entry points so they can't
+    /// drift (onboarding used to persist the raw result while Settings forced a value
+    /// on the Simulator, so the two screens disagreed). On the unsigned Simulator
+    /// HealthKit is inert, so we reflect intent there for the demo; on a signed
+    /// device we honour the actual authorization result.
+    @discardableResult
+    func connectAppleHealth() async -> Bool {
+        let granted = await health.requestAuthorization()
+        #if targetEnvironment(simulator)
+        let effective = true
+        #else
+        let effective = granted
+        #endif
+        users.setHealthKitAuthorized(effective)
+        if effective { syncHealthData(force: true) }
+        return effective
+    }
+
     func syncHealthData(force: Bool = false) {
         guard Self.shouldRunHealthSync(now: .now, lastSyncedAt: lastHealthSyncAt, force: force) else { return }
         Task {
