@@ -27,14 +27,25 @@ struct ActivitiesView: View {
         let decimal: Bool
     }
 
-    /// Metrics that come from Apple Health automatically. Movement is deliberately a
-    /// single signal — steps — rather than three overlapping ones (steps, exercise,
-    /// active energy all say the same thing); sleep and mindful minutes are distinct.
-    private let healthMetrics: [Metric] = [
+    /// Metrics that come from Apple Health automatically. She chooses which of these
+    /// to import on the Apple Health screen (`HealthSyncCatalog`); a tile still shows
+    /// data already imported for an item she has since switched off.
+    private let allHealthMetrics: [Metric] = [
         Metric(id: "steps", label: "Steps", symbol: "figure.walk", unit: "steps", source: .activity, decimal: false),
+        Metric(id: "exercise", label: "Exercise", symbol: "flame.fill", unit: "min", source: .activity, decimal: false),
+        Metric(id: "activeEnergy", label: "Active energy", symbol: "bolt.fill", unit: "kcal", source: .sample, decimal: false),
+        Metric(id: "distance", label: "Distance", symbol: "figure.walk.motion", unit: "km", source: .sample, decimal: true),
+        Metric(id: "flights", label: "Flights", symbol: "stairs", unit: "", source: .sample, decimal: false),
         Metric(id: "sleep", label: "Sleep", symbol: "moon.fill", unit: "hrs", source: .activity, decimal: true),
         Metric(id: "meditation", label: "Mindful", symbol: "wind", unit: "min", source: .activity, decimal: false),
     ]
+
+    /// Tiles to show: everything she is still importing, plus anything she has switched
+    /// off that nonetheless has data already imported (so nothing quietly disappears).
+    private var healthMetrics: [Metric] {
+        let disabled = env.settings.disabledHealthItemIDs
+        return allHealthMetrics.filter { !disabled.contains($0.id) || todayValue($0) != nil }
+    }
 
     private var healthConnected: Bool { env.users.currentProfile()?.healthKitAuthorized == true }
 

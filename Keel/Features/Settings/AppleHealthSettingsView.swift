@@ -10,17 +10,6 @@ struct AppleHealthSettingsView: View {
     @State private var showRemoveConfirm = false
     @State private var removeStatus: String?
 
-    /// What Keel reads from Health. Read-only, and matched to the set requested in
-    /// `HealthKitService`.
-    private let categories: [(id: String, label: String, desc: String)] = [
-        ("sleep", "Sleep", "Hours actually asleep each night"),
-        ("activity", "Activity & steps", "Steps, exercise minutes and active energy"),
-        ("heart", "Heart & vitals", "Heart rate, resting HR, HRV, respiratory rate, blood oxygen"),
-        ("temperature", "Body temperature", "Basal, wrist and body temperature"),
-        ("weight", "Body weight", "Weight over time"),
-        ("mindful", "Mindful minutes", "Meditation and breathwork"),
-    ]
-
     private let why: [(String, String)] = [
         ("Less to log", "Sleep and activity flow in automatically."),
         ("Richer patterns", "More signals means clearer connections over time."),
@@ -110,33 +99,33 @@ struct AppleHealthSettingsView: View {
     private var permissionsSection: some View {
         VStack(alignment: .leading, spacing: 10) {
             HStack(alignment: .firstTextBaseline) {
-                Text("What Keel reads").font(KeelFont.serif(18, weight: .semibold)).foregroundStyle(theme.heading)
+                Text("What to sync").font(KeelFont.serif(18, weight: .semibold)).foregroundStyle(theme.heading)
                 Spacer()
                 Text("Read-only").font(KeelFont.caption).foregroundStyle(theme.muted)
             }
             VStack(spacing: 0) {
-                ForEach(categories, id: \.id) { cat in
+                ForEach(HealthSyncCatalog.all) { item in
                     HStack(spacing: 12) {
                         VStack(alignment: .leading, spacing: 2) {
-                            Text(cat.label).font(KeelFont.body).foregroundStyle(theme.text)
-                            Text(cat.desc).font(KeelFont.caption).foregroundStyle(theme.muted)
+                            Text(item.label).font(KeelFont.body).foregroundStyle(theme.text)
+                            Text(item.desc).font(KeelFont.caption).foregroundStyle(theme.muted)
                                 .fixedSize(horizontal: false, vertical: true)
                         }
                         Spacer(minLength: 8)
-                        Image(systemName: "checkmark").font(.system(size: 12, weight: .bold))
-                            .foregroundStyle(theme.background)
-                            .frame(width: 22, height: 22)
-                            .background(theme.sage).clipShape(Circle())
+                        Toggle("", isOn: Binding(
+                            get: { isSyncing(item) },
+                            set: { setSyncing(item, $0) }
+                        )).labelsHidden().tint(theme.accent)
                     }
                     .padding(14)
-                    if cat.id != categories.last?.id { Divider().background(theme.border) }
+                    if item.id != HealthSyncCatalog.all.last?.id { Divider().background(theme.border) }
                 }
             }
             .background(theme.card)
             .clipShape(RoundedRectangle(cornerRadius: Radius.card, style: .continuous))
             .overlay(RoundedRectangle(cornerRadius: Radius.card, style: .continuous).stroke(theme.border, lineWidth: 1))
 
-            Text("You choose exactly what to share when you connect, and can change it any time in the Health app under Sharing. Keel only ever reads what you allow, and never writes back. Imported data is kept in a separate area on your device and never leaves it.")
+            Text("Switch off anything you would rather Keel didn't import. Turning one off stops new data coming in, and keeps what was already imported until you remove it below. You can also change what you share in the Health app under Sharing. Keel only ever reads what you allow, and never writes back. Imported data is kept in a separate area on your device and never leaves it.")
                 .font(KeelFont.caption).foregroundStyle(theme.muted)
                 .fixedSize(horizontal: false, vertical: true)
                 .padding(.horizontal, 4).padding(.top, 2)
@@ -185,6 +174,22 @@ struct AppleHealthSettingsView: View {
                 .overlay(RoundedRectangle(cornerRadius: 12, style: .continuous).stroke(tint.opacity(0.35), lineWidth: 1))
         }
         .buttonStyle(.plain)
+    }
+
+    private func isSyncing(_ item: HealthSyncCatalog.Item) -> Bool {
+        !env.settings.disabledHealthItemIDs.contains(item.id)
+    }
+
+    /// Turn one item's import on or off. Off stops future syncing but leaves what's
+    /// already imported (she can clear it all with "Remove imported Apple Health data").
+    private func setSyncing(_ item: HealthSyncCatalog.Item, _ on: Bool) {
+        if on {
+            env.settings.disabledHealthItemIDs.remove(item.id)
+            env.syncHealthData(force: true) // pull it in now
+        } else {
+            env.settings.disabledHealthItemIDs.insert(item.id)
+        }
+        Haptics.selection()
     }
 
     private func connect() {

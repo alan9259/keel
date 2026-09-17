@@ -181,7 +181,9 @@ final class AppEnvironment {
             guard await health.requestAuthorization() else { return }
             lastHealthSyncAt = .now
             let snapshot = await health.snapshot(lastDays: Self.healthImportDays)
-            ingestHealthSnapshot(snapshot)
+            // Drop items she has switched off before importing (existing rows stay).
+            let filtered = HealthSyncCatalog.filter(snapshot, disabled: settings.disabledHealthItemIDs)
+            ingestHealthSnapshot(filtered)
         }
     }
 

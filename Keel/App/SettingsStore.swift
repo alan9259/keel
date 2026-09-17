@@ -58,6 +58,10 @@ final class SettingsStore {
     var ownedThemeIDs: Set<String> { didSet { defaults.set(Array(ownedThemeIDs), forKey: "keel.ownedThemes") } }
     var ownedPackIDs: Set<String> { didSet { defaults.set(Array(ownedPackIDs), forKey: "keel.ownedPacks") } }
     var enabledReminderIDs: Set<String> { didSet { defaults.set(Array(enabledReminderIDs), forKey: "keel.reminders") } }
+    /// Apple Health items she has switched OFF (see `HealthSyncCatalog`). Stored as
+    /// the disabled set so anything not listed, including items added in a later
+    /// version, defaults to on. Empty means everything syncs.
+    var disabledHealthItemIDs: Set<String> { didSet { defaults.set(Array(disabledHealthItemIDs), forKey: "keel.disabledHealthItems") } }
     var reminderConfig: ReminderConfig {
         didSet {
             if let data = try? JSONEncoder().encode(reminderConfig) { defaults.set(data, forKey: "keel.reminderConfig") }
@@ -83,6 +87,7 @@ final class SettingsStore {
         let defaultPacks = Set(MoodPacks.all.filter(\.ownedByDefault).map(\.id))
         ownedPackIDs = Set(defaults.stringArray(forKey: "keel.ownedPacks") ?? []).union(defaultPacks)
         enabledReminderIDs = Set(defaults.stringArray(forKey: "keel.reminders") ?? ["dailyCheckIn", "medication"])
+        disabledHealthItemIDs = Set(defaults.stringArray(forKey: "keel.disabledHealthItems") ?? [])
         reminderConfig = (defaults.data(forKey: "keel.reminderConfig")
             .flatMap { try? JSONDecoder().decode(ReminderConfig.self, from: $0) }) ?? ReminderConfig()
         showsSensitiveSymptoms = defaults.object(forKey: "keel.sensitiveSymptoms") as? Bool ?? false

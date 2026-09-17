@@ -222,6 +222,18 @@ enum DebugHarness {
                 // Overnight wrist temperature runs a touch higher after short sleep too.
                 env.context.insert(HealthSample(typeID: "wristTemperature", day: day,
                                                 value: short ? 35.6 : 35.1, unit: "°C", source: .healthKit, ownerID: owner))
+                // Imported movement: steps + exercise (health store) and the vital-style
+                // workload signals, so the Activities tiles render on the sim.
+                env.context.insert(HealthActivitySample(date: day, activityID: "steps",
+                                                        amount: short ? 6200 : 9100, ownerID: owner))
+                env.context.insert(HealthActivitySample(date: day, activityID: "exercise",
+                                                        amount: short ? 12 : 34, ownerID: owner))
+                env.context.insert(HealthSample(typeID: "activeEnergy", day: day,
+                                                value: short ? 320 : 480, unit: "kcal", source: .healthKit, ownerID: owner))
+                env.context.insert(HealthSample(typeID: "distance", day: day,
+                                                value: short ? 4.1 : 6.8, unit: "km", source: .healthKit, ownerID: owner))
+                env.context.insert(HealthSample(typeID: "flights", day: day,
+                                                value: short ? 6 : 11, unit: "count", source: .healthKit, ownerID: owner))
             }
             // Weight + blood pressure are measured occasionally, not daily.
             for i in stride(from: 0, to: 16, by: 4) {
