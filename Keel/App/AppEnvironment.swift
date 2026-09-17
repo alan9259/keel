@@ -143,14 +143,23 @@ final class AppEnvironment {
     private var lastHealthSyncAt: Date?
     private static let healthSyncMinInterval: TimeInterval = 30 * 60
 
+    /// Whether a background (foreground-triggered) sync is due. An explicit user
+    /// action passes `force` to bypass the window. Pure so it's unit-testable.
+    nonisolated static func shouldRunHealthSync(now: Date, lastSyncedAt: Date?, force: Bool,
+                                                minInterval: TimeInterval = healthSyncMinInterval) -> Bool {
+        if force { return true }
+        guard let last = lastSyncedAt else { return true }
+        return now.timeIntervalSince(last) >= minInterval
+    }
+
     func syncHealthData(force: Bool = false) {
-        if !force, let last = lastHealthSyncAt,
-           Date.now.timeIntervalSince(last) < Self.healthSyncMinInterval {
-            return
-        }
-        lastHealthSyncAt = .now
+        guard Self.shouldRunHealthSync(now: .now, lastSyncedAt: lastHealthSyncAt, force: force) else { return }
         Task {
+            // Only consume the throttle window once authorization actually succeeds.
+            // A failed auth (e.g. HealthKit not effective in the build) must not block
+            // a later retry — otherwise "Sync now" would silently no-op for 30 min.
             guard await health.requestAuthorization() else { return }
+            lastHealthSyncAt = .now
             let snapshot = await health.snapshot(lastDays: Self.healthImportDays)
             ingestHealthSnapshot(snapshot)
         }

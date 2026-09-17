@@ -67,7 +67,7 @@ struct AppleHealthView: View {
         Task {
             let granted = await env.health.requestAuthorization()
             env.users.setHealthKitAuthorized(granted)
-            if granted { env.syncHealthData() }
+            if granted { env.syncHealthData(force: true) }
             connecting = false
             onContinue()
         }

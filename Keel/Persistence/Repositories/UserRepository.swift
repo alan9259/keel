@@ -100,7 +100,14 @@ struct UserRepository: UserRepositoring {
     }
 
     func setHealthKitAuthorized(_ authorized: Bool) {
-        guard let profile = currentProfile() else { return }
+        // Create a profile if somehow none exists yet, so the connected flag is never
+        // silently dropped (which would send her back to "Connect" on return). Every
+        // onboarding path makes one, so this is defensive.
+        let profile = currentProfile() ?? {
+            let created = UserProfile(firstName: "there", ownerID: ownerID())
+            context.insert(created)
+            return created
+        }()
         profile.healthKitAuthorized = authorized
         profile.touch()
         save()

@@ -1,5 +1,6 @@
 import Foundation
 import HealthKit
+import OSLog
 
 /// A plain, storage-ready snapshot of what Apple Health gave us, so the ingestor
 /// (and the test harness) can consume one shape without touching HealthKit types.
@@ -30,6 +31,7 @@ struct HealthSnapshot {
 final class HealthKitService {
     private let store = HKHealthStore()
     private let calendar = Calendar.current
+    private static let log = Logger(subsystem: "com.keel", category: "health")
 
     private(set) var isAuthorized = false
 
@@ -85,12 +87,21 @@ final class HealthKitService {
     /// re-prompt, so this doubles as a silent "am I still connected" check.
     @discardableResult
     func requestAuthorization() async -> Bool {
-        guard isAvailable else { return false }
+        guard isAvailable else {
+            Self.log.error("HealthKit unavailable on this device (isHealthDataAvailable == false).")
+            return false
+        }
         do {
             try await store.requestAuthorization(toShare: [], read: readTypes)
             isAuthorized = true
             return true
         } catch {
+            // The prompt didn't complete. On a real device the usual cause is the
+            // HealthKit capability not being present in the signed build (App ID /
+            // provisioning profile), which reads as "Missing com.apple.developer.
+            // healthkit entitlement". Log the exact reason so a tester's device
+            // console reveals it, instead of failing silently.
+            Self.log.error("HealthKit authorization request failed: \(error.localizedDescription, privacy: .public) — \(String(describing: error), privacy: .public)")
             return false
         }
     }

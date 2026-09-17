@@ -83,7 +83,7 @@ struct AppleHealthSettingsView: View {
             }
             if connected {
                 HStack(spacing: 10) {
-                    outlineButton("Sync now", tint: theme.sage) { env.syncHealthData(); Haptics.success() }
+                    outlineButton("Sync now", tint: theme.sage) { env.syncHealthData(force: true); Haptics.success() }
                     outlineButton("Disconnect", tint: Color(hex: 0xA9762F)) { disconnect() }
                 }
             } else if connecting {
@@ -199,7 +199,7 @@ struct AppleHealthSettingsView: View {
             let effective = granted
             #endif
             env.users.setHealthKitAuthorized(effective)
-            if effective { env.syncHealthData() }
+            if effective { env.syncHealthData(force: true) }
             connecting = false
             connected = effective
             Haptics.success()
