@@ -1,4 +1,5 @@
 import SwiftUI
+import UIKit
 
 struct ReminderDef: Identifiable {
     let id: String
@@ -26,6 +27,11 @@ struct RemindersView: View {
     @Environment(AppEnvironment.self) private var env
     @Environment(\.keelTheme) private var theme
     @Environment(\.dismiss) private var dismiss
+    @Environment(\.openURL) private var openURL
+
+    /// Shown when she tries to turn a reminder on but notifications are off for Keel
+    /// in iOS Settings (iOS won't re-prompt, so we point her there).
+    @State private var showBlockedAlert = false
 
     var body: some View {
         ScrollView {
@@ -49,6 +55,14 @@ struct RemindersView: View {
         .keelFeatureScreen()
         // Any edit to the timing reschedules the reminders she has switched on.
         .onChange(of: env.settings.reminderConfig) { _, _ in rescheduleEnabled() }
+        .alert("Turn on notifications", isPresented: $showBlockedAlert) {
+            Button("Open Settings") {
+                if let url = URL(string: UIApplication.openSettingsURLString) { openURL(url) }
+            }
+            Button("Not now", role: .cancel) {}
+        } message: {
+            Text("Notifications are turned off for Keel. To get reminders, turn them on in Settings.")
+        }
     }
 
     private func card(_ reminder: ReminderDef) -> some View {
@@ -184,18 +198,34 @@ struct RemindersView: View {
     // MARK: Scheduling
 
     private func setEnabled(_ reminder: ReminderDef, _ on: Bool) {
-        if on {
-            env.settings.enabledReminderIDs.insert(reminder.id)
-            Task {
-                let granted = await env.notifications.requestAuthorization()
-                guard granted else { return }
-                schedule(reminder.id)
-            }
-        } else {
+        Haptics.selection()
+        guard on else {
             env.settings.enabledReminderIDs.remove(reminder.id)
             cancel(reminder.id)
+            return
         }
-        Haptics.selection()
+        // Only switch it on once notifications can actually be delivered, so the
+        // toggle never sits "on" while nothing can fire. If they're blocked in
+        // Settings, iOS won't re-prompt, so point her to Settings instead.
+        Task {
+            switch NotificationService.gate(for: await env.notifications.authorizationStatus()) {
+            case .request:
+                if await env.notifications.requestAuthorization() {
+                    enable(reminder)
+                } else {
+                    showBlockedAlert = true
+                }
+            case .proceed:
+                enable(reminder)
+            case .blocked:
+                showBlockedAlert = true
+            }
+        }
+    }
+
+    private func enable(_ reminder: ReminderDef) {
+        env.settings.enabledReminderIDs.insert(reminder.id)
+        schedule(reminder.id)
     }
 
     private func rescheduleEnabled() {

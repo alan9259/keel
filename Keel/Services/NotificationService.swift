@@ -30,6 +30,31 @@ final class NotificationService {
         }
     }
 
+    /// The current system authorization for notifications.
+    func authorizationStatus() async -> UNAuthorizationStatus {
+        await center.notificationSettings().authorizationStatus
+    }
+
+    /// What turning a reminder on should do, given the system authorization.
+    /// iOS only ever shows the permission prompt while status is `.notDetermined`;
+    /// once she has responded or revoked it in Settings (`.denied`), a request
+    /// returns immediately with no prompt, so the app must send her to Settings
+    /// instead of silently failing. Pure, so the decision is unit-testable.
+    enum AuthorizationGate: Equatable {
+        case request  // first time: iOS will show the system prompt
+        case proceed  // already allowed: just schedule
+        case blocked  // denied in Settings: iOS won't re-prompt; guide her there
+    }
+
+    nonisolated static func gate(for status: UNAuthorizationStatus) -> AuthorizationGate {
+        switch status {
+        case .notDetermined: return .request
+        case .denied: return .blocked
+        case .authorized, .provisional, .ephemeral: return .proceed
+        @unknown default: return .request
+        }
+    }
+
     /// Route delivered-notification taps to a handler (the `NotificationCoordinator`).
     func setDelegate(_ delegate: any UNUserNotificationCenterDelegate) {
         center.delegate = delegate
