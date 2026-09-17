@@ -1,5 +1,6 @@
 import SwiftUI
 import SwiftData
+import UIKit
 
 struct SettingsView: View {
     @Environment(AppEnvironment.self) private var env
@@ -10,6 +11,9 @@ struct SettingsView: View {
 
     @State private var showCloseDialog = false
     @State private var typed = ""
+    /// Shown when she turns push on but notifications are off for Keel in iOS
+    /// Settings (iOS won't re-prompt, so we point her there).
+    @State private var showBlockedAlert = false
 
     var body: some View {
         ScrollView {
@@ -18,7 +22,7 @@ struct SettingsView: View {
 
                 group("Notifications") {
                     toggleRow("bell.fill", "Push notifications", "Reminders and alerts",
-                              Binding(get: { env.settings.pushNotifications }, set: { env.setPushNotificationsEnabled($0) }))
+                              Binding(get: { env.settings.pushNotifications }, set: { setPushEnabled($0) }))
                     Divider().background(theme.border)
                     toggleRow("iphone.radiowaves.left.and.right", "Haptic feedback", "Vibration on interactions",
                               Binding(get: { env.settings.haptics }, set: { env.settings.haptics = $0 }))
@@ -36,6 +40,39 @@ struct SettingsView: View {
         .background(theme.background.ignoresSafeArea())
         .keelFeatureScreen()
         .overlay { if showCloseDialog { closeDialog } }
+        .alert("Turn on notifications", isPresented: $showBlockedAlert) {
+            Button("Open Settings") {
+                if let url = URL(string: UIApplication.openSettingsURLString) { openURL(url) }
+            }
+            Button("Not now", role: .cancel) {}
+        } message: {
+            Text("Notifications are turned off for Keel. To get reminders and alerts, turn them on in Settings.")
+        }
+    }
+
+    /// Master push switch. Only turns on once notifications can actually be
+    /// delivered, so it never sits "on" while nothing can fire. If they're blocked
+    /// in iOS Settings, iOS won't re-prompt, so point her to Settings instead of
+    /// silently doing nothing.
+    private func setPushEnabled(_ on: Bool) {
+        guard on else {
+            env.setPushNotificationsEnabled(false)
+            return
+        }
+        Task {
+            switch NotificationService.gate(for: await env.notifications.authorizationStatus()) {
+            case .request:
+                if await env.notifications.requestAuthorization() {
+                    env.setPushNotificationsEnabled(true)
+                } else {
+                    showBlockedAlert = true
+                }
+            case .proceed:
+                env.setPushNotificationsEnabled(true)
+            case .blocked:
+                showBlockedAlert = true
+            }
+        }
     }
 
     private func group<Content: View>(_ title: String, @ViewBuilder content: () -> Content) -> some View {
