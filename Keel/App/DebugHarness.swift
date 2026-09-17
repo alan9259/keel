@@ -189,6 +189,21 @@ enum DebugHarness {
             )
         }
 
+        if args.contains("-uitSeedFrequentSymptom") {
+            // A custom symptom she logs often, to prove the check-in quick chips lead
+            // with her most-logged (even a non-default) rather than catalog order.
+            env.symptoms.syncBuiltIns()
+            let owner = env.auth.ownerID
+            let today = Date().startOfDay
+            let custom = env.symptoms.findOrCreateCustom(name: "Tinnitus", category: .body)
+            for i in 0..<8 {
+                let ci = CheckIn(date: today.adding(days: -i), mood: .okay, energy: 55, ownerID: owner)
+                env.context.insert(ci)
+                env.context.insert(CheckInSymptom(checkIn: ci, symptom: custom, severity: 2, ownerID: owner))
+            }
+            try? env.context.save()
+        }
+
         if args.contains("-uitSeedVitals") {
             // 16 days of resting HR + HRV, with resting HR running higher after the
             // shorter-sleep nights, so the "Your body lately" card and its sleep note
@@ -377,6 +392,13 @@ enum DebugHarness {
             let checkIns = env.checkIns.all().count
             let meds = env.medications.active().count
             print("KEEL_UITEST checkIns=\(checkIns) meds=\(meds)")
+            fflush(stdout)
+        }
+
+        if args.contains("-uitPrintQuickChips") {
+            // The real quick-chip order the check-in row would render, from the running app.
+            let order = env.symptoms.defaultChips().map(\.name)
+            print("KEEL_QUICKCHIPS \(order.joined(separator: " | "))")
             fflush(stdout)
         }
 

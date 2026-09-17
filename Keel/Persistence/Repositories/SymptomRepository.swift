@@ -19,8 +19,6 @@ struct SymptomRepository: SymptomRepositoring {
     let context: ModelContext
     let ownerID: OwnerIDProvider
 
-    /// Days of check-ins before the default chips start following her own use.
-    private static let adaptAfterDays = 14
     private static let versionKey = "keel.symptomCatalogVersion"
 
     /// Bring the built-in catalog in line with `SymptomCatalog`, once per version
@@ -103,21 +101,52 @@ struct SymptomRepository: SymptomRepositoring {
         return (try? context.fetch(descriptor)) ?? []
     }
 
-    /// The small, fast set shown before "more". Catalog order to start with; once
-    /// she has roughly a fortnight of check-ins behind her, her most-logged rise
-    /// to the front so the list adapts to her rather than the other way around.
+    /// The small, fast set shown before "more": her most-logged symptoms first
+    /// (any symptom she has logged, including custom and sensitive ones), then the
+    /// catalog default chips to fill out the set. With no history yet it reads in
+    /// the familiar catalog order, and it adapts from her very first logs. The
+    /// ordering is the pure `rankedQuickChipIDs` so it's unit-tested without SwiftData.
     func defaultChips() -> [Symptom] {
-        let chips = allActive().filter(\.isDefaultChip)
-        let ranked = chips.sorted {
-            let a = SymptomCatalog.defaultRank(of: $0.name), b = SymptomCatalog.defaultRank(of: $1.name)
-            return a == b ? $0.name < $1.name : a < b
+        let active = allActive()
+        let candidates = active.map {
+            QuickChipCandidate(id: $0.id, name: $0.name, isDefaultChip: $0.isDefaultChip)
         }
-        guard trackingDayCount() >= Self.adaptAfterDays else { return ranked }
-        let counts = usageCounts()
-        return ranked.enumerated().sorted { lhs, rhs in
-            let a = counts[lhs.element.id] ?? 0, b = counts[rhs.element.id] ?? 0
-            return a == b ? lhs.offset < rhs.offset : a > b
-        }.map(\.element)
+        // Keep the row a sensible size, matching the number of default chips.
+        let limit = max(candidates.lazy.filter(\.isDefaultChip).count, 1)
+        let ordered = Self.rankedQuickChipIDs(candidates: candidates, counts: usageCounts(), limit: limit)
+        let byID = Dictionary(active.map { ($0.id, $0) }, uniquingKeysWith: { first, _ in first })
+        return ordered.compactMap { byID[$0] }
+    }
+
+    /// A lightweight view of a symptom for the pure quick-chip ranking.
+    struct QuickChipCandidate {
+        let id: UUID
+        let name: String
+        let isDefaultChip: Bool
+    }
+
+    /// Orders the quick-pick chips: her most-logged symptoms first (by how many
+    /// check-ins each appears on), then the catalog default chips. Any symptom she
+    /// has actually logged is eligible even when it isn't a default chip, so a
+    /// frequent custom or less-common symptom surfaces to the front instead of
+    /// staying buried under "more". Ties fall back to default-chips-first, then
+    /// catalog order, then name, so a fresh account (all counts zero) reads in the
+    /// familiar editorial order. Capped at `limit` to keep the row a sensible size.
+    nonisolated static func rankedQuickChipIDs(
+        candidates: [QuickChipCandidate],
+        counts: [UUID: Int],
+        limit: Int
+    ) -> [UUID] {
+        let eligible = candidates.filter { $0.isDefaultChip || (counts[$0.id] ?? 0) > 0 }
+        let ranked = eligible.sorted { a, b in
+            let ca = counts[a.id] ?? 0, cb = counts[b.id] ?? 0
+            if ca != cb { return ca > cb }
+            if a.isDefaultChip != b.isDefaultChip { return a.isDefaultChip }
+            let ra = SymptomCatalog.defaultRank(of: a.name), rb = SymptomCatalog.defaultRank(of: b.name)
+            if ra != rb { return ra < rb }
+            return a.name < b.name
+        }
+        return Array(ranked.prefix(max(limit, 0)).map(\.id))
     }
 
     /// How many check-ins each symptom has been logged on.
@@ -128,13 +157,6 @@ struct SymptomRepository: SymptomRepositoring {
             guard let id = link.symptomID else { return }
             counts[id, default: 0] += 1
         }
-    }
-
-    /// Distinct days with a check-in, used to decide when the chips may adapt.
-    private func trackingDayCount() -> Int {
-        let descriptor = FetchDescriptor<CheckIn>(predicate: #Predicate { $0.deletedAt == nil })
-        let checkIns = (try? context.fetch(descriptor)) ?? []
-        return Set(checkIns.map { $0.date.startOfDay }).count
     }
 
     func grouped() -> [(category: SymptomCategory, symptoms: [Symptom])] {
