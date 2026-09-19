@@ -12,7 +12,7 @@ final class HealthSyncCatalogTests: XCTestCase {
     private func sampleSnapshot() -> HealthSnapshot {
         var s = HealthSnapshot()
         s.sleepByDay = [day: 7.5]
-        s.activityAmounts = ["steps": [day: 8000], "exercise": [day: 30], "meditation": [day: 10]]
+        s.activityAmounts = ["steps": [day: 8000], "exercise": [day: 30]]
         s.vitals = [
             .init(typeID: "restingHeartRate", unit: "bpm", byDay: [day: 58]),
             .init(typeID: "hrv", unit: "ms", byDay: [day: 42]),
@@ -27,7 +27,7 @@ final class HealthSyncCatalogTests: XCTestCase {
     func testEmptyDisabledIsPassthrough() {
         let s = sampleSnapshot()
         let out = HealthSyncCatalog.filter(s, disabled: [])
-        XCTAssertEqual(out.activityAmounts.keys.sorted(), ["exercise", "meditation", "steps"])
+        XCTAssertEqual(out.activityAmounts.keys.sorted(), ["exercise", "steps"])
         XCTAssertEqual(out.vitals.count, 4)
         XCTAssertFalse(out.sleepByDay.isEmpty)
     }
@@ -36,7 +36,6 @@ final class HealthSyncCatalogTests: XCTestCase {
         let out = HealthSyncCatalog.filter(sampleSnapshot(), disabled: ["exercise"])
         XCTAssertNil(out.activityAmounts["exercise"])
         XCTAssertNotNil(out.activityAmounts["steps"])
-        XCTAssertNotNil(out.activityAmounts["meditation"])
     }
 
     func testDisablingSleepClearsSleep() {

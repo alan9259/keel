@@ -1,8 +1,8 @@
 import Foundation
 import SwiftData
 
-/// A daily activity amount imported from Apple Health (sleep, steps, exercise, mindful
-/// minutes), kept in the **local-only health store** so it never syncs. Mirrors
+/// A daily activity amount imported from Apple Health (sleep, steps, exercise),
+/// kept in the **local-only health store** so it never syncs. Mirrors
 /// `ActivityLog`'s shape (activityID/day/amount) so readers can union the two: manual
 /// entries live in `ActivityLog`, imported ones here. One row per (`activityID`, `day`),
 /// deduped on import.

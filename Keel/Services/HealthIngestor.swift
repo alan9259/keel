@@ -73,6 +73,11 @@ final class HealthIngestor {
         let activity = (try? context.fetch(FetchDescriptor<ActivityLog>())) ?? []
         for log in activity where log.source == .healthKit { context.delete(log); removed += 1 }
 
+        // Mindful minutes are no longer imported: drop any imported "meditation" rows.
+        // Only the imported copy (HealthActivitySample) — never her own manual entries.
+        let imported = (try? context.fetch(FetchDescriptor<HealthActivitySample>())) ?? []
+        for sample in imported where sample.activityID == "meditation" { context.delete(sample); removed += 1 }
+
         if removed > 0 { try? context.save() }
         return removed
     }

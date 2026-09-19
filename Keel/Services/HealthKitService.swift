@@ -8,7 +8,7 @@ struct HealthSnapshot {
     /// Hours asleep, keyed by the day the sleep ended.
     var sleepByDay: [Date: Double] = [:]
     /// Daily amounts that map onto Keel's activity log, keyed by `activityID`
-    /// ("steps", "exercise", "meditation") then day.
+    /// ("steps", "exercise") then day.
     var activityAmounts: [String: [Date: Double]] = [:]
     /// Vitals and workload with no natural Keel home, stored as `HealthSample`.
     var vitals: [VitalSeries] = []
@@ -65,12 +65,11 @@ final class HealthKitService {
     ]
 
     private var readTypes: Set<HKObjectType> {
-        // Symptoms and menstrual flow are deliberately NOT read: Keel no longer imports
-        // them from Apple Health (she logs symptoms and cycle in Keel directly). Only
-        // sleep, activity and vitals are imported. See HealthIngestor.
+        // Symptoms, menstrual flow and mindful minutes are deliberately NOT read: Keel no
+        // longer imports them from Apple Health (she logs symptoms and cycle in Keel
+        // directly). Only sleep, activity and vitals are imported. See HealthIngestor.
         var types = Set<HKObjectType>()
         if let sleep = HKObjectType.categoryType(forIdentifier: .sleepAnalysis) { types.insert(sleep) }
-        if let mindful = HKObjectType.categoryType(forIdentifier: .mindfulSession) { types.insert(mindful) }
         for (_, id, _) in Self.activityQuantities {
             if let t = HKObjectType.quantityType(forIdentifier: id) { types.insert(t) }
         }
@@ -119,8 +118,6 @@ final class HealthKitService {
             let byDay = await quantityByDay(id, unit: unit, lastDays: lastDays, average: false)
             if !byDay.isEmpty { snapshot.activityAmounts[activityID] = byDay }
         }
-        let mindful = await mindfulMinutesByDay(lastDays: lastDays)
-        if !mindful.isEmpty { snapshot.activityAmounts["meditation"] = mindful }
 
         for entry in Self.vitalQuantities {
             var byDay = await quantityByDay(entry.id, unit: entry.unit, lastDays: lastDays, average: entry.average)
@@ -218,25 +215,6 @@ final class HealthKitService {
                     for (day, total) in totals { totals[day] = total / Double(counts[day] ?? 1) }
                 }
                 continuation.resume(returning: totals)
-            }
-            store.execute(query)
-        }
-    }
-
-    // MARK: Mindfulness
-
-    private func mindfulMinutesByDay(lastDays: Int) async -> [Date: Double] {
-        guard let type = HKObjectType.categoryType(forIdentifier: .mindfulSession) else { return [:] }
-        let predicate = HKQuery.predicateForSamples(withStart: floor(lastDays), end: Date(), options: [])
-        return await withCheckedContinuation { continuation in
-            let query = HKSampleQuery(sampleType: type, predicate: predicate,
-                                      limit: HKObjectQueryNoLimit, sortDescriptors: nil) { [calendar] _, samples, _ in
-                var perDay: [Date: Double] = [:]
-                for sample in samples ?? [] {
-                    let day = calendar.startOfDay(for: sample.startDate)
-                    perDay[day, default: 0] += sample.endDate.timeIntervalSince(sample.startDate) / 60
-                }
-                continuation.resume(returning: perDay)
             }
             store.execute(query)
         }

@@ -31,8 +31,6 @@ enum HealthSyncCatalog {
              activityIDs: [], vitalTypeIDs: ["flights"]),
         Item(id: "sleep", label: "Sleep", desc: "Hours actually asleep each night",
              activityIDs: ["sleep"], vitalTypeIDs: []),
-        Item(id: "meditation", label: "Mindful minutes", desc: "Meditation and breathwork",
-             activityIDs: ["meditation"], vitalTypeIDs: []),
         Item(id: "heartVitals", label: "Heart & vitals",
              desc: "Heart rate, resting HR, HRV, respiratory rate, blood oxygen, blood pressure",
              activityIDs: [],
