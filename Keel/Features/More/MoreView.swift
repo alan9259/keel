@@ -48,6 +48,8 @@ struct MoreView: View {
             ("Account", [
                 Item(title: "Profile", symbol: "person.crop.circle", tint: theme.accent, route: .profile),
                 Item(title: "Settings", symbol: "gearshape.fill", tint: theme.muted, route: .settings),
+            ]),
+            ("Support & about", [
                 Item(title: "Get Support", symbol: "lifepreserver.fill", tint: theme.accent, route: .support),
                 Item(title: "Connect with Us", symbol: "bubble.left.and.bubble.right.fill", tint: theme.sage, route: .connect),
                 Item(title: "Tell your friends", symbol: "square.and.arrow.up", tint: theme.accent, action: { showShareSheet = true }),
