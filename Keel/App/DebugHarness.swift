@@ -45,6 +45,13 @@ enum DebugHarness {
         args.contains("-uitSymptomPicker") || openSymptomComposer || editSymptoms
     }
 
+    /// Open the Activities screen in a specific period view for screenshots.
+    static var activitiesPeriod: ActivityPeriod? {
+        if args.contains("-uitActivitiesWeek") { return .week }
+        if args.contains("-uitActivitiesMonth") { return .month }
+        return nil
+    }
+
     /// Auto-open the inline "add your own" composer (Sleep & rest) for screenshots.
     static var openSymptomComposer: Bool { args.contains("-uitSymptomComposer") }
 
@@ -871,7 +878,6 @@ enum DebugHarness {
         snap.activityAmounts = [
             "steps": [today: 8200],
             "exercise": [today: 35],
-            "meditation": [today.adding(days: -1): 12],
         ]
         snap.vitals = [
             .init(typeID: "heartRate", unit: "bpm", byDay: [today: 68]),

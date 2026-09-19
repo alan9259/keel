@@ -18,6 +18,25 @@ struct ActivitiesView: View {
     @Query(filter: #Predicate<CheckIn> { $0.deletedAt == nil }) private var checkIns: [CheckIn]
 
     private var today: Date { Date.now.startOfDay }
+    private var cal: Calendar { .current }
+
+    /// Day / Week / Month, and the date the current window is anchored on.
+    @State private var period: ActivityPeriod = {
+        #if DEBUG
+        if let p = DebugHarness.activitiesPeriod { return p }
+        #endif
+        return .day
+    }()
+    @State private var anchor: Date = Date.now.startOfDay
+
+    /// The single day shown in Day mode.
+    private var selectedDay: Date { cal.startOfDay(for: anchor) }
+    /// The days covered by the current window (one in Day mode, the week or month otherwise).
+    private var visibleDays: [Date] {
+        ActivityAggregation.days(in: ActivityAggregation.interval(for: period, containing: anchor, calendar: cal), calendar: cal)
+    }
+    /// Days in the window that have actually happened, for "X of N days" denominators.
+    private var elapsedDays: [Date] { visibleDays.filter { $0 <= today } }
 
     private enum Source { case activity, sample }
     private struct Metric: Identifiable {
@@ -25,26 +44,31 @@ struct ActivitiesView: View {
         let source: Source
         /// Whole numbers vs one decimal (e.g. sleep hours).
         let decimal: Bool
+        /// How a week/month rolls up: a running count sums, a level averages.
+        let aggregate: ActivityAggregation.Mode
     }
 
     /// Metrics that come from Apple Health automatically. She chooses which of these
     /// to import on the Apple Health screen (`HealthSyncCatalog`); a tile still shows
     /// data already imported for an item she has since switched off.
     private let allHealthMetrics: [Metric] = [
-        Metric(id: "steps", label: "Steps", symbol: "figure.walk", unit: "steps", source: .activity, decimal: false),
-        Metric(id: "exercise", label: "Exercise", symbol: "flame.fill", unit: "min", source: .activity, decimal: false),
-        Metric(id: "activeEnergy", label: "Active energy", symbol: "bolt.fill", unit: "kcal", source: .sample, decimal: false),
-        Metric(id: "distance", label: "Distance", symbol: "figure.walk.motion", unit: "km", source: .sample, decimal: true),
-        Metric(id: "flights", label: "Flights", symbol: "stairs", unit: "", source: .sample, decimal: false),
-        Metric(id: "sleep", label: "Sleep", symbol: "moon.fill", unit: "hrs", source: .activity, decimal: true),
-        Metric(id: "meditation", label: "Mindful", symbol: "wind", unit: "min", source: .activity, decimal: false),
+        Metric(id: "steps", label: "Steps", symbol: "figure.walk", unit: "steps", source: .activity, decimal: false, aggregate: .total),
+        Metric(id: "exercise", label: "Exercise", symbol: "flame.fill", unit: "min", source: .activity, decimal: false, aggregate: .total),
+        Metric(id: "activeEnergy", label: "Active energy", symbol: "bolt.fill", unit: "kcal", source: .sample, decimal: false, aggregate: .total),
+        Metric(id: "distance", label: "Distance", symbol: "figure.walk.motion", unit: "km", source: .sample, decimal: true, aggregate: .total),
+        Metric(id: "flights", label: "Flights", symbol: "stairs", unit: "", source: .sample, decimal: false, aggregate: .total),
+        Metric(id: "sleep", label: "Sleep", symbol: "moon.fill", unit: "hrs", source: .activity, decimal: true, aggregate: .average),
     ]
 
-    /// Tiles to show: everything she is still importing, plus anything she has switched
-    /// off that nonetheless has data already imported (so nothing quietly disappears).
-    private var healthMetrics: [Metric] {
+    /// Metrics to show: everything she is still importing, plus anything she has
+    /// switched off that nonetheless has data in the visible window (so nothing
+    /// quietly disappears).
+    private var shownMetrics: [Metric] {
         let disabled = env.settings.disabledHealthItemIDs
-        return allHealthMetrics.filter { !disabled.contains($0.id) || todayValue($0) != nil }
+        let days = visibleDays
+        return allHealthMetrics.filter { m in
+            !disabled.contains(m.id) || days.contains { value(for: m, on: $0) != nil }
+        }
     }
 
     private var healthConnected: Bool { env.users.currentProfile()?.healthKitAuthorized == true }
@@ -52,18 +76,22 @@ struct ActivitiesView: View {
     var body: some View {
         ScrollView {
             VStack(alignment: .leading, spacing: 20) {
-                ScreenHeader(title: "Activities", titleSize: 28,
-                             subtitle: Date.now.formatted(.dateTime.weekday(.wide).month().day())) { dismiss() }
+                ScreenHeader(title: "Activities", titleSize: 28) { dismiss() }
 
-                feltCard
+                periodPicker
+                periodNav
 
-                healthSection
-
-                bodySection
-
-                eatingPanel
-
-                manualSection
+                if period == .day {
+                    feltCard
+                    healthSection
+                    bodySection
+                    eatingPanel
+                    manualSection
+                } else {
+                    aggregatedHealthSection
+                    bodySection
+                    periodSummaryCard
+                }
             }
             .padding(.horizontal, 24).padding(.vertical, 12)
         }
@@ -71,15 +99,74 @@ struct ActivitiesView: View {
         .keelFeatureScreen()
     }
 
+    // MARK: Period picker + navigation
+
+    private var periodPicker: some View {
+        KeelSegmented(options: ActivityPeriod.allCases.map(\.label), selection: Binding(
+            get: { ActivityPeriod.allCases.firstIndex(of: period) ?? 0 },
+            set: { period = ActivityPeriod.allCases[$0] }
+        ))
+    }
+
+    private var periodNav: some View {
+        HStack {
+            iconButton("chevron.left") { shift(-1) }
+            Spacer()
+            Text(periodLabel).font(KeelFont.serif(17, weight: .semibold)).foregroundStyle(theme.heading)
+            Spacer()
+            iconButton("chevron.right", disabled: isCurrentPeriod) { shift(1) }
+        }
+    }
+
+    private var isCurrentPeriod: Bool {
+        ActivityAggregation.isCurrent(anchor, period: period, calendar: cal, now: today)
+    }
+
+    private func shift(_ delta: Int) {
+        anchor = ActivityAggregation.shift(anchor, by: delta, period: period, calendar: cal, notAfter: today)
+        Haptics.selection()
+    }
+
+    private var periodLabel: String {
+        switch period {
+        case .day:
+            if selectedDay.isSameDay(as: today) { return "Today" }
+            if selectedDay.isSameDay(as: today.adding(days: -1)) { return "Yesterday" }
+            return selectedDay.formatted(.dateTime.weekday(.wide).month().day())
+        case .week:
+            if isCurrentPeriod { return "This week" }
+            let iv = ActivityAggregation.interval(for: .week, containing: anchor, calendar: cal)
+            let last = cal.date(byAdding: .day, value: -1, to: iv.end) ?? iv.start
+            let start = iv.start.formatted(.dateTime.day().month(.abbreviated))
+            let end = last.formatted(.dateTime.day().month(.abbreviated))
+            return "\(start) – \(end)"
+        case .month:
+            if isCurrentPeriod { return "This month" }
+            return anchor.formatted(.dateTime.month(.wide).year())
+        }
+    }
+
+    private func iconButton(_ icon: String, disabled: Bool = false, action: @escaping () -> Void) -> some View {
+        Button(action: action) {
+            Image(systemName: icon)
+                .font(.system(size: 18, weight: .medium))
+                .foregroundStyle(disabled ? theme.muted.opacity(0.3) : theme.text)
+                .frame(width: 36, height: 36)
+        }
+        .disabled(disabled)
+        .accessibilityLabel(icon == "chevron.left" ? "Previous \(period.label.lowercased())" : "Next \(period.label.lowercased())")
+    }
+
     // MARK: How you felt
 
     @ViewBuilder
     private var feltCard: some View {
-        if let checkIn = checkIns.first(where: { $0.date.isSameDay(as: today) }) {
+        if let checkIn = checkIns.first(where: { $0.date.isSameDay(as: selectedDay) }) {
             HStack(spacing: 14) {
                 EmojiGlyph(emoji: env.settings.emoji(for: checkIn.mood), size: 30)
                 VStack(alignment: .leading, spacing: 2) {
-                    Text("How you felt today").font(KeelFont.caption).foregroundStyle(theme.muted)
+                    Text(selectedDay.isSameDay(as: today) ? "How you felt today" : "How you felt")
+                        .font(KeelFont.caption).foregroundStyle(theme.muted)
                     Text("\(checkIn.mood.label) · energy \(EnergyLevel.from(percent: checkIn.energy).label.lowercased())")
                         .font(KeelFont.bodyLarge).foregroundStyle(theme.text)
                 }
@@ -97,39 +184,127 @@ struct ActivitiesView: View {
     private var healthSection: some View {
         VStack(alignment: .leading, spacing: 12) {
             Text("From Apple Health").font(KeelFont.serif(18, weight: .semibold)).foregroundStyle(theme.heading)
-
-            if !healthConnected {
-                NavigationLink(value: MainRoute.appleHealth) {
-                    HStack(spacing: 12) {
-                        Image(systemName: "heart.fill").font(.system(size: 15)).foregroundStyle(theme.accent)
-                            .frame(width: 40, height: 40).background(theme.accent.opacity(0.1))
-                            .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
-                        VStack(alignment: .leading, spacing: 2) {
-                            Text("Connect Apple Health").font(KeelFont.body).foregroundStyle(theme.text)
-                            Text("Let your steps, sleep and more fill in on their own").font(KeelFont.caption).foregroundStyle(theme.muted)
-                                .fixedSize(horizontal: false, vertical: true)
-                        }
-                        Spacer(minLength: 0)
-                        Image(systemName: "chevron.right").font(.system(size: 13, weight: .semibold)).foregroundStyle(theme.muted)
-                    }
-                    .padding(14).background(theme.card)
-                    .clipShape(RoundedRectangle(cornerRadius: Radius.card, style: .continuous))
-                    .overlay(RoundedRectangle(cornerRadius: Radius.card, style: .continuous).stroke(theme.border, lineWidth: 1))
-                }
-                .buttonStyle(.plain)
-            }
-
+            connectHealthPrompt
             LazyVGrid(columns: [GridItem(.flexible(), spacing: 12), GridItem(.flexible(), spacing: 12)], spacing: 12) {
-                ForEach(healthMetrics) { metric in
+                ForEach(shownMetrics) { metric in
                     metricTile(metric)
                 }
             }
         }
     }
 
+    @ViewBuilder
+    private var connectHealthPrompt: some View {
+        if !healthConnected {
+            NavigationLink(value: MainRoute.appleHealth) {
+                HStack(spacing: 12) {
+                    Image(systemName: "heart.fill").font(.system(size: 15)).foregroundStyle(theme.accent)
+                        .frame(width: 40, height: 40).background(theme.accent.opacity(0.1))
+                        .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
+                    VStack(alignment: .leading, spacing: 2) {
+                        Text("Connect Apple Health").font(KeelFont.body).foregroundStyle(theme.text)
+                        Text("Let your steps, sleep and more fill in on their own").font(KeelFont.caption).foregroundStyle(theme.muted)
+                            .fixedSize(horizontal: false, vertical: true)
+                    }
+                    Spacer(minLength: 0)
+                    Image(systemName: "chevron.right").font(.system(size: 13, weight: .semibold)).foregroundStyle(theme.muted)
+                }
+                .padding(14).background(theme.card)
+                .clipShape(RoundedRectangle(cornerRadius: Radius.card, style: .continuous))
+                .overlay(RoundedRectangle(cornerRadius: Radius.card, style: .continuous).stroke(theme.border, lineWidth: 1))
+            }
+            .buttonStyle(.plain)
+        }
+    }
+
+    // MARK: From Apple Health (week / month roll-up)
+
+    private var aggregatedHealthSection: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            Text("From Apple Health").font(KeelFont.serif(18, weight: .semibold)).foregroundStyle(theme.heading)
+            connectHealthPrompt
+            VStack(spacing: 12) {
+                ForEach(shownMetrics) { aggregatedMetricCard($0) }
+            }
+        }
+    }
+
+    /// One metric across the window: label, the period total or average, and a small
+    /// per-day bar chart. Honest empty state when there is nothing yet.
+    private func aggregatedMetricCard(_ metric: Metric) -> some View {
+        let days = visibleDays
+        let roll = ActivityAggregation.rollup(byDay: series(for: metric), days: days, mode: metric.aggregate, calendar: cal)
+        return VStack(alignment: .leading, spacing: 10) {
+            HStack(alignment: .firstTextBaseline, spacing: 10) {
+                Image(systemName: metric.symbol).font(.system(size: 15)).foregroundStyle(theme.accent)
+                Text(metric.label).font(KeelFont.body).foregroundStyle(theme.text)
+                Spacer(minLength: 8)
+                if let s = roll.summary {
+                    Text("\(Text(format(s, decimal: metric.decimal)).font(KeelFont.serif(20, weight: .semibold)))\(Text(metric.unit.isEmpty ? "" : " \(metric.unit)").font(KeelFont.caption))\(Text(metric.aggregate == .total ? " total" : " avg").font(KeelFont.caption).foregroundColor(theme.muted))")
+                        .foregroundStyle(theme.heading).lineLimit(1).minimumScaleFactor(0.7)
+                } else {
+                    Text("No data yet").font(KeelFont.caption).foregroundStyle(theme.muted)
+                }
+            }
+            barChart(roll.perDay)
+        }
+        .padding(14)
+        .background(theme.card)
+        .clipShape(RoundedRectangle(cornerRadius: Radius.card, style: .continuous))
+        .overlay(RoundedRectangle(cornerRadius: Radius.card, style: .continuous).stroke(theme.border, lineWidth: 1))
+    }
+
+    /// Faint per-day bars, normalised to the window's own peak. Empty days show a
+    /// low placeholder track so the shape reads without inventing a value.
+    private func barChart(_ values: [Double]) -> some View {
+        let peak = max(values.max() ?? 0, 1)
+        return HStack(alignment: .bottom, spacing: values.count > 10 ? 2 : 4) {
+            ForEach(Array(values.enumerated()), id: \.offset) { _, v in
+                RoundedRectangle(cornerRadius: 2, style: .continuous)
+                    .fill(v > 0 ? theme.accent.opacity(0.65) : theme.track.opacity(0.5))
+                    .frame(height: max(3, CGFloat(v / peak) * 44))
+                    .frame(maxWidth: .infinity)
+            }
+        }
+        .frame(height: 44, alignment: .bottom)
+        .accessibilityHidden(true)
+    }
+
+    // MARK: Day-only summary (week / month)
+
+    private var periodSummaryCard: some View {
+        let n = max(elapsedDays.count, 1)
+        let daySet = Set(elapsedDays.map { cal.startOfDay(for: $0) })
+        let checkInDays = Set(checkIns.map { cal.startOfDay(for: $0.date) }).intersection(daySet).count
+        let waterDays = Set(logs.filter { $0.activityID == "water" && $0.amount > 0 }
+            .map { cal.startOfDay(for: $0.date) }).intersection(daySet).count
+        return VStack(alignment: .leading, spacing: 12) {
+            Text("You logged").font(KeelFont.serif(18, weight: .semibold)).foregroundStyle(theme.heading)
+            VStack(spacing: 0) {
+                summaryRow(symbol: "sun.max.fill", label: "Checked in", value: "\(checkInDays) of \(n) days")
+                Divider().background(theme.border)
+                summaryRow(symbol: "drop.fill", label: "Water logged", value: "\(waterDays) of \(n) days")
+            }
+            .padding(.horizontal, 14).padding(.vertical, 4)
+            .background(theme.card)
+            .clipShape(RoundedRectangle(cornerRadius: Radius.card, style: .continuous))
+            .overlay(RoundedRectangle(cornerRadius: Radius.card, style: .continuous).stroke(theme.border, lineWidth: 1))
+        }
+    }
+
+    private func summaryRow(symbol: String, label: String, value: String) -> some View {
+        HStack(spacing: 12) {
+            Image(systemName: symbol).font(.system(size: 14)).foregroundStyle(theme.accent).frame(width: 24)
+            Text(label).font(KeelFont.body).foregroundStyle(theme.text)
+            Spacer(minLength: 8)
+            Text(value).font(KeelFont.sans(14, weight: .medium)).foregroundStyle(theme.muted)
+        }
+        .padding(.vertical, 12)
+    }
+
     /// A Bevel-style glanceable tile: big value, unit, gentle direction arrow.
     private func metricTile(_ metric: Metric) -> some View {
-        let value = todayValue(metric)
+        let value = value(for: metric, on: selectedDay)
         let has = value != nil
         return VStack(alignment: .leading, spacing: 8) {
             HStack {
@@ -280,7 +455,7 @@ struct ActivitiesView: View {
 
     private var eatingPanel: some View {
         VStack(alignment: .leading, spacing: 12) {
-            Text("Eating today").font(KeelFont.serif(18, weight: .semibold)).foregroundStyle(theme.heading)
+            Text("Eating").font(KeelFont.serif(18, weight: .semibold)).foregroundStyle(theme.heading)
             VStack(spacing: 0) {
                 eatingGroupLabel("Nourishing")
                 ForEach(EatingCatalog.nourishment) { eatingRow($0) }
@@ -310,7 +485,7 @@ struct ActivitiesView: View {
     }
 
     private func eatingRow(_ item: EatingItem) -> some View {
-        let state = EatingLog.state(for: item.id, on: today, in: logs)
+        let state = EatingLog.state(for: item.id, on: selectedDay, in: logs)
         return HStack(spacing: 12) {
             Text(item.label).font(KeelFont.body).foregroundStyle(theme.text)
             Spacer(minLength: 8)
@@ -335,7 +510,7 @@ struct ActivitiesView: View {
     }
 
     private func setEating(_ id: String, _ value: Bool?) {
-        EatingLog.set(value, for: id, on: today, ownerID: env.auth.ownerID, in: context)
+        EatingLog.set(value, for: id, on: selectedDay, ownerID: env.auth.ownerID, in: context)
         Haptics.selection()
     }
 
@@ -400,13 +575,25 @@ struct ActivitiesView: View {
 
     // MARK: Values + trend
 
-    private func todayValue(_ metric: Metric) -> Double? {
+    private func value(for metric: Metric, on date: Date) -> Double? {
         switch metric.source {
         case .activity:
             // Her manual entry wins; otherwise the Apple Health import (health store).
-            return MergedActivity.amount(metric.id, on: today, manual: logs, imported: importedActivity)
+            return MergedActivity.amount(metric.id, on: date, manual: logs, imported: importedActivity)
         case .sample:
-            return samples.first { $0.typeID == metric.id && $0.day.isSameDay(as: today) }.map(\.value)
+            return samples.first { $0.typeID == metric.id && $0.day.isSameDay(as: date) }.map(\.value)
+        }
+    }
+
+    /// A metric's full per-day series, for the week/month roll-up.
+    private func series(for metric: Metric) -> [Date: Double] {
+        switch metric.source {
+        case .activity:
+            return MergedActivity.byDay(metric.id, manual: logs, imported: importedActivity)
+        case .sample:
+            var out: [Date: Double] = [:]
+            for s in samples where s.typeID == metric.id { out[s.day.startOfDay] = s.value }
+            return out
         }
     }
 
@@ -417,15 +604,15 @@ struct ActivitiesView: View {
     /// history before it says anything.
     private func trendDirection(_ metric: Metric, value: Double?) -> TrendDir? {
         guard let value else { return nil }
-        let start = today.adding(days: -7)
+        let start = selectedDay.adding(days: -7)
         let past: [Double]
         switch metric.source {
         case .activity:
             past = MergedActivity.byDay(metric.id, manual: logs, imported: importedActivity)
-                .filter { $0.key >= start && !$0.key.isSameDay(as: today) && $0.value > 0 }
+                .filter { $0.key >= start && $0.key < selectedDay && $0.value > 0 }
                 .map(\.value)
         case .sample:
-            past = samples.filter { $0.typeID == metric.id && $0.day >= start && !$0.day.isSameDay(as: today) }.map(\.value)
+            past = samples.filter { $0.typeID == metric.id && $0.day >= start && $0.day < selectedDay }.map(\.value)
         }
         guard past.count >= 3 else { return nil }
         let avg = past.reduce(0, +) / Double(past.count)
@@ -438,7 +625,7 @@ struct ActivitiesView: View {
     // MARK: Manual data
 
     private func log(for id: String) -> ActivityLog? {
-        logs.first { $0.activityID == id && $0.date.isSameDay(as: today) }
+        logs.first { $0.activityID == id && $0.date.isSameDay(as: selectedDay) }
     }
     private func amount(for id: String) -> Double { log(for: id)?.amount ?? 0 }
 
@@ -446,7 +633,7 @@ struct ActivitiesView: View {
         if let existing = log(for: id) {
             existing.amount = amount
         } else if amount > 0 {
-            context.insert(ActivityLog(date: today, activityID: id, amount: amount, ownerID: env.auth.ownerID))
+            context.insert(ActivityLog(date: selectedDay, activityID: id, amount: amount, ownerID: env.auth.ownerID))
         }
         try? context.save()
     }
