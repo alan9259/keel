@@ -14,6 +14,9 @@ struct SettingsView: View {
     /// Shown when she turns push on but notifications are off for Keel in iOS
     /// Settings (iOS won't re-prompt, so we point her there).
     @State private var showBlockedAlert = false
+    /// Shown when she tries to turn on the app lock but the device has no Face ID,
+    /// Touch ID or passcode set up.
+    @State private var showLockUnavailable = false
 
     var body: some View {
         ScrollView {
@@ -29,6 +32,10 @@ struct SettingsView: View {
                 }
 
                 group("Privacy") {
+                    toggleRow(env.lock.biometry.symbol, "Require \(env.lock.biometry.settingLabel)",
+                              "Lock Keel when you leave it",
+                              Binding(get: { env.lock.isEnabled }, set: { setLockEnabled($0) }))
+                    Divider().background(theme.border)
                     NavigationLink(value: MainRoute.privacy) { linkRow("hand.raised.fill", "Privacy policy") }
                         .buttonStyle(.plain)
                 }
@@ -48,6 +55,20 @@ struct SettingsView: View {
         } message: {
             Text("Notifications are turned off for Keel. To get reminders and alerts, turn them on in Settings.")
         }
+        .alert("Can't turn on the app lock", isPresented: $showLockUnavailable) {
+            Button("OK", role: .cancel) {}
+        } message: {
+            Text("To lock Keel, first set up Face ID, Touch ID or a passcode for your device in the Settings app.")
+        }
+    }
+
+    /// Turn the biometric app lock on or off. Enabling confirms she can authenticate
+    /// first (so she isn't locked out); the toggle reflects the result via `env.lock`.
+    private func setLockEnabled(_ on: Bool) {
+        Haptics.selection()
+        guard on else { env.lock.disable(); return }
+        guard env.lock.isAvailable else { showLockUnavailable = true; return }
+        Task { _ = await env.lock.enable() }
     }
 
     /// Master push switch. Only turns on once notifications can actually be

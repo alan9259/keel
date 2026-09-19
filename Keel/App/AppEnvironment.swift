@@ -33,6 +33,8 @@ final class AppEnvironment {
     /// Delegate for medication-reminder taps (mark taken / always mark taken).
     private let notificationCoordinator = NotificationCoordinator()
     let speech: SpeechRecognitionService
+    /// Biometric app lock (Face ID / Touch ID, device passcode fallback).
+    let lock: AppLockService
     let chat: ChatService
     /// Writes the companion has drafted for her to confirm (never auto-applied).
     let proposals: CompanionProposals
@@ -75,6 +77,7 @@ final class AppEnvironment {
         self.healthIngestor = HealthIngestor(context: context, ownerID: ownerID, symptoms: symptoms)
         self.notifications = NotificationService()
         self.speech = SpeechRecognitionService()
+        self.lock = AppLockService()
 
         // The companion agent: a read/analysis layer over the repositories, a
         // confirm-before-write proposal sink, and the shared toolbox both engines

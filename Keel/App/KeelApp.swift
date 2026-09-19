@@ -43,6 +43,9 @@ private struct ThemedRoot: View {
                     env.autoLogTodaysDoses()
                     // Pull the latest from Apple Health each time she opens the app.
                     env.syncHealthData()
+                case .background:
+                    // Re-lock when she leaves, so returning needs authentication again.
+                    env.lock.lockIfEnabled()
                 default:
                     break
                 }
@@ -55,11 +58,24 @@ private struct ThemedRoot: View {
 private struct ThemedContent: View {
     @Environment(AppEnvironment.self) private var env
     @Environment(\.colorScheme) private var scheme
+    @Environment(\.scenePhase) private var scenePhase
 
     var body: some View {
         let theme = KeelTheme.resolve(themeID: env.settings.themeID, isDark: scheme == .dark)
-        RootView()
-            .environment(\.keelTheme, theme)
-            .tint(theme.accent)
+        ZStack {
+            RootView()
+            // Hide content in the app switcher / while inactive when the lock is on,
+            // even before the full gate takes over (the snapshot is taken while inactive).
+            if env.lock.isEnabled && !env.lock.isLocked && scenePhase != .active {
+                theme.background.ignoresSafeArea()
+                    .overlay(Image(systemName: env.lock.biometry.symbol)
+                        .font(.system(size: 40)).foregroundStyle(theme.accent.opacity(0.5)))
+            }
+            if env.lock.isLocked {
+                LockGate()
+            }
+        }
+        .environment(\.keelTheme, theme)
+        .tint(theme.accent)
     }
 }

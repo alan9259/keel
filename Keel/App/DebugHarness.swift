@@ -24,6 +24,8 @@ enum DebugHarness {
 
     static var forcedOnboarded: Bool { args.contains("-uitOnboarded") }
     static var forceOnboarding: Bool { args.contains("-uitForceOnboarding") }
+    /// Force the biometric lock gate on for screenshots (real auth can't run on-sim).
+    static var forceLocked: Bool { args.contains("-uitLocked") }
 
     /// Skip re-arming reminders on launch, so the notification-permission prompt
     /// doesn't block automated screenshots. DEBUG-only; never in Release.
@@ -146,6 +148,8 @@ enum DebugHarness {
 
         // Ensure a stable identity so ownerID stamping works in the harness.
         if env.auth.ownerID.isEmpty { env.auth.continueLocally(name: "Mara") }
+
+        if forceLocked { env.lock.debugForceLocked() }
 
         if args.contains("-uitDark") { env.settings.colourMode = .dark }
         if args.contains("-uitThemeSlate") { env.settings.themeID = "slate" }
