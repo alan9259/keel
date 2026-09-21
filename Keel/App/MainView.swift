@@ -16,6 +16,7 @@ enum MainRoute: Hashable {
     case appleHealth
     case backup
     case settings
+    case appLock
     case connect
     case about
     case support
@@ -93,6 +94,7 @@ struct MainView: View {
                 case .appleHealth: AppleHealthSettingsView()
                 case .backup: BackupRestoreView()
                 case .settings: SettingsView()
+                case .appLock: AppLockSettingsView()
                 case .connect: ConnectView()
                 case .about: AboutView()
                 case .support: SupportView()

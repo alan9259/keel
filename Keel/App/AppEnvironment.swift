@@ -77,7 +77,13 @@ final class AppEnvironment {
         self.healthIngestor = HealthIngestor(context: context, ownerID: ownerID, symptoms: symptoms)
         self.notifications = NotificationService()
         self.speech = SpeechRecognitionService()
+        #if DEBUG
+        self.lock = DebugHarness.appLockDemo
+            ? AppLockService(biometrics: DebugBiometricAuthenticator())
+            : AppLockService()
+        #else
         self.lock = AppLockService()
+        #endif
 
         // The companion agent: a read/analysis layer over the repositories, a
         // confirm-before-write proposal sink, and the shared toolbox both engines

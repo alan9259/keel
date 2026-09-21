@@ -47,6 +47,7 @@ struct MoreView: View {
             ]),
             ("Account", [
                 Item(title: "Profile", symbol: "person.crop.circle", tint: theme.accent, route: .profile),
+                Item(title: "App lock", symbol: "lock.fill", tint: theme.plum, route: .appLock),
                 Item(title: "Settings", symbol: "gearshape.fill", tint: theme.muted, route: .settings),
             ]),
             ("Support & about", [

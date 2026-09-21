@@ -26,6 +26,8 @@ enum DebugHarness {
     static var forceOnboarding: Bool { args.contains("-uitForceOnboarding") }
     /// Force the biometric lock gate on for screenshots (real auth can't run on-sim).
     static var forceLocked: Bool { args.contains("-uitLocked") }
+    /// Demo the App Lock screen enabled with a (fake) Face ID available, for screenshots.
+    static var appLockDemo: Bool { args.contains("-uitAppLockDemo") }
 
     /// Skip re-arming reminders on launch, so the notification-permission prompt
     /// doesn't block automated screenshots. DEBUG-only; never in Release.
@@ -126,6 +128,7 @@ enum DebugHarness {
         if args.contains("-uitRouteHealth") { return .appleHealth }
         if args.contains("-uitRouteBackup") { return .backup }
         if args.contains("-uitRouteSettings") { return .settings }
+        if args.contains("-uitRouteAppLock") { return .appLock }
         if args.contains("-uitRouteConnect") { return .connect }
         if args.contains("-uitRouteAbout") { return .about }
         if args.contains("-uitRouteSupport") { return .support }
@@ -150,6 +153,7 @@ enum DebugHarness {
         if env.auth.ownerID.isEmpty { env.auth.continueLocally(name: "Mara") }
 
         if forceLocked { env.lock.debugForceLocked() }
+        if appLockDemo { env.lock.debugForceEnabled() }
 
         if args.contains("-uitDark") { env.settings.colourMode = .dark }
         if args.contains("-uitThemeSlate") { env.settings.themeID = "slate" }

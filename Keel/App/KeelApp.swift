@@ -39,13 +39,16 @@ private struct ThemedRoot: View {
             .onChange(of: scenePhase) { _, phase in
                 switch phase {
                 case .active:
+                    // Re-lock only if she was away past the grace window (checked first,
+                    // so the gate is up before anything behind it does work).
+                    env.lock.applyForeground()
                     // Fill in today's due doses for auto-log medicines on return.
                     env.autoLogTodaysDoses()
                     // Pull the latest from Apple Health each time she opens the app.
                     env.syncHealthData()
                 case .background:
-                    // Re-lock when she leaves, so returning needs authentication again.
-                    env.lock.lockIfEnabled()
+                    // Note when she left; a return after the grace window re-locks.
+                    env.lock.markBackgrounded()
                 default:
                     break
                 }
