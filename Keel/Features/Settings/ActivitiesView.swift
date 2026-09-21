@@ -426,7 +426,7 @@ struct ActivitiesView: View {
     /// applies. The sleep→resting-heart-rate observation lives in Patterns and the
     /// daily reflection now (meaning, not a tile), so it isn't repeated here.
     private var bodyNote: String {
-        var line = "These naturally shift with sleep, stress and where you are in your cycle."
+        var line = "Recent readings from Apple Health, shown as they were recorded."
         if restingHR.direction == .up {
             line += " If your resting heart rate keeps climbing, it's worth a mention to your GP."
         }

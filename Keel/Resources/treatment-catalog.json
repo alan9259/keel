@@ -55,31 +55,21 @@
       "section": "Supplements",
       "title": "Common",
       "items": [
-        { "name": "Magnesium" },
-        { "name": "Vitamin D" },
-        { "name": "Omega-3 or fish oil" },
-        { "name": "Creatine" },
-        { "name": "Collagen" },
-        { "name": "Protein powder" },
-        { "name": "Multivitamin" },
-        { "name": "Iron" },
-        { "name": "Calcium" },
-        { "name": "Probiotic" },
-        { "name": "Vitamin B6 or B-complex" },
-        { "name": "Zinc" }
-      ]
-    },
-    {
-      "id": "supplements-perimenopause",
-      "kind": "supplement",
-      "section": "Supplements",
-      "title": "Often mentioned around this stage",
-      "items": [
-        { "name": "Black cohosh" },
-        { "name": "Evening primrose oil" },
         { "name": "Ashwagandha" },
+        { "name": "Calcium" },
+        { "name": "Collagen" },
         { "name": "CoQ10" },
-        { "name": "Folic acid" }
+        { "name": "Creatine" },
+        { "name": "Evening primrose oil" },
+        { "name": "Iron" },
+        { "name": "Magnesium" },
+        { "name": "Multivitamin" },
+        { "name": "Omega-3 or fish oil" },
+        { "name": "Probiotic" },
+        { "name": "Protein powder" },
+        { "name": "Vitamin B6 or B-complex" },
+        { "name": "Vitamin D" },
+        { "name": "Zinc" }
       ]
     }
   ]

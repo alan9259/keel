@@ -11,19 +11,19 @@ enum Pathway: String, CaseIterable, Codable, Identifiable {
 
     var title: String {
         switch self {
-        case .natural: "Naturally & Self-Directed"
-        case .medical: "GP / HRT / Specialist Supported"
-        case .both: "A Bit of Both"
-        case .figuring: "Still Figuring It Out"
+        case .natural: "On my own for now"
+        case .medical: "Working with a doctor"
+        case .both: "A bit of both"
+        case .figuring: "Still working it out"
         }
     }
 
     var detail: String {
         switch self {
-        case .natural: "Managing with lifestyle, supplements, and natural approaches. No HRT, or not yet."
-        case .medical: "Working with a GP or menopause specialist, with or without HRT."
-        case .both: "Combining natural approaches with medical support. Most women land here."
-        case .figuring: "Not sure yet, and that's fine. Keel will help you understand your options."
+        case .natural: "Lifestyle, supplements or other approaches. No prescribed treatment at the moment."
+        case .medical: "With a GP or menopause specialist, with or without prescribed treatment."
+        case .both: "Combining my own approaches with medical support."
+        case .figuring: "Not sure yet what this is, or what to do about it."
         }
     }
 }

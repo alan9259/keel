@@ -12,10 +12,10 @@ struct PathwayView: View {
                 VStack(alignment: .leading, spacing: Spacing.md) {
                     Spacer().frame(height: Spacing.md)
 
-                    Text("How are you approaching perimenopause?")
+                    Text("How are you managing things at the moment?")
                         .onboardingTitle(.leading)
 
-                    Text("There's no right answer. This helps Keel personalise your experience.")
+                    Text("There's no right answer, and you can change this any time.")
                         .onboardingSubtitle(.leading)
                         .foregroundStyle(theme.muted)
                         .padding(.bottom, Spacing.md)

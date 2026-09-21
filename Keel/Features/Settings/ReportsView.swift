@@ -65,8 +65,10 @@ struct ReportsView: View {
     /// A plain, non-judging count of recent check-ins. No streaks, no broken runs, no
     /// grey holes for the days a hard fortnight meant she didn't log.
     private var checkInSummary: some View {
-        let count = last7Days.filter { loggedDays.contains($0) }.count
-        return Text("You checked in on \(count) of the last 7 days.")
+        // Distinct days with a check-in within the selected period (follows the toggle,
+        // instead of a hardcoded 7 that mismatched the cards below).
+        let count = Set(windowCheckIns.map { $0.date.startOfDay }).count
+        return Text("You checked in on \(count) of the last \(period.days) days.")
             .font(KeelFont.body).foregroundStyle(theme.text.opacity(0.8))
             .frame(maxWidth: .infinity, alignment: .leading)
             .padding(.horizontal, 4)
@@ -77,7 +79,7 @@ struct ReportsView: View {
             ("Check-ins", "\(windowCheckIns.count)", "of \(period.days) days"),
             // Energy in her own words, not a percentage (R10). Dash when nothing logged.
             ("Avg energy", windowCheckIns.isEmpty ? "—" : EnergyLevel.from(percent: avgEnergy).label, "across entries"),
-            ("Symptom-free", "\(symptomFreeDays)", "of \(windowCheckIns.count) days logged"),
+            ("No symptoms logged", "\(symptomFreeDays)", "of \(windowCheckIns.count) days logged"),
             ("Medicines", "\(daysWithAnyMedTaken)", "taken of \(period.days) days"),
         ]
         return LazyVGrid(columns: [GridItem(.flexible(), spacing: 10), GridItem(.flexible(), spacing: 10)], spacing: 10) {
@@ -265,7 +267,7 @@ struct ReportsView: View {
                             Text("avg \(bp) mmHg").font(KeelFont.sans(13, weight: .medium)).foregroundStyle(theme.heading)
                         }
                     }
-                    Text("Averages over the \(period.rawValue.lowercased()), from Apple Health. These naturally shift with sleep, stress and your cycle.")
+                    Text("Averages and ranges over the \(period.rawValue.lowercased()), from Apple Health. Keel shows these as they were recorded.")
                         .font(KeelFont.caption).foregroundStyle(theme.muted)
                         .fixedSize(horizontal: false, vertical: true)
                 } else {
@@ -314,15 +316,6 @@ struct ReportsView: View {
     private var symptomFreeDays: Int { windowCheckIns.filter { $0.symptoms.isEmpty }.count }
 
     // MARK: Check-ins
-
-    /// Every calendar day (start of day) she logged at least one check-in.
-    private var loggedDays: Set<Date> { Set(checkIns.map { $0.date.startOfDay }) }
-
-    /// The past 7 calendar days, oldest first.
-    private var last7Days: [Date] {
-        let today = Date.now.startOfDay
-        return (0..<7).map { today.adding(days: -6 + $0) }
-    }
 
     private var moodCounts: [Mood: Int] {
         Dictionary(grouping: windowCheckIns, by: \.mood).mapValues(\.count)

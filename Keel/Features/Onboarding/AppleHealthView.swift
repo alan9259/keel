@@ -28,11 +28,11 @@ struct AppleHealthView: View {
             }
 
             VStack(spacing: Spacing.lg) {
-                Text("Let Keel learn from what you already track.")
+                Text("Bring in what you already record.")
                     .onboardingTitle()
                     .padding(.top, Spacing.xl)
 
-                Text("Keel can read your sleep, activity, and vitals from Health, automatically. Less for you to log, more for Keel to learn. Keel only ever reads, it never writes anything back.")
+                Text("Keel can read your sleep, activity and vitals from Apple Health, so there is less for you to enter by hand. Keel shows these alongside your own record and labels where each one came from. Keel only ever reads. It never writes anything back.")
                     .onboardingSubtitle()
                     .foregroundStyle(theme.text.opacity(0.8))
             }

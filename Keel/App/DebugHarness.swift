@@ -390,7 +390,7 @@ enum DebugHarness {
             patch.schedule.slots = [DoseSlot(weekdays: [tomorrow])]
             _ = env.medications.add(patch)
 
-            var cyclic = TreatmentDraft(name: "Prometrium", kind: .treatment,
+            var cyclic = TreatmentDraft(name: "Oral micronised progesterone", kind: .treatment,
                                         catalogGroupID: "progesterone", method: .capsule)
             cyclic.doseAmount = 100; cyclic.doseUnit = .mg
             cyclic.schedule.kind = .cycle

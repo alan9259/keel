@@ -19,7 +19,7 @@ enum ReminderCatalog {
         ReminderDef(id: "movement", symbol: "figure.walk", label: "Movement",
                     desc: "A little daily activity"),
         ReminderDef(id: "winddown", symbol: "moon.stars.fill", label: "Wind-down",
-                    desc: "Prepare for a better night's sleep"),
+                    desc: "An end-of-day nudge, if you want one"),
     ]
 }
 

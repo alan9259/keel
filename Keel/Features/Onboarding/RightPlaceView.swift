@@ -25,13 +25,13 @@ struct RightPlaceView: View {
                             .clipShape(RoundedRectangle(cornerRadius: 2))
                     }
 
-                    Text("Maybe I'm not losing myself after all. Perimenopause can make you feel like you're piecing yourself together from scattered clues. Keel helps you notice patterns across sleep, mood, energy, cycle, symptoms and lifestyle, so you can understand what may be affecting how you feel.")
+                    Text("Maybe I'm not losing myself after all. Perimenopause can make you feel like you're piecing yourself together from scattered clues. Keel gives you one place to record what you're noticing: sleep, mood, energy, cycle, symptoms, treatments and how it's affecting your days. Whatever you record is there for you to look back on later, in your own words.")
                         .font(KeelFont.bodyLarge)
                         .foregroundStyle(theme.text.opacity(0.9))
                         .lineSpacing(4)
 
                     CalloutCard {
-                        Text("One thing to know: Keel needs a couple of weeks of data before it can start surfacing meaningful patterns. The more you check in, the clearer your picture becomes.")
+                        Text("One thing to know: there is no minimum. Even a few entries give you something to look back on, and the more you record, the fuller your record becomes.")
                             .font(KeelFont.body)
                             .foregroundStyle(theme.text.opacity(0.8))
                             .lineSpacing(3)

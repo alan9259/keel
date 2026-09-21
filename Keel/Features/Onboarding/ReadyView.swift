@@ -9,12 +9,12 @@ struct ReadyView: View {
         VStack(spacing: 0) {
             Spacer(minLength: Spacing.xl)
 
-            Text("Let's start seeing the pattern.")
+            Text("Let's start your record.")
                 .onboardingTitle()
                 .opacity(appeared ? 1 : 0)
 
             StandardCard(padding: Spacing.xl) {
-                Text("Check in daily. The more you share, the clearer your picture becomes. Keel will take a couple of weeks to learn you, so be patient with it. The patterns are already there. We're just going to help you see them.")
+                Text("Check in when it suits you. The more you record, the more there is to look back on. Nothing here is a test, and a missed day does not set you back.")
                     .font(KeelFont.bodyLarge)
                     .foregroundStyle(theme.text.opacity(0.9))
                     .lineSpacing(4)
