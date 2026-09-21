@@ -13,6 +13,8 @@ struct LockGate: View {
     @State private var error: String?
     @State private var triedBiometrics = false
     @State private var showPINPad = false
+    @State private var showResetPIN = false
+    @State private var showNoRecovery = false
     @State private var now = Date()
 
     private let ticker = Timer.publish(every: 1, on: .main, in: .common).autoconnect()
@@ -53,8 +55,11 @@ struct LockGate: View {
                         PINPad(enabled: !lockedOut, onDigit: add, onDelete: del)
                     } else {
                         Button("Enter PIN instead") { showPINPad = true }
-                            .font(KeelFont.body).foregroundStyle(theme.muted)
+                            .font(KeelFont.body).foregroundStyle(theme.accent)
                     }
+                    Button("Forgot PIN?") { Task { await forgotPIN() } }
+                        .font(KeelFont.caption).foregroundStyle(theme.muted)
+                        .padding(.top, Spacing.xs)
                 }
             }
             .padding(.horizontal, Spacing.screenH).padding(.vertical, Spacing.lg)
@@ -62,6 +67,23 @@ struct LockGate: View {
         }
         .task { await tryBiometrics(force: false) }
         .onReceive(ticker) { now = $0 }
+        .sheet(isPresented: $showResetPIN) {
+            // She proved ownership with her device passcode: set a new PIN, or cancel to
+            // turn the lock off (either way she's back in; her data is untouched).
+            PINSetupView(onComplete: { showResetPIN = false },
+                         onCancel: { showResetPIN = false; env.lock.disable() })
+        }
+        .alert("Reset your PIN", isPresented: $showNoRecovery) {
+            Button("OK", role: .cancel) {}
+        } message: {
+            Text("Set a passcode for your device in the Settings app to reset your Keel PIN. Without one, the only way to reset is to reinstall Keel, which erases the data on this device unless you have a backup.")
+        }
+    }
+
+    /// Forgot-PIN recovery: prove ownership with the device passcode, then set a new PIN.
+    private func forgotPIN() async {
+        guard env.lock.canRecoverWithPasscode else { showNoRecovery = true; return }
+        if await env.lock.authenticateOwner() { showResetPIN = true }
     }
 
     private var subtitle: String {

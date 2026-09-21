@@ -6,10 +6,14 @@ private final class FakeAuthenticator: BiometricAuthenticating, @unchecked Senda
     var biometry: BiometryKind = .faceID
     var canAuth = true
     var result = true
+    var canOwner = true
+    var ownerResult = true
 
     func availableBiometry() -> BiometryKind { biometry }
     func canAuthenticate() -> Bool { canAuth }
     func authenticate(reason: String) async -> Bool { result }
+    func canAuthenticateOwner() -> Bool { canOwner }
+    func authenticateOwner(reason: String) async -> Bool { ownerResult }
 }
 
 /// In-memory PIN store so the state machine is testable without the Keychain.
@@ -163,6 +167,29 @@ final class AppLockServiceTests: XCTestCase {
         let ok = await svc.unlockWithBiometrics()
         XCTAssertFalse(ok)
         XCTAssertTrue(svc.isLocked)
+    }
+
+    // MARK: Forgot-PIN recovery (device passcode)
+
+    func testCanRecoverReflectsDeviceOwnerAuth() {
+        let fake = FakeAuthenticator(); fake.canOwner = true
+        XCTAssertTrue(service(fake: fake).canRecoverWithPasscode)
+        let noPass = FakeAuthenticator(); noPass.canOwner = false
+        XCTAssertFalse(service(fake: noPass).canRecoverWithPasscode)
+    }
+
+    func testAuthenticateOwnerSucceedsWithDevicePasscode() async {
+        let fake = FakeAuthenticator(); fake.ownerResult = true
+        let svc = lockedService(fake: fake)
+        let ok = await svc.authenticateOwner()
+        XCTAssertTrue(ok)
+    }
+
+    func testAuthenticateOwnerFailsWithoutDeviceAuth() async {
+        let fake = FakeAuthenticator(); fake.canOwner = false
+        let svc = lockedService(fake: fake)
+        let ok = await svc.authenticateOwner()
+        XCTAssertFalse(ok)
     }
 
     // MARK: Disable

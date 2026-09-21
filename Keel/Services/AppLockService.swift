@@ -35,11 +35,16 @@ enum BiometryKind: Equatable {
 /// with a fake (LocalAuthentication needs a real device and user interaction).
 protocol BiometricAuthenticating {
     func availableBiometry() -> BiometryKind
-    /// Whether the device can authenticate at all: an enrolled biometric OR a passcode set.
+    /// Whether a biometric is enrolled (Face ID / Touch ID).
     func canAuthenticate() -> Bool
     /// Run the Face ID / Touch ID prompt. Keel's own PIN is the fallback, so this is
     /// biometrics only (no device-passcode screen).
     func authenticate(reason: String) async -> Bool
+    /// Whether the device can authenticate the owner (a biometric OR a device passcode),
+    /// used for the forgot-PIN recovery.
+    func canAuthenticateOwner() -> Bool
+    /// Prove device ownership with the device passcode (or biometric) — the recovery path.
+    func authenticateOwner(reason: String) async -> Bool
 }
 
 /// Real implementation over `LAContext` using `.deviceOwnerAuthenticationWithBiometrics`
@@ -62,6 +67,18 @@ struct SystemBiometricAuthenticator: BiometricAuthenticating {
     }
 
     func authenticate(reason: String) async -> Bool {
+        await evaluate(policy, reason: reason)
+    }
+
+    func canAuthenticateOwner() -> Bool {
+        LAContext().canEvaluatePolicy(.deviceOwnerAuthentication, error: nil)
+    }
+
+    func authenticateOwner(reason: String) async -> Bool {
+        await evaluate(.deviceOwnerAuthentication, reason: reason)
+    }
+
+    private func evaluate(_ policy: LAPolicy, reason: String) async -> Bool {
         let ctx = LAContext()
         return await withCheckedContinuation { continuation in
             ctx.evaluatePolicy(policy, localizedReason: reason) { success, _ in
@@ -191,6 +208,19 @@ final class AppLockService {
         return false
     }
 
+    /// Whether the forgot-PIN recovery is possible (the device has a passcode or a
+    /// biometric to prove ownership).
+    var canRecoverWithPasscode: Bool { biometrics.canAuthenticateOwner() }
+
+    /// Forgot-PIN recovery: prove device ownership with the device passcode (or a
+    /// biometric). Returns success; the caller then lets her set a new PIN, or turns
+    /// the lock off. Her data is untouched.
+    @discardableResult
+    func authenticateOwner() async -> Bool {
+        guard biometrics.canAuthenticateOwner() else { return false }
+        return await biometrics.authenticateOwner(reason: "Confirm it's you with your device passcode to reset your PIN")
+    }
+
     /// Try Face ID / Touch ID. Returns whether it unlocked.
     @discardableResult
     func unlockWithBiometrics() async -> Bool {
@@ -258,5 +288,7 @@ struct DebugBiometricAuthenticator: BiometricAuthenticating {
     func availableBiometry() -> BiometryKind { .faceID }
     func canAuthenticate() -> Bool { true }
     func authenticate(reason: String) async -> Bool { false }
+    func canAuthenticateOwner() -> Bool { true }
+    func authenticateOwner(reason: String) async -> Bool { false }
 }
 #endif

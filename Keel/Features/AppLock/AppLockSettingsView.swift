@@ -57,7 +57,7 @@ struct AppLockSettingsView: View {
     }
     private var footnote: String {
         let method = env.lock.biometricsAvailable ? env.lock.biometry.label : "biometrics"
-        return "Keel asks to unlock when you open it, and after you've been away for a while. Your PIN is the backup if \(method) isn't used. Keep it somewhere safe: resetting a forgotten PIN means closing your account."
+        return "Keel asks to unlock when you open it, and after you've been away for a while. Your PIN is the backup if \(method) isn't used. If you forget your PIN, you can reset it with your device passcode."
     }
 
     private func setEnabled(_ on: Bool) {
