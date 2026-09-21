@@ -5,6 +5,11 @@ import AVFoundation
 /// Live, on-the-fly dictation for the check-in Notes step (SFSpeechRecognizer +
 /// AVAudioEngine). Partial results stream into `transcript` as the user speaks;
 /// the text stays fully editable afterward.
+///
+/// Transcription is forced **on-device** (`requiresOnDeviceRecognition = true`): the
+/// audio never leaves the phone. If a device/locale can't recognise on-device, voice
+/// is reported `unavailable` rather than falling back to Apple's servers, so she just
+/// types instead and nothing is sent off-device.
 @MainActor
 @Observable
 final class SpeechRecognitionService {
@@ -25,6 +30,12 @@ final class SpeechRecognitionService {
 
     var isRecording: Bool { state == .recording }
 
+    /// Whether dictation can run fully on-device. We only dictate when both are true,
+    /// so the audio never goes to Apple's servers. Pure, so it's unit-testable.
+    nonisolated static func canDictateOnDevice(isAvailable: Bool, supportsOnDevice: Bool) -> Bool {
+        isAvailable && supportsOnDevice
+    }
+
     /// Request speech + microphone permission.
     func requestAuthorization() async -> Bool {
         let speechAuthorized = await withCheckedContinuation { continuation in
@@ -43,7 +54,11 @@ final class SpeechRecognitionService {
 
     /// Begin recording, appending to any existing `seed` text.
     func start(seed: String) throws {
-        guard let recognizer, recognizer.isAvailable else {
+        // Only dictate when it can run entirely on-device, so the audio never leaves
+        // the phone. Otherwise report unavailable (she types) rather than send it off.
+        guard let recognizer,
+              Self.canDictateOnDevice(isAvailable: recognizer.isAvailable,
+                                      supportsOnDevice: recognizer.supportsOnDeviceRecognition) else {
             state = .unavailable
             return
         }
@@ -55,6 +70,7 @@ final class SpeechRecognitionService {
 
         let request = SFSpeechAudioBufferRecognitionRequest()
         request.shouldReportPartialResults = true
+        request.requiresOnDeviceRecognition = true // audio stays on-device
         request.taskHint = .dictation
         self.request = request
 

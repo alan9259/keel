@@ -42,7 +42,7 @@
 	<key>NSMicrophoneUsageDescription</key>
 	<string>Keel would like to access the microphone to transcribe your spoken notes.</string>
 	<key>NSSpeechRecognitionUsageDescription</key>
-	<string>Keel would like to use speech recognition to help you log your notes hands-free.</string>
+	<string>Keel transcribes your spoken notes on your device, so your voice recording stays private and never leaves your phone.</string>
 	<key>UIAppFonts</key>
 	<array>
 		<string>TwemojiMozilla.ttf</string>
