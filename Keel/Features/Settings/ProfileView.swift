@@ -26,7 +26,7 @@ struct ProfileView: View {
     /// Non-nil shows the sign-in error alert (a real failure, not a cancellation).
     @State private var authErrorMessage: String?
 
-    private static let log = Logger(subsystem: "com.keel", category: "auth")
+    private static let log = Logger(subsystem: "com.therecalibrationyears", category: "auth")
 
     private var hasAppleIdentity: Bool { env.auth.hasAppleIdentity }
 

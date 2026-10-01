@@ -36,9 +36,7 @@
 	<key>NSFaceIDUsageDescription</key>
 	<string>Keel uses Face ID to unlock the app so only you can see your health data.</string>
 	<key>NSHealthShareUsageDescription</key>
-	<string>Keel reads sleep, activity, and heart rate so it can learn your patterns with less manual logging.</string>
-	<key>NSHealthUpdateUsageDescription</key>
-	<string>Keel can save your check-in data to Apple Health so it stays with the rest of your health record.</string>
+	<string>Keel reads your sleep, activity, heart, breathing, weight and temperature data from Apple Health so it can learn your patterns with less manual logging. It never writes to Apple Health.</string>
 	<key>NSMicrophoneUsageDescription</key>
 	<string>Keel would like to access the microphone to transcribe your spoken notes.</string>
 	<key>NSSpeechRecognitionUsageDescription</key>

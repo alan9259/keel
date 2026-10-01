@@ -111,6 +111,10 @@ final class GPSummaryFlowModel {
     // MARK: Navigation
 
     var isFirst: Bool { step == .period }
+    /// Home leaves the whole flow. Past the first step she has made choices worth
+    /// keeping, so ask before discarding them (Back only steps back one page).
+    var homeNeedsConfirmation: Bool { Self.homeNeedsConfirmation(at: step) }
+    nonisolated static func homeNeedsConfirmation(at step: Step) -> Bool { step != .period }
     var isLast: Bool { step == .preview }
     func next() { if let s = Step(rawValue: step.rawValue + 1) { step = s } }
     func back() { if let s = Step(rawValue: step.rawValue - 1) { step = s } }

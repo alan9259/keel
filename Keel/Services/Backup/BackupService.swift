@@ -98,11 +98,22 @@ enum BackupService {
             throw BackupError.unsupportedVersion(backup.version)
         }
 
+        // Apple Health access belongs to this device (its HealthKit grant), not to the
+        // archive. Keep whatever this device has now: restoring a "connected" backup onto
+        // a fresh install must not switch syncing on, or the next foreground sync would
+        // raise the HealthKit prompt without her tapping Connect.
+        let healthConnectedHere = try context.fetch(FetchDescriptor<UserProfile>())
+            .contains { $0.healthKitAuthorized && $0.deletedAt == nil }
+
         try wipeAll(context)
 
         // Insert parents first so relationships can be resolved by id.
         for dto in backup.symptoms { context.insert(dto.model()) }
-        for dto in backup.profiles { context.insert(dto.model()) }
+        for dto in backup.profiles {
+            let profile = dto.model()
+            profile.healthKitAuthorized = healthConnectedHere
+            context.insert(profile)
+        }
         for dto in backup.cycleEntries { context.insert(dto.model()) }
         for dto in backup.insights { context.insert(dto.model()) }
         for dto in backup.activityLogs { context.insert(dto.model()) }

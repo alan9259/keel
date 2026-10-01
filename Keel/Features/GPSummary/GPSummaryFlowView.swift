@@ -8,9 +8,11 @@ struct GPSummaryFlowView: View {
     @Environment(AppEnvironment.self) private var env
     @Environment(\.keelTheme) private var theme
     @Environment(\.dismiss) private var dismiss
+    @Environment(\.goHome) private var goHome
 
     @State private var model: GPSummaryFlowModel?
     @State private var shareItem: ShareItem?
+    @State private var confirmLeave = false
 
     var body: some View {
         ZStack {
@@ -35,11 +37,19 @@ struct GPSummaryFlowView: View {
     @ViewBuilder
     private func flow(_ model: GPSummaryFlowModel) -> some View {
         VStack(spacing: 0) {
-            ScreenHeader(title: title(model.step), subtitle: subtitle(model.step)) {
+            ScreenHeader(title: title(model.step), subtitle: subtitle(model.step), onHome: {
+                if model.homeNeedsConfirmation { confirmLeave = true } else { goHome?() }
+            }) {
                 if model.isFirst { dismiss() } else { model.back() }
             }
             .padding(.horizontal, 20)
             .padding(.top, 8)
+            .alert("Leave your GP summary?", isPresented: $confirmLeave) {
+                Button("Keep going", role: .cancel) {}
+                Button("Leave", role: .destructive) { goHome?() }
+            } message: {
+                Text("What you've added so far won't be kept.")
+            }
 
             ScrollView {
                 VStack(alignment: .leading, spacing: 16) {

@@ -14,10 +14,18 @@ struct ScreenHeader: View {
     /// Off by default so titles still grow with Dynamic Type.
     var fitsOneLine: Bool = false
     /// Show the trailing "home" button that returns to the Dashboard. On by
-    /// default; the Dashboard itself has no ScreenHeader, so this only ever
-    /// appears on pushed screens.
+    /// default; it only appears where a home action exists (pushed screens in
+    /// MainView's stack), so it is never a dead button in a sheet or onboarding.
     var showsHome: Bool = true
+    /// Replaces the default home action, e.g. to confirm before discarding a draft.
+    var onHome: (() -> Void)? = nil
     let onBack: () -> Void
+
+    /// The action the home button runs, or nil when it shouldn't be shown.
+    private var homeAction: (() -> Void)? {
+        guard showsHome, let goHome else { return nil }
+        return onHome ?? goHome
+    }
 
     var body: some View {
         HStack(alignment: subtitle == nil ? .center : .top, spacing: 14) {
@@ -25,7 +33,7 @@ struct ScreenHeader: View {
                 Image(systemName: "arrow.left")
                     .font(.system(size: 22, weight: .regular))
                     .foregroundStyle(theme.muted)
-                    .frame(width: 32, height: 32)
+                    .headerHitTarget()
             }
             .accessibilityLabel("Back")
 
@@ -44,12 +52,12 @@ struct ScreenHeader: View {
             }
             Spacer(minLength: 0)
 
-            if showsHome {
-                Button(action: goHome) {
+            if let homeAction {
+                Button(action: homeAction) {
                     Image(systemName: "house")
                         .font(.system(size: 22, weight: .regular))
                         .foregroundStyle(theme.muted)
-                        .frame(width: 32, height: 32)
+                        .headerHitTarget()
                 }
                 .accessibilityLabel("Home")
                 .accessibilityHint("Returns to the home screen")
@@ -107,15 +115,26 @@ private struct InteractivePopEnabler: UIViewControllerRepresentable {
     }
 }
 
+private extension View {
+    /// A 44pt square tap target (DESIGN_PRINCIPLES: minimum 44pt) that still lays out
+    /// at the header's original 32pt, so the glyph and title don't move.
+    func headerHitTarget() -> some View {
+        frame(width: 44, height: 44)
+            .contentShape(Rectangle())
+            .padding(-6)
+    }
+}
+
 /// Action that pops the navigation stack back to the Dashboard (home). `MainView`
-/// supplies the real implementation (resetting its `NavigationPath`); the default
-/// is a no-op so previews and any non-stack use are safe.
+/// supplies it (resetting its `NavigationPath`). Nil everywhere else, including
+/// sheets presented from a pushed screen (which opt out explicitly), so the home
+/// button only appears where it works.
 private struct GoHomeKey: EnvironmentKey {
-    static let defaultValue: () -> Void = {}
+    static let defaultValue: (() -> Void)? = nil
 }
 
 extension EnvironmentValues {
-    var goHome: () -> Void {
+    var goHome: (() -> Void)? {
         get { self[GoHomeKey.self] }
         set { self[GoHomeKey.self] = newValue }
     }

@@ -55,7 +55,10 @@ struct ChatView: View {
         }
         .background(theme.background.ignoresSafeArea())
         .keelFeatureScreen()
-        .sheet(isPresented: $showSupport) { SupportView() }
+        .sheet(isPresented: $showSupport) {
+            // A sheet, not a pushed screen: no Home button (it would pop Chat from under it).
+            SupportView().environment(\.goHome, nil)
+        }
         .onDisappear { env.speech.reset() }
         .onAppear {
             seedGreetingIfNeeded()

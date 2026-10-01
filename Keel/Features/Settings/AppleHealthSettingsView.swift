@@ -7,9 +7,22 @@ struct AppleHealthSettingsView: View {
     @Environment(\.dismiss) private var dismiss
     @Environment(\.openURL) private var openURL
 
-    @Query(filter: #Predicate<HealthActivitySample> { $0.deletedAt == nil }) private var importedActivity: [HealthActivitySample]
-    @Query(filter: #Predicate<HealthSample> { $0.deletedAt == nil }) private var samples: [HealthSample]
+    // At most one live row each: enough to know whether anything has imported, without
+    // loading a year of samples. Same rule as `AppEnvironment.hasImportedHealthData`.
+    @Query(Self.anyImportedActivity) private var importedActivity: [HealthActivitySample]
+    @Query(Self.anyImportedSample) private var samples: [HealthSample]
     private var hasImportedData: Bool { !importedActivity.isEmpty || !samples.isEmpty }
+
+    private static var anyImportedActivity: FetchDescriptor<HealthActivitySample> {
+        var d = FetchDescriptor<HealthActivitySample>(predicate: #Predicate { $0.deletedAt == nil })
+        d.fetchLimit = 1
+        return d
+    }
+    private static var anyImportedSample: FetchDescriptor<HealthSample> {
+        var d = FetchDescriptor<HealthSample>(predicate: #Predicate { $0.deletedAt == nil })
+        d.fetchLimit = 1
+        return d
+    }
 
     @State private var connected = false
     @State private var connecting = false
@@ -135,7 +148,7 @@ struct AppleHealthSettingsView: View {
             .clipShape(RoundedRectangle(cornerRadius: Radius.card, style: .continuous))
             .overlay(RoundedRectangle(cornerRadius: Radius.card, style: .continuous).stroke(theme.border, lineWidth: 1))
 
-            Text("Switch off anything you would rather Keel didn't import. Turning one off stops new data coming in, and keeps what was already imported until you remove it below. You can also change what you share in the Health app under Sharing. Keel only ever reads what you allow, and never writes back. Imported data is kept in a separate area on your device and never leaves it.")
+            Text("Switch off anything you would rather Keel didn't import. Turning one off stops new data coming in, and keeps what was already imported until you remove it below. You can also change what Keel can read in the Health app: tap your profile picture, then Apps, then Keel. Keel only ever reads what you allow, and never writes back. Imported data is kept in a separate area on your device and never leaves it.")
                 .font(KeelFont.caption).foregroundStyle(theme.muted)
                 .fixedSize(horizontal: false, vertical: true)
                 .padding(.horizontal, 4).padding(.top, 2)
@@ -159,7 +172,7 @@ struct AppleHealthSettingsView: View {
         VStack(alignment: .leading, spacing: 10) {
             HStack(alignment: .top, spacing: 10) {
                 Image(systemName: "info.circle.fill").font(.system(size: 15)).foregroundStyle(theme.attention).padding(.top, 1)
-                Text("Connected, but no Apple Health data has come in yet. If you expected some, open the Health app and check what's shared with Keel under Sharing.")
+                Text("Connected, but no Apple Health data has come in yet. If you expected some, open the Health app, tap your profile picture, then Apps, then Keel, and check what Keel is allowed to read.")
                     .font(KeelFont.caption).foregroundStyle(theme.text)
                     .fixedSize(horizontal: false, vertical: true)
             }

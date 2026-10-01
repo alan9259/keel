@@ -27,7 +27,7 @@ final class AppEnvironment {
     let settings: SettingsStore
     let auth: AuthService
     let sync: SyncEngine
-    let health: HealthKitService
+    let health: HealthDataSource
     let healthIngestor: HealthIngestor
     let notifications: NotificationService
     /// Delegate for medication-reminder taps (mark taken / always mark taken).
@@ -55,7 +55,8 @@ final class AppEnvironment {
                          cycle: cycle, users: users)
     }
 
-    init(container: ModelContainer, provider: SyncProvider) {
+    /// `health` is injectable for tests; the app always uses the real `HealthKitService`.
+    init(container: ModelContainer, provider: SyncProvider, health: HealthDataSource? = nil) {
         self.container = container
         let context = container.mainContext
 
@@ -73,7 +74,7 @@ final class AppEnvironment {
         self.dailySummary = DailySummaryService(context: context, ownerID: ownerID)
 
         self.sync = SyncEngine(context: context, provider: provider)
-        self.health = HealthKitService()
+        self.health = health ?? HealthKitService()
         self.healthIngestor = HealthIngestor(context: context, ownerID: ownerID, symptoms: symptoms)
         self.notifications = NotificationService()
         self.speech = SpeechRecognitionService()
@@ -171,9 +172,31 @@ final class AppEnvironment {
     /// stop the post-connect retry once data arrives, and to show an honest "connected but
     /// no data yet" state.
     var hasImportedHealthData: Bool {
-        let activity = (try? context.fetchCount(FetchDescriptor<HealthActivitySample>())) ?? 0
-        let vitals = (try? context.fetchCount(FetchDescriptor<HealthSample>())) ?? 0
+        // Same rule as the Apple Health screen's note: only live (not soft-deleted) rows count.
+        let activity = (try? context.fetchCount(FetchDescriptor<HealthActivitySample>(predicate: #Predicate { $0.deletedAt == nil }))) ?? 0
+        let vitals = (try? context.fetchCount(FetchDescriptor<HealthSample>(predicate: #Predicate { $0.deletedAt == nil }))) ?? 0
         return activity + vitals > 0
+    }
+
+    /// Whether she has connected Apple Health (the app's own record of the Connect tap;
+    /// HealthKit never reveals read grants). Re-read at each step of a sync so a
+    /// Disconnect mid-sync takes effect.
+    private var isHealthConnected: Bool { users.currentProfile()?.healthKitAuthorized == true }
+
+    /// A forced sync ("Sync now", switching an item back on, a connect retry) that
+    /// arrived while another sync was running. It runs once that one finishes, so the
+    /// request is never silently dropped.
+    private var pendingForcedHealthSync = false
+
+    /// True while a sync is reading or importing. Internal so tests can wait for it.
+    var isHealthSyncInFlight: Bool { isSyncingHealth }
+
+    /// Close-account reset: forget the throttle stamp and her per-item choices so the
+    /// next account starts from the defaults (every item on).
+    func resetHealthSyncState() {
+        lastHealthSyncAt = nil
+        pendingForcedHealthSync = false
+        settings.disabledHealthItemIDs = []
     }
 
     /// Whether a background (foreground-triggered) sync is due. Gated on `connected`
@@ -227,16 +250,29 @@ final class AppEnvironment {
     func syncHealthData(force: Bool = false) {
         // Only ever syncs for a user who has already connected: this is what keeps the
         // HealthKit prompt on the explicit "Connect" tap and off launch/foreground.
-        let connected = users.currentProfile()?.healthKitAuthorized == true
-        guard Self.shouldRunHealthSync(now: .now, lastSyncedAt: lastHealthSyncAt, force: force, connected: connected) else { return }
-        guard !isSyncingHealth else { return } // coalesce concurrent syncs
+        guard Self.shouldRunHealthSync(now: .now, lastSyncedAt: lastHealthSyncAt, force: force,
+                                       connected: isHealthConnected) else { return }
+        guard !isSyncingHealth else {
+            // Coalesce: one sync at a time. A forced request is queued, not dropped.
+            if force { pendingForcedHealthSync = true }
+            return
+        }
         isSyncingHealth = true
         Task {
-            defer { isSyncingHealth = false }
+            defer {
+                isSyncingHealth = false
+                if pendingForcedHealthSync {
+                    pendingForcedHealthSync = false
+                    syncHealthData(force: true) // re-checks connected first
+                }
+            }
             // A failed auth (e.g. HealthKit not effective in the build) must not consume
             // the throttle — otherwise a later retry would silently no-op for 30 min.
             guard await health.requestAuthorization() else { return }
             let snapshot = await health.snapshot(lastDays: Self.healthImportDays)
+            // The year-long read can take a while. If she disconnected meanwhile, don't
+            // import what it returned.
+            guard isHealthConnected else { return }
             // Drop items she has switched off before importing (existing rows stay).
             let filtered = HealthSyncCatalog.filter(snapshot, disabled: settings.disabledHealthItemIDs)
             ingestHealthSnapshot(filtered)
@@ -440,11 +476,9 @@ final class AppEnvironment {
         OwnershipMigration.reassign(in: context, from: old, to: new)
     }
 
-    /// Sync now runs through SwiftData's automatic CloudKit mirroring (see
-    /// `KeelSchema.makeContainer`), so the custom `SyncProvider` path is disabled:
-    /// a no-op provider everywhere means `SyncEngine`/`requestSync()` stay wired
-    /// but do nothing, and nothing double-writes to CloudKit. (The old
-    /// `CloudKitSyncProvider` was what logged the `NOT_FOUND` query errors.)
+    /// Keel is local-only: nothing syncs off the device (no CloudKit mirroring, no
+    /// iCloud entitlement). The `SyncProvider` seam stays wired for a future backend,
+    /// but a no-op provider means `SyncEngine`/`requestSync()` do nothing today.
     static func makeProvider() -> SyncProvider {
         NoopSyncProvider()
     }

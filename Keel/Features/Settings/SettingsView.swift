@@ -202,8 +202,11 @@ struct SettingsView: View {
         // so the next sign-up has its default check-in symptoms (bootstrap only
         // seeds at launch, and closing the account returns to onboarding in place).
         env.symptoms.syncBuiltIns()
-        // Deleting the models above propagates to her private CloudKit database via
-        // .automatic mirroring, so the iCloud copy goes too. Keel holds no server-side
+        // Forget the Apple Health sync throttle and her per-item choices, so the next
+        // account starts from the defaults rather than inheriting hers.
+        env.resetHealthSyncState()
+        // Keel is local-only, so deleting the models above removes her data entirely
+        // (there is no iCloud or server copy to clean up). Keel holds no server-side
         // Apple tokens (AuthService keeps only the stable Apple `user` id locally, with
         // no REST-API token exchange), so there is nothing to revoke here today. When a
         // backend that exchanges tokens is added, call Apple's token-revoke endpoint

@@ -27,6 +27,17 @@ struct HealthSnapshot {
     }
 }
 
+/// What `AppEnvironment` needs from Apple Health. `HealthKitService` is the real source;
+/// tests inject a fake so the connect/sync rules can be exercised without HealthKit
+/// (which reads nothing on the unsigned Simulator).
+@MainActor
+protocol HealthDataSource: AnyObject {
+    func requestAuthorization() async -> Bool
+    func snapshot(lastDays: Int) async -> HealthSnapshot
+}
+
+extension HealthKitService: HealthDataSource {}
+
 /// Reads a broad, perimenopause-relevant slice of Apple Health so Keel can learn
 /// with less manual logging: sleep, activity, vitals, body temperatures,
 /// menstrual flow, and Health's own symptoms (hot flushes, night sweats, mood
@@ -38,7 +49,7 @@ struct HealthSnapshot {
 final class HealthKitService {
     private let store = HKHealthStore()
     private let calendar = Calendar.current
-    private static let log = Logger(subsystem: "com.keel", category: "health")
+    private static let log = Logger(subsystem: "com.therecalibrationyears", category: "health")
 
     private(set) var isAuthorized = false
 
