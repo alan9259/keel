@@ -103,7 +103,11 @@ struct SettingsView: View {
             Text(title).font(KeelFont.body).foregroundStyle(theme.text)
             Spacer()
             Image(systemName: "chevron.right").font(.system(size: 14, weight: .semibold)).foregroundStyle(theme.muted)
-        }.padding(14)
+        }
+        .padding(14)
+        // The whole row is the tap target, not just the text and chevron (a plain-style
+        // button or link otherwise ignores taps on the Spacer's empty gap).
+        .contentShape(Rectangle())
     }
 
     private var accountGroup: some View {
