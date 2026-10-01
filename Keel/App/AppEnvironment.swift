@@ -166,7 +166,8 @@ final class AppEnvironment {
     /// Guards against two concurrent full imports (e.g. bootstrap + scenePhase both firing
     /// on launch before either has stamped the throttle).
     private var isSyncingHealth = false
-    private static let healthSyncMinInterval: TimeInterval = 30 * 60
+    // nonisolated: a plain constant, used as the default in the nonisolated `shouldRunHealthSync`.
+    nonisolated private static let healthSyncMinInterval: TimeInterval = 30 * 60
 
     /// Whether any Apple Health data has been imported to the local health store. Used to
     /// stop the post-connect retry once data arrives, and to show an honest "connected but
