@@ -5,6 +5,7 @@ import UIKit
 /// design replaces the native nav bar with this).
 struct ScreenHeader: View {
     @Environment(\.keelTheme) private var theme
+    @Environment(\.goHome) private var goHome
     let title: String
     /// One consistent screen-title size across the app (matches onboarding).
     var titleSize: CGFloat = 28
@@ -12,6 +13,10 @@ struct ScreenHeader: View {
     /// Keep a long title on one line, shrinking it to fit rather than wrapping.
     /// Off by default so titles still grow with Dynamic Type.
     var fitsOneLine: Bool = false
+    /// Show the trailing "home" button that returns to the Dashboard. On by
+    /// default; the Dashboard itself has no ScreenHeader, so this only ever
+    /// appears on pushed screens.
+    var showsHome: Bool = true
     let onBack: () -> Void
 
     var body: some View {
@@ -38,6 +43,17 @@ struct ScreenHeader: View {
                 }
             }
             Spacer(minLength: 0)
+
+            if showsHome {
+                Button(action: goHome) {
+                    Image(systemName: "house")
+                        .font(.system(size: 22, weight: .regular))
+                        .foregroundStyle(theme.muted)
+                        .frame(width: 32, height: 32)
+                }
+                .accessibilityLabel("Home")
+                .accessibilityHint("Returns to the home screen")
+            }
         }
     }
 }
@@ -88,5 +104,19 @@ private struct InteractivePopEnabler: UIViewControllerRepresentable {
             nav.interactivePopGestureRecognizer?.delegate = InteractivePopDelegate.shared
             nav.interactivePopGestureRecognizer?.isEnabled = true
         }
+    }
+}
+
+/// Action that pops the navigation stack back to the Dashboard (home). `MainView`
+/// supplies the real implementation (resetting its `NavigationPath`); the default
+/// is a no-op so previews and any non-stack use are safe.
+private struct GoHomeKey: EnvironmentKey {
+    static let defaultValue: () -> Void = {}
+}
+
+extension EnvironmentValues {
+    var goHome: () -> Void {
+        get { self[GoHomeKey.self] }
+        set { self[GoHomeKey.self] = newValue }
     }
 }

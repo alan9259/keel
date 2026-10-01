@@ -103,6 +103,12 @@ struct MainView: View {
                 }
             }
         }
+        .environment(\.goHome) {
+            // The trailing "home" button on every pushed screen: pop the whole
+            // stack back to the Dashboard. No-op if already at home.
+            guard !path.isEmpty else { return }
+            path = NavigationPath()
+        }
         .overlay(alignment: .bottom) {
             if let toast { ToastView(data: toast) }
         }
