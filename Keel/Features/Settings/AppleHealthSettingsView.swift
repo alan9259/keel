@@ -1,9 +1,15 @@
 import SwiftUI
+import SwiftData
 
 struct AppleHealthSettingsView: View {
     @Environment(AppEnvironment.self) private var env
     @Environment(\.keelTheme) private var theme
     @Environment(\.dismiss) private var dismiss
+    @Environment(\.openURL) private var openURL
+
+    @Query(filter: #Predicate<HealthActivitySample> { $0.deletedAt == nil }) private var importedActivity: [HealthActivitySample]
+    @Query(filter: #Predicate<HealthSample> { $0.deletedAt == nil }) private var samples: [HealthSample]
+    private var hasImportedData: Bool { !importedActivity.isEmpty || !samples.isEmpty }
 
     @State private var connected = false
     @State private var connecting = false
@@ -26,6 +32,7 @@ struct AppleHealthSettingsView: View {
                 connectionCard
 
                 if connected {
+                    if !hasImportedData { noDataNote }
                     permissionsSection
                 } else {
                     connectButton
@@ -38,6 +45,9 @@ struct AppleHealthSettingsView: View {
         .keelFeatureScreen()
         .onAppear {
             connected = env.users.currentProfile()?.healthKitAuthorized ?? false
+            // Refresh on opening this screen, so a first import that came back empty
+            // right after connecting fills in without her toggling items by hand.
+            if connected { env.syncHealthData(force: true) }
         }
         .alert("Remove imported Apple Health data?", isPresented: $showRemoveConfirm) {
             Button("Cancel", role: .cancel) {}
@@ -141,6 +151,32 @@ struct AppleHealthSettingsView: View {
                 Text(removeStatus).font(KeelFont.caption).foregroundStyle(theme.muted).padding(.horizontal, 4)
             }
         }
+    }
+
+    /// Shown when she's connected but nothing has imported — likely read access wasn't
+    /// granted in the Health app (iOS never tells us, so we infer it from the empty store).
+    private var noDataNote: some View {
+        VStack(alignment: .leading, spacing: 10) {
+            HStack(alignment: .top, spacing: 10) {
+                Image(systemName: "info.circle.fill").font(.system(size: 15)).foregroundStyle(theme.attention).padding(.top, 1)
+                Text("Connected, but no Apple Health data has come in yet. If you expected some, open the Health app and check what's shared with Keel under Sharing.")
+                    .font(KeelFont.caption).foregroundStyle(theme.text)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
+            Button {
+                if let url = URL(string: "x-apple-health://") { openURL(url) }
+            } label: {
+                Text("Open the Health app")
+                    .font(KeelFont.sans(13, weight: .medium)).foregroundStyle(theme.accent)
+                    .frame(maxWidth: .infinity).padding(.vertical, 10)
+                    .overlay(RoundedRectangle(cornerRadius: 12, style: .continuous).stroke(theme.accent.opacity(0.4), lineWidth: 1))
+            }
+            .buttonStyle(.plain)
+        }
+        .padding(14)
+        .background(theme.attention.opacity(0.08))
+        .clipShape(RoundedRectangle(cornerRadius: Radius.card, style: .continuous))
+        .overlay(RoundedRectangle(cornerRadius: Radius.card, style: .continuous).stroke(theme.attention.opacity(0.25), lineWidth: 1))
     }
 
     private var connectButton: some View {

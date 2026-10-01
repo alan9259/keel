@@ -18,6 +18,15 @@ final class HealthKitImportIntegrationTests: XCTestCase {
         (try? env.context.fetchCount(FetchDescriptor<T>())) ?? -1
     }
 
+    func testHasImportedHealthDataReflectsStore() {
+        let env = makeEnv()
+        XCTAssertFalse(env.hasImportedHealthData)
+        var snap = HealthSnapshot()
+        snap.activityAmounts = ["steps": [Date.now.startOfDay: 8000]]
+        env.ingestHealthSnapshot(snap)
+        XCTAssertTrue(env.hasImportedHealthData)
+    }
+
     func testImportRoutesToHealthStoreAndNeverImportsSymptomsOrCycle() {
         let env = makeEnv()
         let today = Date.now.startOfDay

@@ -14,26 +14,26 @@ final class HealthSyncGatingTests: XCTestCase {
 
     func testFirstSyncRunsWhenNeverSynced() {
         XCTAssertTrue(AppEnvironment.shouldRunHealthSync(
-            now: .now, lastSyncedAt: nil, force: false, minInterval: minInterval))
+            now: .now, lastSyncedAt: nil, force: false, connected: true, minInterval: minInterval))
     }
 
     func testThrottledWithinWindow() {
         let now = Date.now
         XCTAssertFalse(AppEnvironment.shouldRunHealthSync(
-            now: now, lastSyncedAt: now.addingTimeInterval(-60), force: false, minInterval: minInterval))
+            now: now, lastSyncedAt: now.addingTimeInterval(-60), force: false, connected: true, minInterval: minInterval))
     }
 
     func testRunsAgainAfterWindowElapses() {
         let now = Date.now
         XCTAssertTrue(AppEnvironment.shouldRunHealthSync(
-            now: now, lastSyncedAt: now.addingTimeInterval(-minInterval - 1), force: false, minInterval: minInterval))
+            now: now, lastSyncedAt: now.addingTimeInterval(-minInterval - 1), force: false, connected: true, minInterval: minInterval))
     }
 
     /// An explicit "Sync now" / connect always bypasses the window.
     func testForceBypassesThrottle() {
         let now = Date.now
         XCTAssertTrue(AppEnvironment.shouldRunHealthSync(
-            now: now, lastSyncedAt: now.addingTimeInterval(-60), force: true, minInterval: minInterval))
+            now: now, lastSyncedAt: now.addingTimeInterval(-60), force: true, connected: true, minInterval: minInterval))
     }
 
     /// Regression: because the window is only stamped after auth succeeds, a failed
@@ -41,7 +41,25 @@ final class HealthSyncGatingTests: XCTestCase {
     /// for 30 minutes). This models that state.
     func testFailedSyncLeavesNextAttemptDue() {
         XCTAssertTrue(AppEnvironment.shouldRunHealthSync(
-            now: .now, lastSyncedAt: nil, force: false, minInterval: minInterval))
+            now: .now, lastSyncedAt: nil, force: false, connected: true, minInterval: minInterval))
+    }
+
+    // MARK: Not-connected gate (launch-prompt regression)
+
+    /// Regression: a foreground/launch sync for a user who hasn't connected must not
+    /// run. Otherwise it calls `requestAuthorization`, which prompts at app open (even
+    /// during onboarding) instead of on the explicit "Connect with Apple Health" tap.
+    func testNotConnectedNeverSyncs() {
+        XCTAssertFalse(AppEnvironment.shouldRunHealthSync(
+            now: .now, lastSyncedAt: nil, force: false, connected: false, minInterval: minInterval))
+    }
+
+    /// Even a forced sync stays off until she connects: nothing should pre-empt the
+    /// prompt before the explicit Connect action (which sets `connected` first, then
+    /// forces a sync).
+    func testNotConnectedBlocksEvenForce() {
+        XCTAssertFalse(AppEnvironment.shouldRunHealthSync(
+            now: .now, lastSyncedAt: nil, force: true, connected: false, minInterval: minInterval))
     }
 
     // MARK: Connected flag persistence

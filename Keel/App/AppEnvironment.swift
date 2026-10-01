@@ -126,9 +126,9 @@ final class AppEnvironment {
         // scheduler sees them as logged and skips today's now-redundant nudge.
         autoLogTodaysDoses()
         refreshMedicationReminders()
-        if users.currentProfile()?.healthKitAuthorized == true {
-            syncHealthData()
-        }
+        // syncHealthData self-gates on the connected flag and never requests HealthKit
+        // authorization otherwise, so this can't trigger the permission prompt at launch.
+        syncHealthData()
         // Write today's reflection on the first open of each calendar day. Runs
         // after the derivations above so it reads the freshest local data.
         Task { await dailySummary.refreshIfNeeded() }
@@ -162,12 +162,30 @@ final class AppEnvironment {
     /// window. Today's steps/sleep don't change fast enough to need more often, and
     /// this stops the app freezing each time it comes forward.
     private var lastHealthSyncAt: Date?
+    /// Guards against two concurrent full imports (e.g. bootstrap + scenePhase both firing
+    /// on launch before either has stamped the throttle).
+    private var isSyncingHealth = false
     private static let healthSyncMinInterval: TimeInterval = 30 * 60
 
-    /// Whether a background (foreground-triggered) sync is due. An explicit user
-    /// action passes `force` to bypass the window. Pure so it's unit-testable.
+    /// Whether any Apple Health data has been imported to the local health store. Used to
+    /// stop the post-connect retry once data arrives, and to show an honest "connected but
+    /// no data yet" state.
+    var hasImportedHealthData: Bool {
+        let activity = (try? context.fetchCount(FetchDescriptor<HealthActivitySample>())) ?? 0
+        let vitals = (try? context.fetchCount(FetchDescriptor<HealthSample>())) ?? 0
+        return activity + vitals > 0
+    }
+
+    /// Whether a background (foreground-triggered) sync is due. Gated on `connected`
+    /// (so it never prompts before she connects); an explicit user action passes
+    /// `force` to bypass the throttle window. Pure so it's unit-testable.
     nonisolated static func shouldRunHealthSync(now: Date, lastSyncedAt: Date?, force: Bool,
+                                                connected: Bool,
                                                 minInterval: TimeInterval = healthSyncMinInterval) -> Bool {
+        // Never sync (and so never request authorization, which would prompt) until she
+        // has explicitly connected Apple Health. This keeps the permission prompt on the
+        // "Connect" tap and off app launch / foreground.
+        guard connected else { return false }
         if force { return true }
         guard let last = lastSyncedAt else { return true }
         return now.timeIntervalSince(last) >= minInterval
@@ -189,22 +207,43 @@ final class AppEnvironment {
         let effective = granted
         #endif
         users.setHealthKitAuthorized(effective)
-        if effective { syncHealthData(force: true) }
+        if effective {
+            syncHealthData(force: true)
+            // Read access can take a moment to propagate after the first grant, so the
+            // first reads may come back empty. Retry on a short backoff, stopping as soon
+            // as any data arrives, so the initial import isn't missed (otherwise nothing
+            // imports until she forces a sync herself).
+            Task {
+                for delay in [3.0, 10.0, 30.0] {
+                    try? await Task.sleep(for: .seconds(delay))
+                    if hasImportedHealthData { return }
+                    syncHealthData(force: true)
+                }
+            }
+        }
         return effective
     }
 
     func syncHealthData(force: Bool = false) {
-        guard Self.shouldRunHealthSync(now: .now, lastSyncedAt: lastHealthSyncAt, force: force) else { return }
+        // Only ever syncs for a user who has already connected: this is what keeps the
+        // HealthKit prompt on the explicit "Connect" tap and off launch/foreground.
+        let connected = users.currentProfile()?.healthKitAuthorized == true
+        guard Self.shouldRunHealthSync(now: .now, lastSyncedAt: lastHealthSyncAt, force: force, connected: connected) else { return }
+        guard !isSyncingHealth else { return } // coalesce concurrent syncs
+        isSyncingHealth = true
         Task {
-            // Only consume the throttle window once authorization actually succeeds.
-            // A failed auth (e.g. HealthKit not effective in the build) must not block
-            // a later retry — otherwise "Sync now" would silently no-op for 30 min.
+            defer { isSyncingHealth = false }
+            // A failed auth (e.g. HealthKit not effective in the build) must not consume
+            // the throttle — otherwise a later retry would silently no-op for 30 min.
             guard await health.requestAuthorization() else { return }
-            lastHealthSyncAt = .now
             let snapshot = await health.snapshot(lastDays: Self.healthImportDays)
             // Drop items she has switched off before importing (existing rows stay).
             let filtered = HealthSyncCatalog.filter(snapshot, disabled: settings.disabledHealthItemIDs)
             ingestHealthSnapshot(filtered)
+            // Only consume the throttle window once HealthKit actually returned data. An
+            // empty read (access not yet propagated, or nothing shared) stays eligible for
+            // the next sync, so data isn't blocked for 30 min after a slow first grant.
+            if !snapshot.isEmpty { lastHealthSyncAt = .now }
         }
     }
 

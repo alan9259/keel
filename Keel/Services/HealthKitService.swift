@@ -18,6 +18,13 @@ struct HealthSnapshot {
         let unit: String
         let byDay: [Date: Double]
     }
+
+    /// True when HealthKit returned nothing at all — read access not yet propagated after
+    /// a first grant, or nothing shared. The sync uses this so an empty read doesn't
+    /// consume the throttle window.
+    var isEmpty: Bool {
+        sleepByDay.isEmpty && activityAmounts.allSatisfy(\.value.isEmpty) && vitals.allSatisfy(\.byDay.isEmpty)
+    }
 }
 
 /// Reads a broad, perimenopause-relevant slice of Apple Health so Keel can learn

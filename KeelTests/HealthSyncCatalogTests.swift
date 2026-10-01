@@ -53,6 +53,17 @@ final class HealthSyncCatalogTests: XCTestCase {
         XCTAssertTrue(ids.contains("bodyMass"))
     }
 
+    // MARK: Empty-read detection (throttle signal)
+
+    func testSnapshotIsEmptyDetection() {
+        XCTAssertTrue(HealthSnapshot().isEmpty)             // nothing read
+        XCTAssertFalse(sampleSnapshot().isEmpty)           // has data
+        var onlySleep = HealthSnapshot(); onlySleep.sleepByDay = [day: 7]
+        XCTAssertFalse(onlySleep.isEmpty)
+        var onlyVital = HealthSnapshot(); onlyVital.vitals = [.init(typeID: "restingHeartRate", unit: "bpm", byDay: [day: 58])]
+        XCTAssertFalse(onlyVital.isEmpty)
+    }
+
     func testCatalogIDsAreUnique() {
         let ids = HealthSyncCatalog.all.map(\.id)
         XCTAssertEqual(ids.count, Set(ids).count)
