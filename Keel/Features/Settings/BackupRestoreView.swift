@@ -124,10 +124,10 @@ struct BackupRestoreView: View {
     private var confirmCard: some View {
         VStack(alignment: .leading, spacing: 14) {
             HStack(alignment: .top, spacing: 10) {
-                Image(systemName: "exclamationmark.triangle.fill").font(.system(size: 17)).foregroundStyle(Color(hex: 0xEA580C))
+                Image(systemName: "exclamationmark.triangle.fill").font(.system(size: 17)).foregroundStyle(theme.attention)
                 VStack(alignment: .leading, spacing: 6) {
-                    Text("Replace all current data?").font(KeelFont.body).fontWeight(.medium).foregroundStyle(Color(hex: 0xC2410C))
-                    Text(confirmDetail).font(KeelFont.caption).foregroundStyle(Color(hex: 0xEA580C)).fixedSize(horizontal: false, vertical: true)
+                    Text("Replace all current data?").font(KeelFont.body).fontWeight(.medium).foregroundStyle(theme.text)
+                    Text(confirmDetail).font(KeelFont.caption).foregroundStyle(theme.muted).fixedSize(horizontal: false, vertical: true)
                 }
             }
             HStack(spacing: 12) {
@@ -138,35 +138,35 @@ struct BackupRestoreView: View {
                         .contentShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
                 }.buttonStyle(.plain)
                 Button { performRestore() } label: {
-                    Text("Yes, restore").font(KeelFont.body).foregroundStyle(.white)
+                    Text("Yes, restore").font(KeelFont.body).foregroundStyle(theme.onFill)
                         .frame(maxWidth: .infinity).padding(.vertical, 11)
-                        .background(Color(hex: 0xEA580C)).clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
+                        .background(theme.attention).clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
                 }.buttonStyle(.plain)
             }
         }
         .padding(18)
-        .background(Color(hex: 0xEA580C).opacity(0.06))
+        .background(theme.attentionTint)
         .clipShape(RoundedRectangle(cornerRadius: Radius.card, style: .continuous))
-        .overlay(RoundedRectangle(cornerRadius: Radius.card, style: .continuous).stroke(Color(hex: 0xEA580C).opacity(0.2), lineWidth: 1))
+        .overlay(RoundedRectangle(cornerRadius: Radius.card, style: .continuous).stroke(theme.attention.opacity(0.25), lineWidth: 1))
     }
 
     private var doneBanner: some View {
         HStack(spacing: 12) {
-            Image(systemName: "checkmark.circle.fill").font(.system(size: 20)).foregroundStyle(Color(hex: 0x16A34A))
+            Image(systemName: "checkmark.circle.fill").font(.system(size: 20)).foregroundStyle(theme.sage)
             VStack(alignment: .leading, spacing: 2) {
-                Text("Data restored").font(KeelFont.body).foregroundStyle(Color(hex: 0x15803D))
+                Text("Data restored").font(KeelFont.body).foregroundStyle(theme.text)
                 if let s = summary {
                     Text("\(s.checkIns) check-ins · \(s.medications) meds · \(s.cycleEntries) cycle entries")
-                        .font(KeelFont.caption).foregroundStyle(Color(hex: 0x16A34A))
+                        .font(KeelFont.caption).foregroundStyle(theme.muted)
                 }
             }
             Spacer()
             Button { withAnimation { restore = .idle }; summary = nil } label: {
-                Text("Done").font(KeelFont.caption).foregroundStyle(Color(hex: 0x15803D))
+                Text("Done").font(KeelFont.caption).foregroundStyle(theme.sage)
             }.buttonStyle(.plain)
         }
         .padding(16)
-        .background(Color(hex: 0x16A34A).opacity(0.08))
+        .background(theme.sageTint)
         .clipShape(RoundedRectangle(cornerRadius: 16, style: .continuous))
     }
 

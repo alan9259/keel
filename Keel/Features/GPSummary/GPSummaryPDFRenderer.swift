@@ -1,4 +1,5 @@
 import UIKit
+import SwiftUI
 import PDFKit
 
 /// Draws a `GPSummaryDocument` as a two-page A4 PDF. This is the single source of
@@ -23,9 +24,11 @@ final class GPSummaryPDFRenderer {
     private var contentBottom: CGFloat { pageSize.height - footerHeight }
 
     // Brand palette.
-    private let rosewood = UIColor(red: 0x8C / 255, green: 0x4A / 255, blue: 0x45 / 255, alpha: 1)
-    private let charcoal = UIColor(red: 0x44 / 255, green: 0x44 / 255, blue: 0x44 / 255, alpha: 1)
-    private let muted = UIColor(red: 0x82 / 255, green: 0x7A / 255, blue: 0x70 / 255, alpha: 1)
+    // From the light theme on purpose: a printed document stays light (and on the brand
+    // palette) whatever Colour Mode or theme she uses in the app.
+    private let rosewood = UIColor(KeelTheme.light.accent)
+    private let charcoal = UIColor(KeelTheme.light.text)
+    private let muted = UIColor(KeelTheme.light.muted)
     private var hairline: UIColor { charcoal.withAlphaComponent(0.18) }
 
     /// True if page 1 could not be made to fit even at 4 symptom rows (a spec defect).

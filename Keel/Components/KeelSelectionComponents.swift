@@ -22,15 +22,15 @@ struct SymptomChip: View {
                 if let severity {
                     HStack(spacing: 2) {
                         ForEach(0..<severity.rawValue, id: \.self) { _ in
-                            Circle().fill(.white.opacity(0.9)).frame(width: 4, height: 4)
+                            Circle().fill(theme.onFill.opacity(0.9)).frame(width: 4, height: 4)
                         }
                     }
                 }
             }
-            .foregroundStyle(severity != nil ? .white : theme.text.opacity(0.85))
+            .foregroundStyle(severity != nil ? theme.onFill : theme.text.opacity(0.85))
             .padding(.horizontal, 14)
             .padding(.vertical, 8)
-            .background(severity?.color ?? theme.card)
+            .background(severity?.color(in: theme) ?? theme.card)
             .clipShape(Capsule())
             .overlay(Capsule().stroke(severity != nil ? Color.clear : theme.border, lineWidth: 1))
         }

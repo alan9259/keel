@@ -153,13 +153,13 @@ struct CheckInModal: View {
                         VStack(spacing: 4) {
                             Text("\(level.rawValue)")
                                 .font(KeelFont.sans(18, weight: .semibold))
-                                .foregroundStyle(energy == level ? .white : theme.text.opacity(0.6))
+                                .foregroundStyle(energy == level ? theme.onFill : theme.text.opacity(0.6))
                             Text(level.label)
                                 .font(KeelFont.sans(10))
-                                .foregroundStyle(energy == level ? .white.opacity(0.9) : theme.muted)
+                                .foregroundStyle(energy == level ? theme.onFill.opacity(0.9) : theme.muted)
                         }
                         .frame(maxWidth: .infinity).padding(.vertical, 12)
-                        .background(energy == level ? level.color : theme.card)
+                        .background(energy == level ? level.color(in: theme) : theme.card)
                         .clipShape(RoundedRectangle(cornerRadius: Radius.md, style: .continuous))
                         .overlay(RoundedRectangle(cornerRadius: Radius.md, style: .continuous)
                             .stroke(energy == level ? .clear : theme.border, lineWidth: 1))
@@ -315,7 +315,7 @@ struct CheckInModal: View {
         HStack(spacing: 14) {
             ForEach(SymptomSeverity.allCases) { level in
                 HStack(spacing: 5) {
-                    Circle().fill(level.color).frame(width: 8, height: 8)
+                    Circle().fill(level.color(in: theme)).frame(width: 8, height: 8)
                     Text(level.label).font(KeelFont.sans(11)).foregroundStyle(theme.muted)
                 }
             }

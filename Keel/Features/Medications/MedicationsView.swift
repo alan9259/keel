@@ -178,7 +178,7 @@ struct MedicationsView: View {
                 Circle().strokeBorder(med.isTracked ? .clear : theme.border, lineWidth: 2)
                     .frame(width: 44, height: 44)
                 if med.isTracked {
-                    Image(systemName: "checkmark").font(.system(size: 18, weight: .bold)).foregroundStyle(.white)
+                    Image(systemName: "checkmark").font(.system(size: 18, weight: .bold)).foregroundStyle(theme.onFill)
                 }
             }
         }

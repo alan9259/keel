@@ -116,10 +116,10 @@ struct SettingsView: View {
             Button { showCloseDialog = true; typed = "" } label: {
                 HStack(spacing: 14) {
                     Image(systemName: "person.crop.circle.badge.xmark").font(.system(size: 17))
-                        .foregroundStyle(Color(hex: 0xA9762F)).frame(width: 40, height: 40)
-                        .background(Color(hex: 0xA9762F).opacity(0.1)).clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
+                        .foregroundStyle(theme.attention).frame(width: 40, height: 40)
+                        .background(theme.attention.opacity(0.1)).clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
                     VStack(alignment: .leading, spacing: 2) {
-                        Text("Close account").font(KeelFont.body).foregroundStyle(Color(hex: 0xA9762F))
+                        Text("Close account").font(KeelFont.body).foregroundStyle(theme.attention)
                         Text("Permanently delete your account and all data").font(KeelFont.caption).foregroundStyle(theme.muted)
                     }
                     Spacer()
@@ -131,19 +131,19 @@ struct SettingsView: View {
             .buttonStyle(.plain)
             .background(theme.card)
             .clipShape(RoundedRectangle(cornerRadius: Radius.card, style: .continuous))
-            .overlay(RoundedRectangle(cornerRadius: Radius.card, style: .continuous).stroke(Color(hex: 0xA9762F).opacity(0.18), lineWidth: 1))
+            .overlay(RoundedRectangle(cornerRadius: Radius.card, style: .continuous).stroke(theme.attention.opacity(0.18), lineWidth: 1))
         }
     }
 
     private var closeDialog: some View {
         ZStack(alignment: .bottom) {
-            Color.black.opacity(0.4).ignoresSafeArea().onTapGesture { showCloseDialog = false }
+            theme.scrim.ignoresSafeArea().onTapGesture { showCloseDialog = false }
             VStack(alignment: .leading, spacing: 18) {
                 HStack(alignment: .top, spacing: 14) {
                     Image(systemName: "exclamationmark.triangle.fill")
-                        .font(.system(size: 20)).foregroundStyle(Color(hex: 0xA9762F))
+                        .font(.system(size: 20)).foregroundStyle(theme.attention)
                         .frame(width: 44, height: 44)
-                        .background(Color(hex: 0xA9762F).opacity(0.1)).clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
+                        .background(theme.attention.opacity(0.1)).clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
                     VStack(alignment: .leading, spacing: 6) {
                         Text("Close your account?").font(KeelFont.serif(18, weight: .semibold)).foregroundStyle(theme.text)
                         Text("This permanently deletes your account and all your data. This can't be undone.")
@@ -173,9 +173,9 @@ struct SettingsView: View {
                             .contentShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
                     }.buttonStyle(.plain)
                     Button(action: closeAccount) {
-                        Text("Delete").font(KeelFont.body).foregroundStyle(.white)
+                        Text("Delete").font(KeelFont.body).foregroundStyle(theme.onFill)
                             .frame(maxWidth: .infinity).padding(.vertical, 13)
-                            .background(Color(hex: 0xA9762F)).clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
+                            .background(theme.attention).clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
                     }
                     .buttonStyle(.plain)
                     .disabled(typed != "DELETE").opacity(typed == "DELETE" ? 1 : 0.5)

@@ -345,7 +345,7 @@ private struct GPDetailsStepView: View {
     private func chip(_ label: String, selected: Bool, action: @escaping () -> Void) -> some View {
         Button(action: { Haptics.selection(); action() }) {
             Text(label).font(KeelFont.body)
-                .foregroundStyle(selected ? .white : theme.text.opacity(0.85))
+                .foregroundStyle(selected ? theme.onFill : theme.text.opacity(0.85))
                 .padding(.horizontal, 14).padding(.vertical, 8)
                 .background(selected ? theme.accent : theme.card)
                 .clipShape(Capsule())

@@ -12,10 +12,10 @@ struct AppleHealthView: View {
 
             // Icon pair — partnership
             HStack(spacing: Spacing.md) {
-                iconTile(gradient: [Color(hex: 0xFF2D55), Color(hex: 0xFF3B30)]) {
+                iconTile(gradient: [theme.plum, theme.plum]) {
                     Image(systemName: "heart.fill")
                         .font(.system(size: 32))
-                        .foregroundStyle(.white)
+                        .foregroundStyle(theme.onFill)
                 }
                 Image(systemName: "plus")
                     .font(.system(size: 24))
@@ -23,7 +23,7 @@ struct AppleHealthView: View {
                 iconTile(gradient: [theme.accent, theme.accent]) {
                     Text("K")
                         .font(KeelFont.serif(36, weight: .semibold))
-                        .foregroundStyle(.white)   // fixed light on the rosewood tile
+                        .foregroundStyle(theme.onFill)
                 }
             }
 

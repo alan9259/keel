@@ -38,7 +38,7 @@ struct MoreView: View {
             ]),
             ("Data", [
                 Item(title: "Backup & Restore", symbol: "icloud.fill", tint: theme.accent, route: .backup),
-                Item(title: "Apple Health", symbol: "heart.fill", tint: Color(hex: 0xE91E63), route: .appleHealth),
+                Item(title: "Apple Health", symbol: "heart.fill", tint: theme.accent, route: .appleHealth),
             ]),
             ("Feedback", [
                 // Open a pre-filled draft in her own mail app (see compose(_:)).

@@ -422,16 +422,16 @@ struct ReportsView: View {
         return "\(Int(lo.rounded()))–\(Int(hi.rounded()))"
     }
 
-    /// Distinct mood tones on a calm warm-to-green scale. Amber is Keel's alert colour,
-    /// so it is deliberately not used here (a tester flagged amber for "Okay"), and no
-    /// two neighbouring moods share a hue.
+    /// Distinct mood tones on a calm warm-to-green scale, from the active theme. Amber is
+    /// Keel's alert colour, so it is deliberately not used on its own here (a tester
+    /// flagged amber for "Okay"), and no two neighbouring moods share a hue.
     private func moodColor(_ mood: Mood) -> Color {
         switch mood {
-        case .great: Color(hex: 0x6E9E73)     // sage
-        case .good: Color(hex: 0x9DBBA0)      // light sage
-        case .okay: Color(hex: 0xC9AE86)      // warm sand, neutral
-        case .low: Color(hex: 0xB56A5A)       // soft terracotta
-        case .difficult: Color(hex: 0x8A5A66) // muted rose, serious but not alarming
+        case .great: theme.sage
+        case .good: theme.sageSoft
+        case .okay: theme.sand        // neutral
+        case .low: theme.copper       // terracotta, between accent and amber
+        case .difficult: theme.accent // serious but not alarming
         }
     }
 

@@ -25,7 +25,7 @@ struct ToastView: View {
         .padding(.vertical, 12)
         .background(theme.toastBackground)
         .clipShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
-        .shadow(color: .black.opacity(0.3), radius: 15, y: 10)
+        .shadow(color: theme.scrim, radius: 15, y: 10) // from the theme: a warm dark in light mode, deep in dark (no hard black)
         .padding(.bottom, 34)
         .transition(.move(edge: .bottom).combined(with: .opacity))
     }

@@ -129,7 +129,7 @@ struct CycleTrackingView: View {
     }
 
     private func pipTextColor(level: FlowLevel?, isFuture: Bool) -> Color {
-        if let level, fillOpacity(level) >= 0.7 { return .white }
+        if let level, fillOpacity(level) >= 0.7 { return theme.onFill }
         return isFuture ? theme.muted.opacity(0.7) : theme.text
     }
 
@@ -272,7 +272,7 @@ struct CycleTrackingView: View {
             Button { Haptics.selection(); editing = date.startOfDay } label: {
                 Text("\(cal.component(.day, from: date))")
                     .font(KeelFont.body)
-                    .foregroundStyle(level.map { fillOpacity($0) >= 0.7 ? Color.white : theme.text } ?? (isFuture ? theme.muted.opacity(0.5) : theme.text))
+                    .foregroundStyle(level.map { fillOpacity($0) >= 0.7 ? theme.onFill : theme.text } ?? (isFuture ? theme.muted.opacity(0.5) : theme.text))
                     .frame(maxWidth: .infinity, minHeight: 40)
                     .background(level.map { theme.accent.opacity(fillOpacity($0)) } ?? .clear)
                     .clipShape(RoundedRectangle(cornerRadius: 11, style: .continuous))
@@ -436,7 +436,7 @@ private struct CycleDaySheet: View {
     private func chip(_ title: String, selected: Bool, tint: Color, action: @escaping () -> Void) -> some View {
         Button(action: action) {
             Text(title).font(KeelFont.body)
-                .foregroundStyle(selected ? .white : theme.text.opacity(0.85))
+                .foregroundStyle(selected ? theme.onFill : theme.text.opacity(0.85))
                 .padding(.horizontal, 16).padding(.vertical, 10)
                 .background(selected ? tint : theme.card)
                 .clipShape(Capsule())

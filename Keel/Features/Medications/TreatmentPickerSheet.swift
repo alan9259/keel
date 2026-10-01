@@ -611,7 +611,7 @@ struct TreatmentDetailForm: View {
                 } label: {
                     Text(DoseSchedule.initial(weekday))
                         .font(KeelFont.sans(12, weight: .medium))
-                        .foregroundStyle(isOn ? .white : theme.text.opacity(0.7))
+                        .foregroundStyle(isOn ? theme.onFill : theme.text.opacity(0.7))
                         .frame(width: 36, height: 40)
                         .background(isOn ? theme.accent : theme.background)
                         .clipShape(Capsule())
@@ -735,7 +735,7 @@ struct TreatmentDetailForm: View {
             action()
         } label: {
             Text(title).font(KeelFont.body)
-                .foregroundStyle(isSelected ? .white : theme.text.opacity(0.85))
+                .foregroundStyle(isSelected ? theme.onFill : theme.text.opacity(0.85))
                 .padding(.horizontal, 14).padding(.vertical, 8)
                 .background(isSelected ? theme.accent : theme.card)
                 .clipShape(Capsule())

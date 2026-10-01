@@ -22,15 +22,15 @@ enum EnergyLevel: Int, CaseIterable, Identifiable {
         }
     }
 
-    /// Warm brand ramp: rosewood (drained) through amber and sand to soft sage
+    /// Warm ramp from the active theme: accent (drained) through copper and sand to sage
     /// (charged). No red (the brand rule is that red competes with rosewood).
-    var color: Color {
+    func color(in theme: KeelTheme) -> Color {
         switch self {
-        case .drained: Color(hex: 0x8C4A45) // rosewood
-        case .low: Color(hex: 0xB87333)     // copper
-        case .okay: Color(hex: 0xC4A882)    // warm sand
-        case .good: Color(hex: 0x9BB58F)    // sage-green
-        case .charged: Color(hex: 0x7A9A7E) // soft sage
+        case .drained: theme.accent
+        case .low: theme.copper
+        case .okay: theme.sand
+        case .good: theme.sageSoft
+        case .charged: theme.sage
         }
     }
 

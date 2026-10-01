@@ -20,6 +20,9 @@ struct KeelTheme: Equatable, Sendable {
     var border: Color            // hairline borders
     var track: Color             // slider/progress track, empty dots (warm sand)
     var attention: Color         // amber — warnings & errors. NEVER red (brand rule)
+    var sand: Color              // warm sand, full strength: quiet accents, the calm end of warm scales
+    var onFill: Color            // text/icons on a filled accent, sage, attention or scale colour
+    var scrim: Color             // dim layer behind a custom dialog
     var toastBackground: Color
     var toastText: Color
 
@@ -32,6 +35,12 @@ struct KeelTheme: Equatable, Sendable {
     var accentTint: Color { accent.opacity(0.10) }
     var accentBorder: Color { accent.opacity(0.30) }
     var attentionTint: Color { attention.opacity(0.12) }
+
+    // Derived scale steps, so every warm ramp (severity, energy, mood) follows the active
+    // theme instead of fixed hexes. Copper sits between rosewood and amber; soft sage is
+    // sage eased toward the page.
+    var copper: Color { accent.mix(with: attention, by: 0.5) }
+    var sageSoft: Color { sage.mix(with: background, by: 0.3) }
 
     // Brand palette (guidelines v1.0, section 3).
     static let rosewood = Color(hex: 0x8C4A45)   // brand/primary
@@ -55,6 +64,9 @@ struct KeelTheme: Equatable, Sendable {
         border: Color(hex: 0x444444, alpha: 0.12),
         track: Color(hex: 0xE6DFD2),
         attention: amber,
+        sand: warmSand,
+        onFill: .white,
+        scrim: Color(hex: 0x24211E, alpha: 0.4),
         toastBackground: charcoal,
         toastText: offWhite
     )
@@ -75,6 +87,9 @@ struct KeelTheme: Equatable, Sendable {
         border: Color(hex: 0xFFFFFF, alpha: 0.10),
         track: Color(hex: 0x443E37),
         attention: Color(hex: 0xC99348),  // lightened amber
+        sand: warmSand,
+        onFill: .white,
+        scrim: Color(hex: 0x000000, alpha: 0.5),
         toastBackground: Color(hex: 0xF1ECE4),
         toastText: Color(hex: 0x24211E)
     )

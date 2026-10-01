@@ -84,9 +84,9 @@ struct AppleHealthSettingsView: View {
                     HStack(spacing: 8) {
                         Text("Apple Health").font(KeelFont.bodyLarge).foregroundStyle(theme.text)
                         if connected {
-                            Text("Connected").font(KeelFont.sans(11)).foregroundStyle(Color(hex: 0x15803D))
+                            Text("Connected").font(KeelFont.sans(11)).foregroundStyle(theme.sage)
                                 .padding(.horizontal, 8).padding(.vertical, 2)
-                                .background(Color(hex: 0x16A34A).opacity(0.12)).clipShape(Capsule())
+                                .background(theme.sageTint).clipShape(Capsule())
                         }
                     }
                     Text("Keel reads from Health to save you logging.").font(KeelFont.caption).foregroundStyle(theme.muted)
@@ -96,7 +96,7 @@ struct AppleHealthSettingsView: View {
             if connected {
                 HStack(spacing: 10) {
                     outlineButton("Sync now", tint: theme.sage) { env.syncHealthData(force: true); Haptics.success() }
-                    outlineButton("Disconnect", tint: Color(hex: 0xA9762F)) { disconnect() }
+                    outlineButton("Disconnect", tint: theme.attention) { disconnect() }
                 }
             } else if connecting {
                 Text("Connecting…").font(KeelFont.button).foregroundStyle(theme.background)
@@ -113,9 +113,9 @@ struct AppleHealthSettingsView: View {
     private var healthIcon: some View {
         Image(systemName: "heart.fill")
             .font(.system(size: 26))
-            .foregroundStyle(.white)
+            .foregroundStyle(theme.onFill)
             .frame(width: 54, height: 54)
-            .background(LinearGradient(colors: [Color(hex: 0xFF6B6B), Color(hex: 0xE91E63)], startPoint: .topLeading, endPoint: .bottomTrailing))
+            .background(theme.accent)
             .clipShape(RoundedRectangle(cornerRadius: 16, style: .continuous))
     }
 
@@ -155,9 +155,9 @@ struct AppleHealthSettingsView: View {
 
             Button { showRemoveConfirm = true } label: {
                 Text("Remove imported Apple Health data")
-                    .font(KeelFont.sans(13, weight: .medium)).foregroundStyle(Color(hex: 0xA9762F))
+                    .font(KeelFont.sans(13, weight: .medium)).foregroundStyle(theme.attention)
                     .frame(maxWidth: .infinity).padding(.vertical, 11)
-                    .overlay(RoundedRectangle(cornerRadius: 12, style: .continuous).stroke(Color(hex: 0xA9762F).opacity(0.35), lineWidth: 1))
+                    .overlay(RoundedRectangle(cornerRadius: 12, style: .continuous).stroke(theme.attention.opacity(0.35), lineWidth: 1))
                     .contentShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
             }
             .buttonStyle(.plain).padding(.top, 6)

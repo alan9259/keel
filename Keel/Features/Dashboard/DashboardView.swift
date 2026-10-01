@@ -150,9 +150,9 @@ struct DashboardView: View {
                         ForEach(loggedSymptoms(entry), id: \.id) { item in
                             let sev = SymptomSeverity(rawValue: item.severity)
                             Text(item.name).font(KeelFont.sans(12))
-                                .foregroundStyle(sev != nil ? .white : theme.text.opacity(0.7))
+                                .foregroundStyle(sev != nil ? theme.onFill : theme.text.opacity(0.7))
                                 .padding(.horizontal, 10).padding(.vertical, 4)
-                                .background(sev?.color ?? theme.track).clipShape(Capsule())
+                                .background(sev?.color(in: theme) ?? theme.track).clipShape(Capsule())
                         }
                     }
                 }
@@ -250,7 +250,7 @@ struct DashboardView: View {
                                         .frame(width: 22, height: 22)
                                     if taken {
                                         Image(systemName: "checkmark").font(.system(size: 11, weight: .bold))
-                                            .foregroundStyle(.white)
+                                            .foregroundStyle(theme.onFill)
                                     }
                                 }
                             }

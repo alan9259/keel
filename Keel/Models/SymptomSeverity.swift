@@ -18,13 +18,13 @@ enum SymptomSeverity: Int, CaseIterable, Identifiable {
         }
     }
 
-    /// A warm brand ramp: sand → copper → rosewood. No red (the brand rule is that
-    /// red competes with rosewood).
-    var color: Color {
+    /// A warm ramp from the active theme: sand → copper → accent (rosewood by default).
+    /// No red (the brand rule is that red competes with rosewood).
+    func color(in theme: KeelTheme) -> Color {
         switch self {
-        case .mild: Color(hex: 0xC4A882)     // warm sand
-        case .moderate: Color(hex: 0xB87333) // copper
-        case .severe: Color(hex: 0x8C4A45)   // rosewood
+        case .mild: theme.sand
+        case .moderate: theme.copper
+        case .severe: theme.accent
         }
     }
 
