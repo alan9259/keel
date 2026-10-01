@@ -829,6 +829,7 @@ struct TreatmentDetailForm: View {
                 } label: {
                     Text("Remove from my list").font(KeelFont.body).foregroundStyle(theme.muted)
                         .frame(maxWidth: .infinity, minHeight: 44)
+                        .contentShape(Rectangle())
                 }
                 .buttonStyle(.plain)
             }

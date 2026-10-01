@@ -418,6 +418,7 @@ private struct CycleDaySheet: View {
                 }
                 .font(KeelFont.body).foregroundStyle(theme.muted)
                 .frame(maxWidth: .infinity, minHeight: 44)
+                .contentShape(Rectangle())
             }
             .buttonStyle(.plain)
 

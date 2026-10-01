@@ -66,6 +66,7 @@ struct BackupRestoreView: View {
                         Label("Export data", systemImage: "arrow.down.to.line")
                             .font(KeelFont.body).foregroundStyle(theme.accent)
                             .frame(maxWidth: .infinity, alignment: .leading).padding(14)
+                            .contentShape(Rectangle())
                     }
                     .simultaneousGesture(TapGesture().onEnded { refreshExport() })
                 } else {
@@ -73,6 +74,7 @@ struct BackupRestoreView: View {
                         Label("Prepare export", systemImage: "arrow.down.to.line")
                             .font(KeelFont.body).foregroundStyle(theme.accent)
                             .frame(maxWidth: .infinity, alignment: .leading).padding(14)
+                            .contentShape(Rectangle())
                     }.buttonStyle(.plain)
                 }
             }
@@ -105,6 +107,7 @@ struct BackupRestoreView: View {
                         Image(systemName: "chevron.right").font(.system(size: 13, weight: .semibold)).foregroundStyle(theme.muted)
                     }
                     .padding(14)
+                    .contentShape(Rectangle()) // the whole row restores, not just the text
                 }
                 .buttonStyle(.plain)
                 .background(theme.card)
@@ -132,6 +135,7 @@ struct BackupRestoreView: View {
                     Text("Cancel").font(KeelFont.body).foregroundStyle(theme.text)
                         .frame(maxWidth: .infinity).padding(.vertical, 11)
                         .overlay(RoundedRectangle(cornerRadius: 12, style: .continuous).stroke(theme.border, lineWidth: 1))
+                        .contentShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
                 }.buttonStyle(.plain)
                 Button { performRestore() } label: {
                     Text("Yes, restore").font(KeelFont.body).foregroundStyle(.white)

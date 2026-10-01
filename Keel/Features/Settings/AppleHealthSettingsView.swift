@@ -158,6 +158,7 @@ struct AppleHealthSettingsView: View {
                     .font(KeelFont.sans(13, weight: .medium)).foregroundStyle(Color(hex: 0xA9762F))
                     .frame(maxWidth: .infinity).padding(.vertical, 11)
                     .overlay(RoundedRectangle(cornerRadius: 12, style: .continuous).stroke(Color(hex: 0xA9762F).opacity(0.35), lineWidth: 1))
+                    .contentShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
             }
             .buttonStyle(.plain).padding(.top, 6)
             if let removeStatus {
@@ -183,6 +184,7 @@ struct AppleHealthSettingsView: View {
                     .font(KeelFont.sans(13, weight: .medium)).foregroundStyle(theme.accent)
                     .frame(maxWidth: .infinity).padding(.vertical, 10)
                     .overlay(RoundedRectangle(cornerRadius: 12, style: .continuous).stroke(theme.accent.opacity(0.4), lineWidth: 1))
+                    .contentShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
             }
             .buttonStyle(.plain)
         }
@@ -221,6 +223,7 @@ struct AppleHealthSettingsView: View {
             Text(title).font(KeelFont.sans(13, weight: .medium)).foregroundStyle(tint)
                 .frame(maxWidth: .infinity).padding(.vertical, 11)
                 .overlay(RoundedRectangle(cornerRadius: 12, style: .continuous).stroke(tint.opacity(0.35), lineWidth: 1))
+                .contentShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
         }
         .buttonStyle(.plain)
     }

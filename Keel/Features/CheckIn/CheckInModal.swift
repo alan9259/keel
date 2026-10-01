@@ -341,6 +341,7 @@ struct CheckInModal: View {
                 .frame(maxWidth: .infinity).padding(.vertical, 12)
                 .overlay(RoundedRectangle(cornerRadius: Radius.input, style: .continuous)
                     .stroke(warn.opacity(0.4), lineWidth: 1))
+                .contentShape(RoundedRectangle(cornerRadius: Radius.input, style: .continuous))
         }
         .buttonStyle(.plain)
         .padding(.top, 6)

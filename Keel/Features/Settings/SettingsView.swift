@@ -124,7 +124,9 @@ struct SettingsView: View {
                     }
                     Spacer()
                     Image(systemName: "chevron.right").font(.system(size: 14, weight: .semibold)).foregroundStyle(theme.muted)
-                }.padding(14)
+                }
+                .padding(14)
+                .contentShape(Rectangle())
             }
             .buttonStyle(.plain)
             .background(theme.card)
@@ -168,6 +170,7 @@ struct SettingsView: View {
                         Text("Cancel").font(KeelFont.body).foregroundStyle(theme.text)
                             .frame(maxWidth: .infinity).padding(.vertical, 13)
                             .overlay(RoundedRectangle(cornerRadius: 12, style: .continuous).stroke(theme.border, lineWidth: 1))
+                            .contentShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
                     }.buttonStyle(.plain)
                     Button(action: closeAccount) {
                         Text("Delete").font(KeelFont.body).foregroundStyle(.white)

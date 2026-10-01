@@ -254,6 +254,7 @@ struct DashboardView: View {
                                     }
                                 }
                             }
+                            .contentShape(Rectangle()) // tap anywhere on the row, not just the name/tick
                         }
                         .buttonStyle(.plain)
                         .accessibilityLabel(med.name)

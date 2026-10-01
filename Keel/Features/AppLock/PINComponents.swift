@@ -70,6 +70,7 @@ struct PINPad: View {
                 .foregroundStyle(theme.muted)
                 .frame(maxWidth: .infinity)
                 .frame(height: 72)
+                .contentShape(Circle()) // same 72pt circle as the digit keys
         }
         .buttonStyle(.plain)
         .accessibilityLabel("Delete")
