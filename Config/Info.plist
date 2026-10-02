@@ -40,9 +40,9 @@
 	<key>NSHealthUpdateUsageDescription</key>
 	<string>Keel only reads from Apple Health. It never writes or changes anything in it.</string>
 	<key>NSMicrophoneUsageDescription</key>
-	<string>Keel uses the microphone only when you tap it to speak a note.</string>
+	<string>Keel uses the microphone only when you tap it to speak a diary note.</string>
 	<key>NSSpeechRecognitionUsageDescription</key>
-	<string>Keel turns your spoken notes into text on your device. Your voice isn't sent anywhere.</string>
+	<string>Keel turns your spoken diary notes into text on your device. Your voice isn't sent anywhere.</string>
 	<key>UIAppFonts</key>
 	<array>
 		<string>TwemojiMozilla.ttf</string>
