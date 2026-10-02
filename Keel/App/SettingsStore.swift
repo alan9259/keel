@@ -73,6 +73,10 @@ final class SettingsStore {
     var showsSensitiveSymptoms: Bool { didSet { defaults.set(showsSensitiveSymptoms, forKey: "keel.sensitiveSymptoms") } }
     /// She has chosen to note alcohol in her check-in. Off until she turns it on.
     var notesAlcohol: Bool { didSet { defaults.set(notesAlcohol, forKey: "keel.notesAlcohol") } }
+    /// She has finished onboarding but hasn't yet seen the one-line reminders explanation
+    /// that comes before the iOS permission prompt. Persisted so closing the app first
+    /// doesn't skip it.
+    var notificationExplainerPending: Bool { didSet { defaults.set(notificationExplainerPending, forKey: "keel.notificationExplainerPending") } }
 
     init() {
         colourMode = ColourMode(rawValue: defaults.string(forKey: "keel.colourMode") ?? "") ?? .system
@@ -94,6 +98,7 @@ final class SettingsStore {
             .flatMap { try? JSONDecoder().decode(ReminderConfig.self, from: $0) }) ?? ReminderConfig()
         showsSensitiveSymptoms = defaults.object(forKey: "keel.sensitiveSymptoms") as? Bool ?? false
         notesAlcohol = defaults.object(forKey: "keel.notesAlcohol") as? Bool ?? false
+        notificationExplainerPending = defaults.object(forKey: "keel.notificationExplainerPending") as? Bool ?? false
 
         Haptics.userEnabled = haptics // all stored properties are set by here
     }

@@ -59,6 +59,8 @@ struct MainView: View {
     /// Set when "Change" is tapped on the detail screen so the slide reopens.
     @State private var reopenSlideAfterClose = false
     @State private var toast: ToastData?
+    /// The one-line reminders explanation shown once after onboarding, before iOS asks.
+    @State private var showReminderExplainer = false
 
     var body: some View {
         NavigationStack(path: $path) {
@@ -149,6 +151,18 @@ struct MainView: View {
             }
             .presentationDetents([.medium])
             .presentationDragIndicator(.visible)
+        }
+        .alert("Gentle reminders", isPresented: $showReminderExplainer) {
+            Button("Not now", role: .cancel) { env.answerNotificationExplainer(allow: false) }
+            Button("Continue") { env.answerNotificationExplainer(allow: true) }
+        } message: {
+            Text("Keel can remind you to check in and take your medicines. You can change this any time in Settings.")
+        }
+        .task(id: env.settings.notificationExplainerPending) {
+            // Let Home settle first so the explanation doesn't land mid-transition.
+            guard env.settings.notificationExplainerPending else { return }
+            try? await Task.sleep(for: .seconds(0.8))
+            if env.settings.notificationExplainerPending { showReminderExplainer = true }
         }
         .onAppear {
             #if DEBUG

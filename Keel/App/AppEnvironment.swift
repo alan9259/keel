@@ -141,11 +141,30 @@ final class AppEnvironment {
     /// screen, and then lay down the reminders she has on by default. Bootstrap
     /// deliberately never asks, so this is the first prompt a new user sees.
     func completeOnboarding() {
+        // Don't fire the iOS prompt the moment she lands on Home: Home first explains
+        // reminders in one line, and only "Continue" leads to the system prompt.
+        settings.notificationExplainerPending = true
+    }
+
+    /// Her answer to the one-line reminders explanation on Home. Continue asks iOS for
+    /// permission and lays down her default reminders; Not now turns reminders off
+    /// without ever showing the iOS prompt (she can turn them on later in Settings,
+    /// which asks then).
+    func answerNotificationExplainer(allow: Bool) {
+        recordNotificationExplainerAnswer(allow: allow)
+        guard allow else { return }
         Task {
             _ = await notifications.requestAuthorization()
             refreshLifestyleReminders()
             refreshMedicationReminders()
         }
+    }
+
+    /// The settings side of her answer, with no iOS prompt (split out so it's testable
+    /// without the system asking inside the test host).
+    func recordNotificationExplainerAnswer(allow: Bool) {
+        settings.notificationExplainerPending = false
+        if allow { settings.pushNotifications = true } else { setPushNotificationsEnabled(false) }
     }
 
     /// How far back to import on a sync. A year gives the cycle and premenstrual

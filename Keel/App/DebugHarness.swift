@@ -186,6 +186,8 @@ enum DebugHarness {
             env.medications.setTaken(med, on: .now, slot: nil, taken: true) // TODAY only
         }
         if showSensitiveSymptoms { env.settings.showsSensitiveSymptoms = true }
+        // Show the post-onboarding reminders explanation, for a screenshot.
+        if args.contains("-uitReminderExplainer") { env.settings.notificationExplainerPending = true }
         // A sample My background answer, to screenshot the selected state + year field.
         if args.contains("-uitSeedBackground") { env.users.setHysterectomy(.yesNotSureAboutOvaries, year: 2016) }
 
