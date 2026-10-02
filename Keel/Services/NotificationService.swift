@@ -297,6 +297,13 @@ final class NotificationService {
         center.removeAllPendingNotificationRequests()
     }
 
+    /// Pending and already-delivered reminders both go (used when she deletes her data,
+    /// so no reminder naming a medicine she removed can still appear).
+    func removeEverything() {
+        center.removeAllPendingNotificationRequests()
+        center.removeAllDeliveredNotifications()
+    }
+
     /// Clears every pending reminder for one medication, whatever shape its
     /// schedule was in when they were made.
     func cancelMedicationReminders(medicationID: UUID) async {

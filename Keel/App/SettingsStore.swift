@@ -103,6 +103,25 @@ final class SettingsStore {
         Haptics.userEnabled = haptics // all stored properties are set by here
     }
 
+    /// Back to a fresh install's preferences ("Delete all my data"). Themes and mood
+    /// packs she owns are kept: they're things she unlocked, not her data.
+    func resetToDefaults() {
+        colourMode = .system
+        themeID = ThemeCatalog.defaultID
+        moodPackID = MoodPacks.defaultID
+        pushNotifications = true
+        haptics = true
+        analytics = false
+        icloudBackup = true
+        autoBackup = true
+        enabledReminderIDs = ["dailyCheckIn", "medication"]
+        disabledHealthItemIDs = []
+        reminderConfig = ReminderConfig()
+        showsSensitiveSymptoms = false
+        notesAlcohol = false
+        notificationExplainerPending = false
+    }
+
     // MARK: Derived
 
     func isDark(systemDark: Bool) -> Bool {

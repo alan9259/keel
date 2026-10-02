@@ -130,15 +130,15 @@ struct SettingsView: View {
 
     private var accountGroup: some View {
         VStack(alignment: .leading, spacing: 8) {
-            Text("ACCOUNT").font(KeelFont.eyebrow).tracking(1).foregroundStyle(theme.muted).padding(.leading, 4)
+            Text("YOUR DATA").font(KeelFont.eyebrow).tracking(1).foregroundStyle(theme.muted).padding(.leading, 4)
             Button { showCloseDialog = true; typed = "" } label: {
                 HStack(spacing: 14) {
                     Image(systemName: "person.crop.circle.badge.xmark").font(.system(size: 17))
                         .foregroundStyle(theme.attention).frame(width: 40, height: 40)
                         .background(theme.attention.opacity(0.1)).clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
                     VStack(alignment: .leading, spacing: 2) {
-                        Text("Close account").font(KeelFont.body).foregroundStyle(theme.attention)
-                        Text("Permanently delete your account and all data").font(KeelFont.caption).foregroundStyle(theme.muted)
+                        Text("Delete all my data").font(KeelFont.body).foregroundStyle(theme.attention)
+                        Text("Everything Keel has stored on this phone").font(KeelFont.caption).foregroundStyle(theme.muted)
                     }
                     Spacer()
                     Image(systemName: "chevron.right").font(.system(size: 14, weight: .semibold)).foregroundStyle(theme.muted)
@@ -163,8 +163,8 @@ struct SettingsView: View {
                         .frame(width: 44, height: 44)
                         .background(theme.attention.opacity(0.1)).clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
                     VStack(alignment: .leading, spacing: 6) {
-                        Text("Close your account?").font(KeelFont.serif(18, weight: .semibold)).foregroundStyle(theme.text)
-                        Text("This permanently deletes your account and all your data. This can't be undone.")
+                        Text("Delete all your data?").font(KeelFont.serif(18, weight: .semibold)).foregroundStyle(theme.text)
+                        Text("This permanently deletes everything Keel has stored on this phone: your entries, medicines, reminders, settings and app lock. It can't be undone. Backup files you've exported aren't affected.")
                             .font(KeelFont.caption).foregroundStyle(theme.muted).fixedSize(horizontal: false, vertical: true)
                     }
                 }
@@ -208,35 +208,7 @@ struct SettingsView: View {
 
     private func closeAccount() {
         guard typed == "DELETE" else { return }
-        let ctx = env.context
-        try? ctx.delete(model: UserProfile.self)
-        try? ctx.delete(model: CheckIn.self)
-        try? ctx.delete(model: Symptom.self)
-        try? ctx.delete(model: CheckInSymptom.self)
-        try? ctx.delete(model: CycleEntry.self)
-        try? ctx.delete(model: Medication.self)
-        try? ctx.delete(model: MedicationLog.self)
-        try? ctx.delete(model: Insight.self)
-        try? ctx.delete(model: ChatMessage.self)
-        try? ctx.delete(model: ActivityLog.self)
-        try? ctx.delete(model: DailySummary.self)
-        try? ctx.delete(model: HealthSample.self)
-        try? ctx.delete(model: HealthActivitySample.self)
-        try? ctx.save()
-        // The built-in symptoms are reference data, not personal data. Re-seed them
-        // so the next sign-up has its default check-in symptoms (bootstrap only
-        // seeds at launch, and closing the account returns to onboarding in place).
-        env.symptoms.syncBuiltIns()
-        // Forget the Apple Health sync throttle and her per-item choices, so the next
-        // account starts from the defaults rather than inheriting hers.
-        env.resetHealthSyncState()
-        // Keel is local-only, so deleting the models above removes her data entirely
-        // (there is no iCloud or server copy to clean up). Keel holds no server-side
-        // Apple tokens (AuthService keeps only the stable Apple `user` id locally, with
-        // no REST-API token exchange), so there is nothing to revoke here today. When a
-        // backend that exchanges tokens is added, call Apple's token-revoke endpoint
-        // from there on account deletion (the private .p8 key must never ship in-app).
-        env.auth.signOut()
+        env.eraseAllData()
         hasOnboarded = false
     }
 }

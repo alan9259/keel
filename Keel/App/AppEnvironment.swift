@@ -212,6 +212,35 @@ final class AppEnvironment {
     /// True while a sync is reading or importing. Internal so tests can wait for it.
     var isHealthSyncInFlight: Bool { isSyncingHealth }
 
+    /// "Delete all my data": remove everything Keel holds for her on this phone. Every
+    /// record (both stores), pending and delivered reminders, the app lock and its PIN,
+    /// her preferences and her local identity. Keel is local-only, so this is all of it:
+    /// there is no server or iCloud copy. Built-in symptoms are reference data and are
+    /// re-seeded for the next person who sets Keel up.
+    func eraseAllData() {
+        try? context.delete(model: UserProfile.self)
+        try? context.delete(model: CheckIn.self)
+        try? context.delete(model: Symptom.self)
+        try? context.delete(model: CheckInSymptom.self)
+        try? context.delete(model: CycleEntry.self)
+        try? context.delete(model: Medication.self)
+        try? context.delete(model: MedicationLog.self)
+        try? context.delete(model: Insight.self)
+        try? context.delete(model: ChatMessage.self)
+        try? context.delete(model: ActivityLog.self)
+        try? context.delete(model: DailySummary.self)
+        try? context.delete(model: HealthSample.self)
+        try? context.delete(model: HealthActivitySample.self)
+        try? context.save()
+        symptoms.syncBuiltIns()
+
+        notifications.removeEverything()   // no reminder naming a deleted medicine fires
+        lock.disable()                     // PIN removed from the Keychain, lock off
+        resetHealthSyncState()
+        settings.resetToDefaults()
+        auth.signOut()
+    }
+
     /// Close-account reset: forget the throttle stamp and her per-item choices so the
     /// next account starts from the defaults (every item on).
     func resetHealthSyncState() {
