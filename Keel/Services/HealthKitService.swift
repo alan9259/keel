@@ -63,24 +63,27 @@ final class HealthKitService {
         ("exercise", .appleExerciseTime, .minute()),
     ]
 
+    /// Only types Keel shows or uses (submission pack A3): heart rate, respiratory rate,
+    /// blood oxygen, body temperature and basal body temperature were read but never
+    /// shown, so they are no longer requested.
+    ///
     /// Vitals / workload stored as `HealthSample`. `average` averages the day's
     /// samples (a heart rate); otherwise they are summed (energy, flights).
     private static let vitalQuantities: [(typeID: String, id: HKQuantityTypeIdentifier, unit: HKUnit, unitLabel: String, average: Bool)] = [
-        ("heartRate", .heartRate, .count().unitDivided(by: .minute()), "bpm", true),
         ("restingHeartRate", .restingHeartRate, .count().unitDivided(by: .minute()), "bpm", true),
         ("hrv", .heartRateVariabilitySDNN, .secondUnit(with: .milli), "ms", true),
         ("bloodPressureSystolic", .bloodPressureSystolic, .millimeterOfMercury(), "mmHg", true),
         ("bloodPressureDiastolic", .bloodPressureDiastolic, .millimeterOfMercury(), "mmHg", true),
-        ("respiratoryRate", .respiratoryRate, .count().unitDivided(by: .minute()), "brpm", true),
-        ("oxygenSaturation", .oxygenSaturation, .percent(), "%", true),
         ("bodyMass", .bodyMass, .gramUnit(with: .kilo), "kg", true),
-        ("bodyTemperature", .bodyTemperature, .degreeCelsius(), "°C", true),
         ("wristTemperature", .appleSleepingWristTemperature, .degreeCelsius(), "°C", true),
-        ("basalBodyTemperature", .basalBodyTemperature, .degreeCelsius(), "°C", true),
         ("activeEnergy", .activeEnergyBurned, .kilocalorie(), "kcal", false),
         ("flights", .flightsClimbed, .count(), "count", false),
         ("distance", .distanceWalkingRunning, .meterUnit(with: .kilo), "km", false),
     ]
+
+    /// The vital type ids Keel reads (for tests and the record of what's requested).
+    nonisolated static var readVitalTypeIDs: [String] { vitalQuantities.map(\.typeID) }
+    nonisolated static var readActivityIDs: [String] { activityQuantities.map(\.activityID) }
 
     private var readTypes: Set<HKObjectType> {
         // Symptoms, menstrual flow and mindful minutes are deliberately NOT read: Keel no
@@ -138,8 +141,7 @@ final class HealthKitService {
         }
 
         for entry in Self.vitalQuantities {
-            var byDay = await quantityByDay(entry.id, unit: entry.unit, lastDays: lastDays, average: entry.average)
-            if entry.typeID == "oxygenSaturation" { byDay = byDay.mapValues { $0 * 100 } } // fraction → %
+            let byDay = await quantityByDay(entry.id, unit: entry.unit, lastDays: lastDays, average: entry.average)
             if !byDay.isEmpty {
                 snapshot.vitals.append(.init(typeID: entry.typeID, unit: entry.unitLabel, byDay: byDay))
             }

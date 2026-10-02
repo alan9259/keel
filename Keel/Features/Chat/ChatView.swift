@@ -200,6 +200,16 @@ struct ChatView: View {
         .padding(.vertical, 10)
         .background(theme.background)
         .overlay(Divider().background(theme.border), alignment: .top)
+        .overlay(alignment: .top) {
+            if let message = env.speech.unavailableMessage {
+                Text(message).font(KeelFont.caption).foregroundStyle(theme.muted)
+                    .fixedSize(horizontal: false, vertical: true)
+                    .padding(.horizontal, 20).padding(.vertical, 6)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .background(theme.background)
+                    .offset(y: -30)
+            }
+        }
         // Stream the live transcript into the field while dictating.
         .onChange(of: env.speech.transcript) { _, t in if env.speech.isRecording { input = t } }
     }

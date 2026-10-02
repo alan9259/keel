@@ -65,10 +65,9 @@ struct ReportsView: View {
     /// A plain, non-judging count of recent check-ins. No streaks, no broken runs, no
     /// grey holes for the days a hard fortnight meant she didn't log.
     private var checkInSummary: some View {
-        // Distinct days with a check-in within the selected period (follows the toggle,
-        // instead of a hardcoded 7 that mismatched the cards below).
-        let count = Set(windowCheckIns.map { $0.date.startOfDay }).count
-        return Text("You checked in on \(count) of the last \(period.days) days.")
+        // Distinct days with a check-in in the selected period: the same count as the
+        // Check-ins card below, so the sentence and the cards always agree.
+        return Text("You checked in on \(dayCounts.checkInDays) of the last \(period.days) days.")
             .font(KeelFont.body).foregroundStyle(theme.text.opacity(0.8))
             .frame(maxWidth: .infinity, alignment: .leading)
             .padding(.horizontal, 4)
@@ -76,10 +75,10 @@ struct ReportsView: View {
 
     private var statTiles: some View {
         let tiles: [(String, String, String)] = [
-            ("Check-ins", "\(windowCheckIns.count)", "of \(period.days) days"),
+            ("Check-ins", "\(dayCounts.checkInDays)", "of \(period.days) days"),
             // Energy in her own words, not a percentage (R10). Dash when nothing logged.
             ("Avg energy", windowCheckIns.isEmpty ? "—" : EnergyLevel.from(percent: avgEnergy).label, "across entries"),
-            ("No symptoms logged", "\(symptomFreeDays)", "of \(windowCheckIns.count) days logged"),
+            ("No symptoms logged", "\(dayCounts.noSymptomDays)", "of \(dayCounts.checkInDays) days logged"),
             ("Medicines", "\(daysWithAnyMedTaken)", "taken of \(period.days) days"),
         ]
         return LazyVGrid(columns: [GridItem(.flexible(), spacing: 10), GridItem(.flexible(), spacing: 10)], spacing: 10) {
@@ -313,7 +312,10 @@ struct ReportsView: View {
         return v.isEmpty ? 0 : v.reduce(0, +) / v.count
     }
 
-    private var symptomFreeDays: Int { windowCheckIns.filter { $0.symptoms.isEmpty }.count }
+    /// Day-based counts for the selected period (see `StatsDayCounts`).
+    private var dayCounts: StatsDayCounts {
+        StatsDayCounts(entries: windowCheckIns.map { (day: $0.date.startOfDay, hasSymptoms: !$0.symptoms.isEmpty) })
+    }
 
     // MARK: Check-ins
 
@@ -435,4 +437,20 @@ struct ReportsView: View {
         }
     }
 
+}
+
+/// Stats counts are in days, never entries, so the "You checked in on X of the last N
+/// days" sentence and the cards under it agree for every period (submission pack A5).
+/// A day counts once however many entries she made; "no symptoms logged" means nothing
+/// she logged that day had a symptom (it describes the record, not her health).
+struct StatsDayCounts: Equatable {
+    let checkInDays: Int
+    let noSymptomDays: Int
+
+    init(entries: [(day: Date, hasSymptoms: Bool)]) {
+        var dayHasSymptom: [Date: Bool] = [:]
+        for e in entries { dayHasSymptom[e.day] = (dayHasSymptom[e.day] ?? false) || e.hasSymptoms }
+        checkInDays = dayHasSymptom.count
+        noSymptomDays = dayHasSymptom.values.filter { !$0 }.count
+    }
 }

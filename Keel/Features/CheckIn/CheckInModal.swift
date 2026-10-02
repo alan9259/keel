@@ -317,6 +317,9 @@ struct CheckInModal: View {
                     Circle().fill(theme.accent).frame(width: 7, height: 7)
                     Text("Listening…").font(KeelFont.sans(12)).foregroundStyle(theme.accent)
                 }
+            } else if let message = env.speech.unavailableMessage {
+                Text(message).font(KeelFont.caption).foregroundStyle(theme.muted)
+                    .fixedSize(horizontal: false, vertical: true)
             }
         }
         .onChange(of: env.speech.transcript) { _, t in if env.speech.isRecording { notes = t } }

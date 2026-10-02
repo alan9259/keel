@@ -53,6 +53,10 @@ extension View {
 private struct KeelScreenBackgroundModifier: ViewModifier {
     @Environment(\.keelTheme) private var theme
     func body(content: Content) -> some View {
-        content.background(theme.background.ignoresSafeArea())
+        content
+            .background(theme.background.ignoresSafeArea())
+            #if DEBUG
+            .defaultScrollAnchor(DebugHarness.scrollToBottom ? .bottom : nil)
+            #endif
     }
 }

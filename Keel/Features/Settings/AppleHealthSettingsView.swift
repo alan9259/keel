@@ -148,7 +148,7 @@ struct AppleHealthSettingsView: View {
             .clipShape(RoundedRectangle(cornerRadius: Radius.card, style: .continuous))
             .overlay(RoundedRectangle(cornerRadius: Radius.card, style: .continuous).stroke(theme.border, lineWidth: 1))
 
-            Text("Switch off anything you would rather Keel didn't import. Turning one off stops new data coming in, and keeps what was already imported until you remove it below. You can also change what Keel can read in the Health app: tap your profile picture, then Apps, then Keel. Keel only ever reads what you allow, and never writes back. Imported data is kept in a separate area on your device and never leaves it.")
+            Text("Switch off anything you would rather Keel didn't import. Turning one off stops new data coming in, and keeps what was already imported until you remove it below. You can also change what Keel can read in the Health app: tap your profile picture, then Apps, then Keel. Keel only ever reads what you allow, and never writes back. Imported data is kept in a separate area on this phone, and only goes into a backup file if you export one.")
                 .font(KeelFont.caption).foregroundStyle(theme.muted)
                 .fixedSize(horizontal: false, vertical: true)
                 .padding(.horizontal, 4).padding(.top, 2)

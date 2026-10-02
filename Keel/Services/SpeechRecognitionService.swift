@@ -30,6 +30,18 @@ final class SpeechRecognitionService {
 
     var isRecording: Bool { state == .recording }
 
+    /// What to tell her when voice entry can't run, so she isn't left tapping a mic
+    /// that does nothing. Never falls back to sending audio off the phone: she types.
+    var unavailableMessage: String? { Self.unavailableMessage(for: state) }
+
+    nonisolated static func unavailableMessage(for state: State) -> String? {
+        switch state {
+        case .unavailable: "Voice notes aren't available on this phone. You can type instead."
+        case .denied: "Voice notes need microphone and speech access. You can type instead, or allow access in Settings."
+        case .idle, .recording: nil
+        }
+    }
+
     /// Whether dictation can run fully on-device. We only dictate when both are true,
     /// so the audio never goes to Apple's servers. Pure, so it's unit-testable.
     nonisolated static func canDictateOnDevice(isAvailable: Bool, supportsOnDevice: Bool) -> Bool {

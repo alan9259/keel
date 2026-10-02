@@ -1,16 +1,8 @@
 import SwiftUI
-import AuthenticationServices
-import OSLog
 
-/// Her account and basic details, reachable from More. Two jobs:
-///  1. If she skipped account creation in onboarding (a local, on-device identity),
-///     offer the same upgrade path as onboarding: Sign in with Apple. Her existing
-///     data is re-stamped to the new account, so nothing is orphaned.
-///  2. Let her add or change basic details (names, age, mobile, email).
-///
-/// When she's signed in with Apple we follow Apple's guidance: the Apple identity is
-/// shown as a status and never re-collected (Apple hands name/email over only on the
-/// first sign-in), and we ask only for editable contact details.
+/// Her basic details, reachable from More: names, age, mobile, email, all optional and
+/// stored on this phone. There are no accounts in V1 (no sign-in, no sync, no server),
+/// so there is nothing to sign in to or upgrade (submission pack A4).
 struct ProfileView: View {
     @Environment(AppEnvironment.self) private var env
     @Environment(\.keelTheme) private var theme
@@ -22,10 +14,6 @@ struct ProfileView: View {
     @State private var mobile = ""
     @State private var email = ""
     @State private var justSaved = false
-    /// Non-nil shows the sign-in error alert (a real failure, not a cancellation).
-    @State private var authErrorMessage: String?
-
-    private static let log = Logger(subsystem: "com.therecalibrationyears", category: "auth")
 
     private var hasAppleIdentity: Bool { env.auth.hasAppleIdentity }
 
@@ -33,8 +21,7 @@ struct ProfileView: View {
         ScrollView {
             VStack(alignment: .leading, spacing: 20) {
                 ScreenHeader(title: "Profile", titleSize: 28,
-                             subtitle: "Your account and details") { dismiss() }
-                accountCard
+                             subtitle: "Your details, stored on this phone") { dismiss() }
                 detailsSection
             }
             .padding(.horizontal, Spacing.screenH).padding(.vertical, Spacing.md)
@@ -42,54 +29,6 @@ struct ProfileView: View {
         .background(theme.background.ignoresSafeArea())
         .keelFeatureScreen()
         .onAppear(perform: load)
-        .alert("Sign-in didn't complete", isPresented: Binding(
-            get: { authErrorMessage != nil }, set: { if !$0 { authErrorMessage = nil } }
-        )) {
-            Button("OK", role: .cancel) { authErrorMessage = nil }
-        } message: {
-            Text(authErrorMessage ?? "")
-        }
-    }
-
-    // MARK: Account status / upgrade
-
-    @ViewBuilder
-    private var accountCard: some View {
-        if hasAppleIdentity {
-            card {
-                HStack(spacing: 14) {
-                    Image(systemName: "apple.logo").font(.system(size: 18)).foregroundStyle(theme.heading)
-                        .frame(width: 40, height: 40).background(theme.inputBackground)
-                        .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
-                    VStack(alignment: .leading, spacing: 2) {
-                        Text("Signed in with Apple").font(KeelFont.bodyLarge).foregroundStyle(theme.text)
-                        Text("Your data is tied to your account and can sync across your devices.")
-                            .font(KeelFont.caption).foregroundStyle(theme.muted)
-                            .fixedSize(horizontal: false, vertical: true)
-                    }
-                    Spacer(minLength: 0)
-                }
-            }
-        } else {
-            card {
-                VStack(alignment: .leading, spacing: 12) {
-                    Text("Create an account").font(KeelFont.serif(18, weight: .semibold)).foregroundStyle(theme.heading)
-                    Text("You're using Keel on this device. Create an account to keep your data safe and sync it across your devices. Everything you've logged so far comes with you.")
-                        .font(KeelFont.body).foregroundStyle(theme.muted)
-                        .fixedSize(horizontal: false, vertical: true)
-                    SignInWithAppleButton(.signUp) { request in
-                        env.auth.configureRequest(request)
-                    } onCompletion: { result in
-                        handleApple(result)
-                    }
-                    .signInWithAppleButtonStyle(.black)
-                    .frame(height: 52)
-                    .clipShape(RoundedRectangle(cornerRadius: Radius.input, style: .continuous))
-                    Text("We never sell your data. Ever.")
-                        .font(KeelFont.caption).foregroundStyle(theme.muted)
-                }
-            }
-        }
     }
 
     // MARK: Editable details
@@ -169,35 +108,5 @@ struct ProfileView: View {
         withAnimation { justSaved = true }
         env.requestSync()
         Task { try? await Task.sleep(for: .seconds(2)); withAnimation { justSaved = false } }
-    }
-
-    // MARK: Sign in with Apple (upgrade a local identity to a real account)
-
-    private func handleApple(_ result: Result<ASAuthorization, Error>) {
-        switch result {
-        case .success(let authorization):
-            let previousOwner = env.auth.ownerID
-            env.auth.handleAuthorization(authorization)
-            let newOwner = env.auth.ownerID
-            // Upgrading a "continue on this device" identity: carry her existing data
-            // over to the new account so nothing she has logged is orphaned.
-            if previousOwner != newOwner, previousOwner.hasPrefix("local-") {
-                let moved = env.reassignOwnership(from: previousOwner, to: newOwner)
-                Self.log.info("Upgraded local identity to Apple; re-stamped \(moved, privacy: .public) rows.")
-            }
-            let appleEmail = (authorization.credential as? ASAuthorizationAppleIDCredential)?.email
-            env.users.upsertProfile(
-                firstName: env.auth.displayName ?? firstName.nilIfEmpty ?? "there",
-                email: appleEmail,
-                appleUserID: env.auth.appleUserID)
-            load()
-            Haptics.success()
-            env.requestSync()
-        case .failure(let error):
-            // Backing out of the sheet isn't an error worth interrupting her with.
-            if let authError = error as? ASAuthorizationError, authError.code == .canceled { return }
-            Self.log.error("Sign in with Apple failed: \(error.localizedDescription, privacy: .public)")
-            authErrorMessage = "We couldn't complete Sign in with Apple. You can try again anytime, or keep using Keel on this device."
-        }
     }
 }

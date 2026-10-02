@@ -1,13 +1,11 @@
 import Foundation
-import AuthenticationServices
 
-/// Identity for the app. Sign in with Apple is the primary path — its stable
-/// `user` identifier becomes `ownerID`, stamped on every record. That same id
-/// maps cleanly to a Supabase `auth.uid()` later (Apple OIDC), so migrating
-/// keeps every row's ownership intact.
+/// Identity for the app: a stable, Keychain-backed local `ownerID` stamped on every
+/// record, plus her first name. V1 has no accounts and no sign-in (submission pack A4),
+/// so nothing here talks to any server.
 ///
-/// A local fallback identity exists for the Simulator and a "skip account" path,
-/// since Sign in with Apple needs entitlements + a signed build to function.
+/// Builds before V1 offered Sign in with Apple; a stored Apple user id from those is
+/// still read (it is her `ownerID`), so her existing records keep their owner.
 @MainActor
 @Observable
 final class AuthService {
@@ -43,22 +41,6 @@ final class AuthService {
         hasCompletedOnboarding = true
         UserDefaults.standard.set(true, forKey: onboardedKey)
         Keychain.set("1", for: onboardedKey)
-    }
-
-    /// Configure the Sign in with Apple request (called from `SignInWithAppleButton`).
-    func configureRequest(_ request: ASAuthorizationAppleIDRequest) {
-        request.requestedScopes = [.fullName, .email]
-    }
-
-    /// Handle a successful Sign in with Apple authorization.
-    func handleAuthorization(_ authorization: ASAuthorization) {
-        guard let credential = authorization.credential as? ASAuthorizationAppleIDCredential else { return }
-        appleUserID = credential.user
-        ownerID = credential.user
-        if let given = credential.fullName?.givenName, !given.isEmpty {
-            displayName = given
-        }
-        persist()
     }
 
     /// Establish (or reuse) a stable local identity — Simulator / skip path.

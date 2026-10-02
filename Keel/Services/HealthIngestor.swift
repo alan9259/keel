@@ -57,6 +57,11 @@ final class HealthIngestor {
     /// now re-import into `HealthActivitySample`). Idempotent — nothing re-creates the
     /// symptom/cycle rows, and imported activity re-populates the health store on the
     /// next sync. Returns how many rows it removed.
+    /// Vitals Keel used to read but never showed, so no longer requests (A3).
+    static let discontinuedVitalTypeIDs: Set<String> = [
+        "heartRate", "respiratoryRate", "oxygenSaturation", "bodyTemperature", "basalBodyTemperature",
+    ]
+
     @discardableResult
     func purgeDiscontinuedHealthImports() -> Int {
         var removed = 0
@@ -68,6 +73,10 @@ final class HealthIngestor {
 
         let samples = (try? context.fetch(FetchDescriptor<HealthSample>())) ?? []
         for sample in samples where sample.typeID.hasPrefix("symptom.") { context.delete(sample); removed += 1 }
+        // Types no longer read (A3: never shown in Keel): drop what was imported earlier.
+        for sample in samples where Self.discontinuedVitalTypeIDs.contains(sample.typeID) {
+            context.delete(sample); removed += 1
+        }
 
         // Legacy imported activity moves out of ActivityLog into HealthActivitySample.
         let activity = (try? context.fetch(FetchDescriptor<ActivityLog>())) ?? []

@@ -34,6 +34,8 @@ struct PathwayView: View {
                 // Breathing room so the last option clears the pinned button.
                 .padding(.bottom, Spacing.lg)
             }
+            // Keep scrolled content out from behind the status bar (A6).
+            .clipped()
 
             KeelPrimaryButton("Continue", isEnabled: selection != nil) {
                 if let selection { env.users.setPathway(selection) }

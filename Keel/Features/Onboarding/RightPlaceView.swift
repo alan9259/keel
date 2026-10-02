@@ -8,7 +8,7 @@ struct RightPlaceView: View {
         VStack(alignment: .leading, spacing: 0) {
             ScrollView {
                 VStack(alignment: .leading, spacing: Spacing.lg) {
-                    Spacer().frame(height: Spacing.xxl)
+                    Spacer().frame(height: Spacing.md)
 
                     Text("You're in the right place.")
                         .onboardingTitle(.leading)
@@ -41,9 +41,21 @@ struct RightPlaceView: View {
                 }
                 .padding(.horizontal, Spacing.screenH)
             }
+            // On a smaller phone the callout may need a scroll: fade the last few points
+            // rather than slicing a line of text against the button.
+            .mask(
+                // A mask reads only alpha: opaque down to the last few points, then fading.
+                VStack(spacing: 0) {
+                    Rectangle()
+                    LinearGradient(colors: [theme.text, theme.text.opacity(0)], startPoint: .top, endPoint: .bottom)
+                        .frame(height: Spacing.md)
+                }
+            )
 
+            // A clear gap above the button so the callout never runs into it (A6).
             KeelPrimaryButton("Continue", action: onContinue)
                 .padding(.horizontal, Spacing.screenH)
+                .padding(.top, Spacing.md)
                 .padding(.bottom, Spacing.xxl)
         }
         .keelScreenBackground()
