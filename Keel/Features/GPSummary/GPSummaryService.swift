@@ -52,6 +52,10 @@ struct GPSummaryService {
             .map { (label: $0.key.label, count: $0.value.count) }
         let moodLine = GPSummaryBuilder.moodLine(topMoods: moodCounts)
 
+        // Alcohol: only days with a saved number count (zero included); blank is never 0.
+        let alcoholDays = distinctDays(thisCheckIns.filter { $0.alcoholCount != nil }).count
+        let alcoholLine = GPSummaryBuilder.alcoholLine(recordedDays: alcoholDays, checkInDays: checkInDaysThis)
+
         // Cycle.
         let cycleBlock = makeCycleBlock(window: window)
 
@@ -118,12 +122,14 @@ struct GPSummaryService {
             sleepLine: sleepLine,
             energyLine: energyLine,
             moodLine: moodLine,
+            alcoholLine: alcoholLine,
             questions: questions,
             generatedOn: now,
             includeCycle: !inputs.removedSections.contains(.cycle),
             includeSleep: !inputs.removedSections.contains(.sleep),
             includeEnergy: !inputs.removedSections.contains(.energy),
-            includeMood: !inputs.removedSections.contains(.mood))
+            includeMood: !inputs.removedSections.contains(.mood),
+            includeAlcohol: !inputs.removedSections.contains(.alcohol))
     }
 
     // MARK: Symptoms

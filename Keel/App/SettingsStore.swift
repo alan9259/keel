@@ -71,6 +71,8 @@ final class SettingsStore {
     /// She has asked to see the intimacy and bladder group. Off until she does,
     /// so nothing personal appears in the picker uninvited.
     var showsSensitiveSymptoms: Bool { didSet { defaults.set(showsSensitiveSymptoms, forKey: "keel.sensitiveSymptoms") } }
+    /// She has chosen to note alcohol in her check-in. Off until she turns it on.
+    var notesAlcohol: Bool { didSet { defaults.set(notesAlcohol, forKey: "keel.notesAlcohol") } }
 
     init() {
         colourMode = ColourMode(rawValue: defaults.string(forKey: "keel.colourMode") ?? "") ?? .system
@@ -91,6 +93,7 @@ final class SettingsStore {
         reminderConfig = (defaults.data(forKey: "keel.reminderConfig")
             .flatMap { try? JSONDecoder().decode(ReminderConfig.self, from: $0) }) ?? ReminderConfig()
         showsSensitiveSymptoms = defaults.object(forKey: "keel.sensitiveSymptoms") as? Bool ?? false
+        notesAlcohol = defaults.object(forKey: "keel.notesAlcohol") as? Bool ?? false
 
         Haptics.userEnabled = haptics // all stored properties are set by here
     }

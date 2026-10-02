@@ -34,6 +34,8 @@ struct CheckInModal: View {
     /// those are read-only, while she can still type a value for a night it doesn't.
     @State private var sleepHours: Double?
     @State private var sleepFromHealth = false
+    /// Alcohol count for this entry. Nil = not recorded (untouched); 0 is a real answer.
+    @State private var alcohol: Int?
     /// Symptom id → severity level (1…3). Absent means unselected.
     @State private var selected: [UUID: Int] = [:]
     /// The "more" picker, where the full grouped list lives.
@@ -70,6 +72,7 @@ struct CheckInModal: View {
                     recap
                     energySection
                     sleepSection
+                    if env.settings.notesAlcohol { alcoholSection }
                     diarySection
                     symptomsSection
                     if editingID != nil { removeButton }
@@ -249,6 +252,56 @@ struct CheckInModal: View {
         return "\(s) hrs"
     }
 
+    /// Optional, off by default (Settings > Check-in). Starts blank; only a number she
+    /// saves counts, including zero. No units, targets, colours or reminders.
+    private var alcoholSection: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            HStack {
+                Text("Alcohol").font(KeelFont.serif(16, weight: .semibold)).foregroundStyle(theme.text)
+                Spacer()
+                Text("Optional").font(KeelFont.sans(12)).foregroundStyle(theme.muted)
+            }
+            if let count = alcohol {
+                HStack(spacing: 14) {
+                    sleepStep("minus") { adjustAlcohol(-1) }
+                        .accessibilityLabel("One fewer")
+                    Text("\(count)").font(KeelFont.sans(16, weight: .medium))
+                        .foregroundStyle(theme.text).frame(minWidth: 40)
+                        .accessibilityLabel("Alcohol, \(count)")
+                    sleepStep("plus") { adjustAlcohol(1) }
+                        .accessibilityLabel("One more")
+                    Spacer()
+                    Button { withAnimation { alcohol = nil } } label: {
+                        Text("Clear").font(KeelFont.sans(12)).foregroundStyle(theme.muted)
+                    }
+                    .accessibilityHint("Leaves alcohol not recorded for this entry")
+                }
+                .padding(.horizontal, 14).padding(.vertical, 10)
+                .background(theme.card)
+                .clipShape(RoundedRectangle(cornerRadius: Radius.card, style: .continuous))
+                .overlay(RoundedRectangle(cornerRadius: Radius.card, style: .continuous).stroke(theme.border, lineWidth: 1))
+            } else {
+                Button { Haptics.selection(); withAnimation { alcohol = 0 } } label: {
+                    HStack(spacing: 6) {
+                        Image(systemName: "plus").font(.system(size: 13))
+                        Text("Add a number").font(KeelFont.body)
+                    }
+                    .foregroundStyle(theme.accent)
+                    .padding(.horizontal, 14).padding(.vertical, 10)
+                    .overlay(Capsule().stroke(theme.accent.opacity(0.5),
+                                              style: StrokeStyle(lineWidth: 1, dash: [4, 3])))
+                    .contentShape(Capsule())
+                }
+                .buttonStyle(.plain)
+            }
+        }
+    }
+
+    private func adjustAlcohol(_ delta: Int) {
+        Haptics.selection()
+        alcohol = max(0, (alcohol ?? 0) + delta)
+    }
+
     private var diarySection: some View {
         VStack(alignment: .leading, spacing: 12) {
             HStack {
@@ -391,6 +444,7 @@ struct CheckInModal: View {
         guard let entry = fetchEntry(id) else { return }
         energy = EnergyLevel.from(percent: entry.energy)
         notes = entry.notes ?? ""
+        alcohol = entry.alcoholCount
         selected = Dictionary(uniqueKeysWithValues:
             (entry.symptomLinks ?? []).filter { !$0.isTombstoned }.compactMap { link in
                 link.symptom.map { ($0.id, link.severity) }
@@ -434,9 +488,11 @@ struct CheckInModal: View {
             guard level > 0, let s = byID[id] else { return nil }
             return (s, level)
         }
+        let saved: CheckIn
         if let id = editingID, let entry = fetchEntry(id) {
             env.checkIns.update(entry, mood: mood, energy: (energy ?? .okay).percent,
                                 notes: notes, symptoms: picked)
+            saved = entry
         } else {
             // Stamp the entry with the actual time of day, on the day being logged.
             // The day selector hands us midnight (start of day), so without this
@@ -445,9 +501,12 @@ struct CheckInModal: View {
             let t = cal.dateComponents([.hour, .minute, .second], from: .now)
             let stamp = cal.date(bySettingHour: t.hour ?? 0, minute: t.minute ?? 0,
                                  second: t.second ?? 0, of: entryDate) ?? .now
-            env.checkIns.create(mood: mood, energy: (energy ?? .okay).percent,
-                                notes: notes, symptoms: picked, date: stamp)
+            saved = env.checkIns.create(mood: mood, energy: (energy ?? .okay).percent,
+                                        notes: notes, symptoms: picked, date: stamp)
         }
+        // Only when the section is shown: turning alcohol off later never erases a
+        // number she already recorded on an entry she edits.
+        if env.settings.notesAlcohol { env.checkIns.setAlcohol(saved, count: alcohol) }
         saveSleepIfNeeded()
         env.speech.reset()
         Haptics.success()

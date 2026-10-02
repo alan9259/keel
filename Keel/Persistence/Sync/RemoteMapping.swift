@@ -76,6 +76,7 @@ extension CheckIn: RemoteMappable {
             "energy": .int(energy),
         ]
         if let notes { f["notes"] = .string(notes) }
+        if let alcoholCount { f["alcoholCount"] = .int(alcoholCount) }
         return f
     }
 }
@@ -304,6 +305,7 @@ struct RemoteApplier {
             existing.moodRaw = mood.rawValue
             existing.energy = r.fields["energy"]?.asInt ?? existing.energy
             existing.notes = r.fields["notes"]?.asString
+            existing.alcoholCount = r.fields["alcoholCount"]?.asInt
             applyEnvelope(r, to: existing)
         } else {
             let c = CheckIn(
@@ -312,6 +314,7 @@ struct RemoteApplier {
                 ownerID: r.ownerID, createdAt: r.createdAt, updatedAt: r.updatedAt,
                 deletedAt: r.deletedAt, syncStatus: .synced
             )
+            c.alcoholCount = r.fields["alcoholCount"]?.asInt
             context.insert(c)
         }
     }

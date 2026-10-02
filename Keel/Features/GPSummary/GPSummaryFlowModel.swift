@@ -83,6 +83,9 @@ final class GPSummaryFlowModel {
         else { inputs.removedMedIDs.insert(id) }
     }
 
+    /// Whether she recorded any alcohol in the chosen period (offers the Alcohol row).
+    var hasAlcoholRecords: Bool { document().alcoholLine != nil }
+
     func isSectionIncluded(_ section: GPSummarySection) -> Bool { !inputs.removedSections.contains(section) }
     func toggleSection(_ section: GPSummarySection) {
         if inputs.removedSections.contains(section) { inputs.removedSections.remove(section) }

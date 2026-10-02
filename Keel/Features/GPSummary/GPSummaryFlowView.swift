@@ -205,10 +205,11 @@ private struct GPReviewStepView: View {
         sectionHeader("Cycle, sleep, energy and mood")
         StandardCard {
             VStack(spacing: 0) {
-                ForEach(Array(Self.sectionRows.enumerated()), id: \.offset) { index, item in
+                let rows = Self.sectionRows(includingAlcohol: model.hasAlcoholRecords)
+                ForEach(Array(rows.enumerated()), id: \.offset) { index, item in
                     row(item.title, detail: item.detail,
                         included: model.isSectionIncluded(item.section)) { model.toggleSection(item.section) }
-                    if index < Self.sectionRows.count - 1 { Divider().overlay(theme.border) }
+                    if index < rows.count - 1 { Divider().overlay(theme.border) }
                 }
             }
         }
@@ -219,13 +220,18 @@ private struct GPReviewStepView: View {
         }
     }
 
-    /// The four removable auto-populated sections, with a short descriptor each.
-    private static let sectionRows: [(section: GPSummarySection, title: String, detail: String)] = [
-        (.cycle, "Periods and cycle", "Cycle summary from your records"),
-        (.sleep, "Sleep", "Nights with disrupted sleep logged"),
-        (.energy, "Energy", "Your average energy"),
-        (.mood, "Mood", "Your most-logged moods"),
-    ]
+    /// The removable auto-populated sections, with a short descriptor each. Alcohol is
+    /// offered only when she recorded some in the period.
+    private static func sectionRows(includingAlcohol: Bool) -> [(section: GPSummarySection, title: String, detail: String)] {
+        var rows: [(section: GPSummarySection, title: String, detail: String)] = [
+            (.cycle, "Periods and cycle", "Cycle summary from your records"),
+            (.sleep, "Sleep", "Nights with disrupted sleep logged"),
+            (.energy, "Energy", "Your average energy"),
+            (.mood, "Mood", "Your most-logged moods"),
+        ]
+        if includingAlcohol { rows.append((.alcohol, "Alcohol", "Check-in days with a number recorded")) }
+        return rows
+    }
 
     private func sectionHeader(_ text: String) -> some View {
         Text(text).font(KeelFont.serif(17, weight: .medium)).foregroundStyle(theme.accent)

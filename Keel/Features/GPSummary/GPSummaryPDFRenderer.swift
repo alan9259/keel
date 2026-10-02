@@ -248,7 +248,7 @@ final class GPSummaryPDFRenderer {
         if !doc.treatmentChanges.isEmpty {
             add(12) { self.bulletBlock(GPSummaryCopy.treatmentChangesHeading, lines: self.doc.treatmentChanges, y: $0, draw: $1) }
         }
-        if doc.includeSleep || doc.includeEnergy || doc.includeMood {
+        if doc.includeSleep || doc.includeEnergy || doc.includeMood || showsAlcohol {
             add(12) { self.sleepEnergyMoodBlock(y: $0, draw: $1) }
         }
         if !doc.questions.isEmpty {
@@ -274,8 +274,14 @@ final class GPSummaryPDFRenderer {
         if doc.includeMood {
             used += labelValue(GPSummaryCopy.moodRowLabel, doc.moodLine ?? GPSummaryCopy.notRecorded, y: y + used, draw: draw)
         }
+        if showsAlcohol, let line = doc.alcoholLine {
+            used += labelValue(GPSummaryCopy.alcoholRowLabel, line, y: y + used, draw: draw)
+        }
         return used
     }
+
+    /// Alcohol prints only when she recorded some and kept the row in.
+    private var showsAlcohol: Bool { doc.includeAlcohol && doc.alcoholLine != nil }
 
     private func medSection(_ title: String, table: GPMedTable, columns: [String], y: CGFloat, draw: Bool) -> CGFloat {
         var used = heading(title, y: y, draw: draw)

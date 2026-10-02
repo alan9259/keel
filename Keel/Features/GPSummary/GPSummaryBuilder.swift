@@ -147,6 +147,16 @@ extension GPSummaryBuilder {
         return "average \(String(format: "%.1f", mean)) of \(scaleMax), from \(entryCount) \(entryCount == 1 ? "entry" : "entries")"
     }
 
+    /// "recorded on 6 of 24 check-in days": the days she saved an alcohol number
+    /// (zero included) out of her check-in days. Same neutral form as the symptom rows.
+    /// Nil when she recorded none, so a day left blank is never read as alcohol-free and
+    /// the line never appears for someone who doesn't use it. No units, totals or
+    /// comparisons, and nothing that links it to how she felt.
+    static func alcoholLine(recordedDays: Int, checkInDays: Int) -> String? {
+        guard recordedDays > 0, checkInDays > 0 else { return nil }
+        return "recorded on \(recordedDays) of \(checkInDays) check-in \(checkInDays == 1 ? "day" : "days")"
+    }
+
     /// The three most-logged mood labels with counts, e.g. "Okay 20, Good 12, Low 5".
     static func moodLine(topMoods: [(label: String, count: Int)]) -> String? {
         let top = Array(topMoods.prefix(3))

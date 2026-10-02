@@ -69,7 +69,7 @@ struct GPDateWindow: Equatable {
 /// The auto-populated sections she can remove at the review step. Period dates and
 /// check-in counts are the identifying frame and stay in; everything here is optional.
 enum GPSummarySection: Hashable, CaseIterable {
-    case cycle, sleep, energy, mood
+    case cycle, sleep, energy, mood, alcohol
 }
 
 /// Everything she adds at step 4, plus what she chose to remove at step 3. Kept
@@ -126,6 +126,8 @@ struct GPSummaryDocument: Equatable {
     var sleepLine: String
     var energyLine: String?
     var moodLine: String?
+    /// Nil when she recorded no alcohol in the period (the row is then left out).
+    var alcoholLine: String? = nil
 
     // Questions I want to discuss
     var questions: [String]
@@ -137,6 +139,7 @@ struct GPSummaryDocument: Equatable {
     var includeSleep: Bool = true
     var includeEnergy: Bool = true
     var includeMood: Bool = true
+    var includeAlcohol: Bool = true
 
     /// The symptom section at a chosen row cap. The renderer calls this with the
     /// number of rows that fit; the preview calls it the same way.

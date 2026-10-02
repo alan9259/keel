@@ -68,6 +68,7 @@ enum GPSummaryCopy {
     static let sleepRowSuffix = "nights with disrupted sleep logged"
     static let energyRowLabel = "Energy"
     static let moodRowLabel = "Mood"
+    static let alcoholRowLabel = "Alcohol"
     static let symptomColumn = "Symptom"
     static let thisPeriodColumn = "This period"
     static let previousPeriodColumn = "Previous period"
@@ -116,7 +117,7 @@ enum GPSummaryCopy {
          notEnoughPeriodsForRange, notRecorded, footer, shareWarning,
          impactOtherOption, noneRecorded, aboutName, aboutAge, aboutPeriod, aboutCheckIns,
          cycleLastStart, cyclePeriodsRecorded, cycleLengths, cycleFlow, cycleBleeding,
-         cycleNotApplicable, sleepRowLabel, sleepRowSuffix, energyRowLabel, moodRowLabel,
+         cycleNotApplicable, sleepRowLabel, sleepRowSuffix, energyRowLabel, moodRowLabel, alcoholRowLabel,
          symptomColumn, thisPeriodColumn, previousPeriodColumn, treatmentColumn,
          mhtDoseColumn, mhtChangedColumn, nameColumn, doseColumn, doseIfKnownColumn,
          frequencyColumn, generatedPrefix] + impactAreaOptions + impactLevelOptions

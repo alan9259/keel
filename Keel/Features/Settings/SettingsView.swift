@@ -28,6 +28,19 @@ struct SettingsView: View {
                               Binding(get: { env.settings.haptics }, set: { env.settings.haptics = $0 }))
                 }
 
+                // Optional check-in items she can choose to note. Off by default.
+                VStack(alignment: .leading, spacing: 8) {
+                    group("Check-in") {
+                        toggleRow("wineglass", "Alcohol", "Add a count to your check-in",
+                                  Binding(get: { env.settings.notesAlcohol },
+                                          set: { env.settings.notesAlcohol = $0; Haptics.selection() }))
+                    }
+                    Text("Some women find it useful to have this alongside everything else. It's here if you want it, and off if you don't.")
+                        .font(KeelFont.caption).foregroundStyle(theme.muted)
+                        .fixedSize(horizontal: false, vertical: true)
+                        .padding(.horizontal, 4)
+                }
+
                 group("Privacy") {
                     NavigationLink(value: MainRoute.privacy) { linkRow("hand.raised.fill", "Privacy policy") }
                         .buttonStyle(.plain)

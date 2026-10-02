@@ -170,6 +170,8 @@ struct CheckInDTO: Codable {
     var moodRaw: String
     var energy: Int
     var notes: String?
+    /// Optional, so backups made before alcohol existed still decode (as not recorded).
+    var alcoholCount: Int?
     var ownerID: String
     var createdAt: Date
     var updatedAt: Date
@@ -178,6 +180,7 @@ struct CheckInDTO: Codable {
 
     init(_ m: CheckIn) {
         id = m.id; date = m.date; moodRaw = m.moodRaw; energy = m.energy; notes = m.notes
+        alcoholCount = m.alcoholCount
         ownerID = m.ownerID; createdAt = m.createdAt; updatedAt = m.updatedAt
         deletedAt = m.deletedAt; syncStatusRaw = m.syncStatusRaw
     }
@@ -188,6 +191,7 @@ struct CheckInDTO: Codable {
             energy: energy, notes: notes,
             ownerID: ownerID, createdAt: createdAt, updatedAt: updatedAt, deletedAt: deletedAt
         )
+        m.alcoholCount = alcoholCount
         m.syncStatusRaw = syncStatusRaw
         return m
     }

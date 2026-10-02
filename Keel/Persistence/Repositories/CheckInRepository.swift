@@ -7,6 +7,7 @@ protocol CheckInRepositoring {
     func create(mood: Mood, energy: Int, notes: String?, symptoms: [(symptom: Symptom, severity: Int)], date: Date) -> CheckIn
     func update(_ checkIn: CheckIn, mood: Mood, energy: Int, notes: String?, symptoms: [(symptom: Symptom, severity: Int)])
     func delete(_ checkIn: CheckIn)
+    func setAlcohol(_ checkIn: CheckIn, count: Int?)
     func recent(limit: Int) -> [CheckIn]
     func all() -> [CheckIn]
     func todays() -> CheckIn?
@@ -72,6 +73,16 @@ struct CheckInRepository: CheckInRepositoring {
             guard let symptom = byID[id] else { continue }
             context.insert(CheckInSymptom(checkIn: checkIn, symptom: symptom, severity: severity, ownerID: owner))
         }
+        checkIn.touch()
+        try? context.save()
+    }
+
+    /// Record (or clear, with nil) the alcohol count on an entry. Zero is a real answer
+    /// and is kept; nil means not recorded. Negative input is treated as zero.
+    func setAlcohol(_ checkIn: CheckIn, count: Int?) {
+        let value = count.map { max(0, $0) }
+        guard checkIn.alcoholCount != value else { return }
+        checkIn.alcoholCount = value
         checkIn.touch()
         try? context.save()
     }

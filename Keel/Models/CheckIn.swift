@@ -9,6 +9,9 @@ final class CheckIn: Syncable {
     /// Energy 0–100.
     var energy: Int = 0
     var notes: String?
+    /// Alcohol, as a simple count she entered. Nil means not recorded (untouched);
+    /// only a number she saved counts, including zero. Never a unit, total or target.
+    var alcoholCount: Int?
 
     /// Join rows to the shared symptom catalog. Cascades so deleting a check-in
     /// removes its links (but never the `Symptom` catalog entries themselves).
