@@ -119,6 +119,7 @@ final class AppEnvironment {
         healthIngestor.purgeDiscontinuedHealthImports()
         insights.refreshDerived()
         medications.migrateLegacySchedules()
+        medications.stripExampleBrandsFromNames()
         // Lifestyle reminders first: they're few and always wanted, so they claim
         // notification slots before a stack of medication reminders can fill iOS's
         // 64-pending budget and starve them out.

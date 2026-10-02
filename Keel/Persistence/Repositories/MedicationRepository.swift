@@ -90,6 +90,7 @@ protocol MedicationRepositoring {
     func active(named name: String) -> Medication?
     func stoppedTreatments() -> [Medication]
     func migrateLegacySchedules()
+    func stripExampleBrandsFromNames()
     @discardableResult
     func add(name: String, dosage: String, timing: String, method: MedicationMethod?) -> Medication
     @discardableResult
@@ -135,6 +136,33 @@ struct MedicationRepository: MedicationRepositoring {
     func active(named name: String) -> Medication? {
         let trimmed = name.trimmingCharacters(in: .whitespaces)
         return active().first { $0.name.localizedCaseInsensitiveCompare(trimmed) == .orderedSame }
+    }
+
+    /// The picker once offered names with a brand example, e.g. "Oral micronised
+    /// progesterone (e.g. Prometrium)". The catalog dropped those, but a name is copied
+    /// when saved, so older entries (and restored backups) kept the example. Tidy them to
+    /// the generic name. Idempotent; only touches names that end in an "(e.g. ...)".
+    func stripExampleBrandsFromNames() {
+        let all = (try? context.fetch(FetchDescriptor<Medication>(predicate: #Predicate { $0.deletedAt == nil }))) ?? []
+        var changed = false
+        for medication in all {
+            let cleaned = Self.nameWithoutExample(medication.name)
+            if cleaned != medication.name {
+                medication.name = cleaned
+                medication.touch()
+                changed = true
+            }
+        }
+        if changed { try? context.save() }
+    }
+
+    /// "Oral micronised progesterone (e.g. Prometrium)" -> "Oral micronised progesterone".
+    /// Only a trailing "(e.g. ...)" is removed; anything else she typed is kept as is.
+    nonisolated static func nameWithoutExample(_ name: String) -> String {
+        guard let range = name.range(of: #"\s*\(e\.g\.[^()]*\)\s*$"#, options: [.regularExpression, .caseInsensitive])
+        else { return name }
+        let cleaned = name.replacingCharacters(in: range, with: "")
+        return cleaned.isEmpty ? name : cleaned
     }
 
     /// Carry entries made before schedules existed onto one, once. "Daily"
