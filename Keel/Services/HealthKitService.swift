@@ -63,18 +63,22 @@ final class HealthKitService {
         ("exercise", .appleExerciseTime, .minute()),
     ]
 
-    /// Only types Keel shows or uses (submission pack A3): heart rate, respiratory rate,
-    /// blood oxygen, body temperature and basal body temperature were read but never
-    /// shown, so they are no longer requested.
+    /// Only types Keel shows or uses (submission pack A3). Heart rate, respiratory rate,
+    /// blood oxygen and body temperature appear as Activities tiles; basal body
+    /// temperature was never shown, so it is not requested.
     ///
     /// Vitals / workload stored as `HealthSample`. `average` averages the day's
     /// samples (a heart rate); otherwise they are summed (energy, flights).
     private static let vitalQuantities: [(typeID: String, id: HKQuantityTypeIdentifier, unit: HKUnit, unitLabel: String, average: Bool)] = [
+        ("heartRate", .heartRate, .count().unitDivided(by: .minute()), "bpm", true),
         ("restingHeartRate", .restingHeartRate, .count().unitDivided(by: .minute()), "bpm", true),
         ("hrv", .heartRateVariabilitySDNN, .secondUnit(with: .milli), "ms", true),
         ("bloodPressureSystolic", .bloodPressureSystolic, .millimeterOfMercury(), "mmHg", true),
         ("bloodPressureDiastolic", .bloodPressureDiastolic, .millimeterOfMercury(), "mmHg", true),
+        ("respiratoryRate", .respiratoryRate, .count().unitDivided(by: .minute()), "br/min", true),
+        ("oxygenSaturation", .oxygenSaturation, .percent(), "%", true),
         ("bodyMass", .bodyMass, .gramUnit(with: .kilo), "kg", true),
+        ("bodyTemperature", .bodyTemperature, .degreeCelsius(), "°C", true),
         ("wristTemperature", .appleSleepingWristTemperature, .degreeCelsius(), "°C", true),
         ("activeEnergy", .activeEnergyBurned, .kilocalorie(), "kcal", false),
         ("flights", .flightsClimbed, .count(), "count", false),
@@ -141,7 +145,8 @@ final class HealthKitService {
         }
 
         for entry in Self.vitalQuantities {
-            let byDay = await quantityByDay(entry.id, unit: entry.unit, lastDays: lastDays, average: entry.average)
+            var byDay = await quantityByDay(entry.id, unit: entry.unit, lastDays: lastDays, average: entry.average)
+            if entry.typeID == "oxygenSaturation" { byDay = byDay.mapValues { $0 * 100 } } // fraction → %
             if !byDay.isEmpty {
                 snapshot.vitals.append(.init(typeID: entry.typeID, unit: entry.unitLabel, byDay: byDay))
             }

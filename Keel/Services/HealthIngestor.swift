@@ -58,9 +58,7 @@ final class HealthIngestor {
     /// symptom/cycle rows, and imported activity re-populates the health store on the
     /// next sync. Returns how many rows it removed.
     /// Vitals Keel used to read but never showed, so no longer requests (A3).
-    static let discontinuedVitalTypeIDs: Set<String> = [
-        "heartRate", "respiratoryRate", "oxygenSaturation", "bodyTemperature", "basalBodyTemperature",
-    ]
+    static let discontinuedVitalTypeIDs: Set<String> = ["basalBodyTemperature"]
 
     @discardableResult
     func purgeDiscontinuedHealthImports() -> Int {

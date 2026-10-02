@@ -46,6 +46,11 @@ struct ActivitiesView: View {
         let decimal: Bool
         /// How a week/month rolls up: a running count sums, a level averages.
         let aggregate: ActivityAggregation.Mode
+        /// The Apple Health sync switch this metric belongs to (`HealthSyncCatalog`).
+        var syncItemID: String? = nil
+        /// Body readings show the value only, no up/down arrow: Keel shows them as
+        /// recorded and doesn't characterise them.
+        var isVital: Bool = false
     }
 
     /// Metrics that come from Apple Health automatically. She chooses which of these
@@ -58,6 +63,14 @@ struct ActivitiesView: View {
         Metric(id: "distance", label: "Distance", symbol: "figure.walk.motion", unit: "km", source: .sample, decimal: true, aggregate: .total),
         Metric(id: "flights", label: "Flights", symbol: "stairs", unit: "", source: .sample, decimal: false, aggregate: .total),
         Metric(id: "sleep", label: "Sleep", symbol: "moon.fill", unit: "hrs", source: .activity, decimal: true, aggregate: .average),
+        Metric(id: "heartRate", label: "Heart rate", symbol: "heart.fill", unit: "bpm", source: .sample, decimal: false,
+               aggregate: .average, syncItemID: "heartVitals", isVital: true),
+        Metric(id: "respiratoryRate", label: "Respiratory rate", symbol: "lungs.fill", unit: "br/min", source: .sample, decimal: true,
+               aggregate: .average, syncItemID: "heartVitals", isVital: true),
+        Metric(id: "oxygenSaturation", label: "Blood oxygen", symbol: "drop.circle.fill", unit: "%", source: .sample, decimal: false,
+               aggregate: .average, syncItemID: "heartVitals", isVital: true),
+        Metric(id: "bodyTemperature", label: "Body temperature", symbol: "thermometer.medium", unit: "°C", source: .sample, decimal: true,
+               aggregate: .average, syncItemID: "bodyTemperature", isVital: true),
     ]
 
     /// Metrics to show: everything she is still importing, plus anything she has
@@ -67,7 +80,7 @@ struct ActivitiesView: View {
         let disabled = env.settings.disabledHealthItemIDs
         let days = visibleDays
         return allHealthMetrics.filter { m in
-            !disabled.contains(m.id) || days.contains { value(for: m, on: $0) != nil }
+            !disabled.contains(m.syncItemID ?? m.id) || days.contains { value(for: m, on: $0) != nil }
         }
     }
 
@@ -311,7 +324,7 @@ struct ActivitiesView: View {
                 Image(systemName: metric.symbol).font(.system(size: 16))
                     .foregroundStyle(has ? theme.accent : theme.muted)
                 Spacer()
-                if let dir = trendDirection(metric, value: value) {
+                if !metric.isVital, let dir = trendDirection(metric, value: value) {
                     Image(systemName: dir.symbol).font(.system(size: 11, weight: .bold)).foregroundStyle(theme.muted)
                 }
             }
@@ -375,7 +388,7 @@ struct ActivitiesView: View {
                     emptyVitalRow(title: "Resting heart rate", unit: "bpm")
                     emptyVitalRow(title: "Heart rate variability", unit: "ms")
                 }
-                Text("These fill in once Apple Health has a few days of data. Weight, overnight temperature and blood pressure show up here too, when you record them.")
+                Text("These fill in once Apple Health has a few days of data. Weight and overnight wrist temperature show up here too, when Apple Health has them.")
                     .font(KeelFont.caption).foregroundStyle(theme.text.opacity(0.7)).lineSpacing(2)
                     .fixedSize(horizontal: false, vertical: true)
             }

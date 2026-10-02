@@ -8,14 +8,16 @@ final class SubmissionPackATests: XCTestCase {
 
     // MARK: A3 Apple Health read types
 
-    /// Only types Keel shows or uses are requested. Regression: heart rate, respiratory
-    /// rate, blood oxygen, body temperature and basal body temperature were requested
-    /// but never shown anywhere.
+    /// Only types Keel shows or uses are requested. Heart rate, respiratory rate, blood
+    /// oxygen and body temperature show as Activities tiles; basal body temperature was
+    /// requested but never shown, so it isn't.
     func testReadsOnlyTheTypesKeelShows() {
         XCTAssertEqual(Set(HealthKitService.readVitalTypeIDs), [
-            "restingHeartRate", "hrv", "bloodPressureSystolic", "bloodPressureDiastolic",
-            "bodyMass", "wristTemperature", "activeEnergy", "flights", "distance",
+            "heartRate", "restingHeartRate", "hrv", "respiratoryRate", "oxygenSaturation",
+            "bloodPressureSystolic", "bloodPressureDiastolic", "bodyMass",
+            "bodyTemperature", "wristTemperature", "activeEnergy", "flights", "distance",
         ])
+        XCTAssertFalse(HealthKitService.readVitalTypeIDs.contains("basalBodyTemperature"))
         XCTAssertEqual(Set(HealthKitService.readActivityIDs), ["steps", "exercise"]) // + sleep (category)
         XCTAssertTrue(Set(HealthKitService.readVitalTypeIDs).isDisjoint(with: HealthIngestor.discontinuedVitalTypeIDs))
     }
@@ -31,13 +33,13 @@ final class SubmissionPackATests: XCTestCase {
         let ingestor = HealthIngestor(context: context, ownerID: TestStore.ownerID,
                                       symptoms: SymptomRepository(context: context, ownerID: TestStore.ownerID))
         let day = Date.now.startOfDay
-        for t in ["oxygenSaturation", "basalBodyTemperature", "restingHeartRate"] {
+        for t in ["basalBodyTemperature", "oxygenSaturation", "restingHeartRate"] {
             context.insert(HealthSample(typeID: t, day: day, value: 1, unit: "", ownerID: "o"))
         }
         try? context.save()
         ingestor.purgeDiscontinuedHealthImports()
         let left = Set(((try? context.fetch(FetchDescriptor<HealthSample>())) ?? []).map(\.typeID))
-        XCTAssertEqual(left, ["restingHeartRate"])   // only the one Keel still shows
+        XCTAssertEqual(left, ["oxygenSaturation", "restingHeartRate"])   // only the unread type goes
     }
 
     // MARK: B1 voice entry falls back to typing, never to the network

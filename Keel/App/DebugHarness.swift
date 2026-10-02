@@ -256,6 +256,15 @@ enum DebugHarness {
                                                 value: short ? 4.1 : 6.8, unit: "km", source: .healthKit, ownerID: owner))
                 env.context.insert(HealthSample(typeID: "flights", day: day,
                                                 value: short ? 6 : 11, unit: "count", source: .healthKit, ownerID: owner))
+                // Vitals shown as Activities tiles (DEBUG sample readings, not real data).
+                env.context.insert(HealthSample(typeID: "heartRate", day: day,
+                                                value: short ? 78 : 72, unit: "bpm", source: .healthKit, ownerID: owner))
+                env.context.insert(HealthSample(typeID: "respiratoryRate", day: day,
+                                                value: short ? 15.5 : 14.0, unit: "br/min", source: .healthKit, ownerID: owner))
+                env.context.insert(HealthSample(typeID: "oxygenSaturation", day: day,
+                                                value: short ? 96 : 97, unit: "%", source: .healthKit, ownerID: owner))
+                env.context.insert(HealthSample(typeID: "bodyTemperature", day: day,
+                                                value: short ? 36.7 : 36.5, unit: "°C", source: .healthKit, ownerID: owner))
             }
             // Weight + blood pressure are measured occasionally, not daily.
             for i in stride(from: 0, to: 16, by: 4) {
