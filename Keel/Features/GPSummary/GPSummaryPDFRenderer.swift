@@ -171,6 +171,7 @@ final class GPSummaryPDFRenderer {
         y += heading(GPSummaryCopy.aboutHeading, y: y, draw: draw)
         if let name = doc.name { y += labelValue(GPSummaryCopy.aboutName, name, y: y, draw: draw) }
         if let age = doc.age { y += labelValue(GPSummaryCopy.aboutAge, "\(age)", y: y, draw: draw) }
+        if let line = doc.hysterectomyLine { y += labelValue(GPSummaryCopy.aboutHysterectomy, line, y: y, draw: draw) }
         y += labelValue(GPSummaryCopy.aboutPeriod, doc.periodLabel, y: y, draw: draw)
         y += labelValue(GPSummaryCopy.aboutCheckIns, doc.checkInsLabel, y: y, draw: draw)
         y += 14

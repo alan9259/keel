@@ -41,6 +41,11 @@ struct SettingsView: View {
                         .padding(.horizontal, 4)
                 }
 
+                group("My background") {
+                    NavigationLink(value: MainRoute.myBackground) { linkRow("person.text.rectangle", "Hysterectomy and periods") }
+                        .buttonStyle(.plain)
+                }
+
                 group("Privacy") {
                     NavigationLink(value: MainRoute.privacy) { linkRow("hand.raised.fill", "Privacy policy") }
                         .buttonStyle(.plain)

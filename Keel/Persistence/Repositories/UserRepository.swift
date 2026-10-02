@@ -11,6 +11,7 @@ protocol UserRepositoring {
     func setPathway(_ pathway: Pathway)
     func setHealthKitAuthorized(_ authorized: Bool)
     func setPeriodsNotApplicableReason(_ reason: String?)
+    func setHysterectomy(_ answer: Hysterectomy?, year: Int?)
 }
 
 @MainActor
@@ -77,6 +78,15 @@ struct UserRepository: UserRepositoring {
     func setPeriodsNotApplicableReason(_ reason: String?) {
         guard let profile = currentProfile() else { return }
         profile.periodsNotApplicableReason = reason?.trimmingCharacters(in: .whitespacesAndNewlines).nilIfEmpty
+        profile.touch()
+        save()
+    }
+
+    /// Her hysterectomy answer (nil clears it). The year is kept only for a "yes" answer.
+    func setHysterectomy(_ answer: Hysterectomy?, year: Int?) {
+        guard let profile = currentProfile() else { return }
+        profile.hysterectomyRaw = answer?.rawValue
+        profile.hysterectomyYear = (answer?.allowsYear == true) ? year : nil
         profile.touch()
         save()
     }

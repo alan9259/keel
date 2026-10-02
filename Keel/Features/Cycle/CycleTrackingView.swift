@@ -29,6 +29,7 @@ struct CycleTrackingView: View {
                     if let insight { insightCard(insight) }
                 }
                 logPastCard
+                backgroundLink
             }
             .padding(.horizontal, 24).padding(.vertical, 12)
         }
@@ -48,6 +49,23 @@ struct CycleTrackingView: View {
             if DebugHarness.showCycleSheet { editing = Date.now.startOfDay.adding(days: -2) }
             #endif
         }
+    }
+
+    /// A gentle way out for someone this screen doesn't fit (3C): leads to Settings >
+    /// My background, where she can note that periods no longer apply or add her
+    /// background. Nothing here changes because of it.
+    private var backgroundLink: some View {
+        NavigationLink(value: MainRoute.myBackground) {
+            Text("Periods don't apply to you? You can turn this off, or add your background in Settings.")
+                .font(KeelFont.caption).foregroundStyle(theme.muted)
+                .multilineTextAlignment(.leading)
+                .fixedSize(horizontal: false, vertical: true)
+                .underline(color: theme.muted.opacity(0.4))
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .contentShape(Rectangle())
+        }
+        .buttonStyle(.plain)
+        .padding(.top, 4)
     }
 
     // MARK: Data (recomputed on `refresh`)
@@ -85,7 +103,7 @@ struct CycleTrackingView: View {
                 if hasAnyPeriod {
                     legend.padding(.top, 16)
                 } else {
-                    Text("Tap a day here or in the calendar below to log a period, and Keel will build your timeline, keep your cycle lengths, and gently estimate the next one once there's a pattern. Periods you track in Apple Health come in automatically.")
+                    Text("Tap a day here or in the calendar below to log a period, and Keel will build your timeline, keep your cycle lengths, and gently estimate the next one once there's a pattern.")
                         .font(KeelFont.caption).foregroundStyle(theme.text.opacity(0.7)).lineSpacing(2)
                         .fixedSize(horizontal: false, vertical: true)
                         .padding(.top, 14)

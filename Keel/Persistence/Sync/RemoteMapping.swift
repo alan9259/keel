@@ -63,6 +63,12 @@ extension UserProfile: RemoteMappable {
         if let appVersion { f["appVersion"] = .string(appVersion) }
         if let deviceModel { f["deviceModel"] = .string(deviceModel) }
         if let osVersion { f["osVersion"] = .string(osVersion) }
+        if let lastName { f["lastName"] = .string(lastName) }
+        if let birthYear { f["birthYear"] = .int(birthYear) }
+        if let mobile { f["mobile"] = .string(mobile) }
+        if let periodsNotApplicableReason { f["periodsNotApplicableReason"] = .string(periodsNotApplicableReason) }
+        if let hysterectomyRaw { f["hysterectomyRaw"] = .string(hysterectomyRaw) }
+        if let hysterectomyYear { f["hysterectomyYear"] = .int(hysterectomyYear) }
         return f
     }
 }
@@ -286,8 +292,15 @@ struct RemoteApplier {
         }
     }
 
-    /// Copy the non-identifying environment context from a remote record.
+    /// Copy the non-identifying environment context (and her details/background) from a
+    /// remote record.
     private func applyProfileContext(_ r: RemoteRecord, to profile: UserProfile) {
+        profile.lastName = r.fields["lastName"]?.asString
+        profile.birthYear = r.fields["birthYear"]?.asInt
+        profile.mobile = r.fields["mobile"]?.asString
+        profile.periodsNotApplicableReason = r.fields["periodsNotApplicableReason"]?.asString
+        profile.hysterectomyRaw = r.fields["hysterectomyRaw"]?.asString
+        profile.hysterectomyYear = r.fields["hysterectomyYear"]?.asInt
         profile.region = r.fields["region"]?.asString
         profile.localeID = r.fields["localeID"]?.asString
         profile.timeZoneID = r.fields["timeZoneID"]?.asString

@@ -311,7 +311,7 @@ private struct GPDetailsStepView: View {
         }
 
         // About me opt-in.
-        if model.hasName || model.hasAge {
+        if model.hasName || model.hasAge || model.hasHysterectomyAnswer {
             block(GPSummaryCopy.aboutHeading, prompt: "Off unless you turn them on.") {
                 if model.hasName {
                     Toggle("Include my name", isOn: $model.inputs.includeName)
@@ -319,6 +319,10 @@ private struct GPDetailsStepView: View {
                 }
                 if model.hasAge {
                     Toggle("Include my age", isOn: $model.inputs.includeAge)
+                        .font(KeelFont.body).tint(theme.accent)
+                }
+                if model.hasHysterectomyAnswer {
+                    Toggle("Include my hysterectomy answer", isOn: $model.inputs.includeHysterectomy)
                         .font(KeelFont.body).tint(theme.accent)
                 }
             }

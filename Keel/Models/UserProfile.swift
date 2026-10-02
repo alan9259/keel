@@ -21,6 +21,12 @@ final class UserProfile: Syncable {
     /// in her words. When set, the GP summary's cycle block prints it instead of
     /// leaving that context blank. Only ever what she entered.
     var periodsNotApplicableReason: String? = nil
+    /// Her hysterectomy answer (`Hysterectomy` raw value) and the year, if she knows it.
+    /// Background only: recorded, never acted on.
+    var hysterectomyRaw: String? = nil
+    var hysterectomyYear: Int? = nil
+
+    var hysterectomy: Hysterectomy? { hysterectomyRaw.flatMap(Hysterectomy.init(rawValue:)) }
     /// Stable Sign in with Apple user identifier — this is also the `ownerID`.
     var appleUserID: String?
     var pathwayRaw: String?

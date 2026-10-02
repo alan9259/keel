@@ -94,6 +94,14 @@ struct ProfileDTO: Codable {
     var pathwayRaw: String?
     var healthKitAuthorized: Bool
     var trackingStartDate: Date
+    // Her details and background. Optional so older backups (which didn't carry them)
+    // still decode; previously these were silently dropped on backup.
+    var lastName: String?
+    var birthYear: Int?
+    var mobile: String?
+    var periodsNotApplicableReason: String?
+    var hysterectomyRaw: String?
+    var hysterectomyYear: Int?
     var region: String?
     var localeID: String?
     var timeZoneID: String?
@@ -110,6 +118,9 @@ struct ProfileDTO: Codable {
         id = m.id; firstName = m.firstName; email = m.email; appleUserID = m.appleUserID
         pathwayRaw = m.pathwayRaw; healthKitAuthorized = m.healthKitAuthorized
         trackingStartDate = m.trackingStartDate
+        lastName = m.lastName; birthYear = m.birthYear; mobile = m.mobile
+        periodsNotApplicableReason = m.periodsNotApplicableReason
+        hysterectomyRaw = m.hysterectomyRaw; hysterectomyYear = m.hysterectomyYear
         region = m.region; localeID = m.localeID; timeZoneID = m.timeZoneID
         appVersion = m.appVersion; deviceModel = m.deviceModel; osVersion = m.osVersion
         ownerID = m.ownerID; createdAt = m.createdAt; updatedAt = m.updatedAt
@@ -123,6 +134,9 @@ struct ProfileDTO: Codable {
             healthKitAuthorized: healthKitAuthorized, trackingStartDate: trackingStartDate,
             ownerID: ownerID, createdAt: createdAt, updatedAt: updatedAt, deletedAt: deletedAt
         )
+        m.lastName = lastName; m.birthYear = birthYear; m.mobile = mobile
+        m.periodsNotApplicableReason = periodsNotApplicableReason
+        m.hysterectomyRaw = hysterectomyRaw; m.hysterectomyYear = hysterectomyYear
         m.region = region; m.localeID = localeID; m.timeZoneID = timeZoneID
         m.appVersion = appVersion; m.deviceModel = deviceModel; m.osVersion = osVersion
         m.syncStatusRaw = syncStatusRaw

@@ -22,6 +22,7 @@ enum MainRoute: Hashable {
     case support
     case gpSummary
     case privacy
+    case myBackground
 }
 
 /// A pending check-in detail screen. Identifiable so `.fullScreenCover(item:)`
@@ -100,6 +101,7 @@ struct MainView: View {
                 case .support: SupportView()
                 case .gpSummary: GPSummaryFlowView()
                 case .privacy: PrivacyPolicyView()
+                case .myBackground: MyBackgroundView()
                 }
             }
         }

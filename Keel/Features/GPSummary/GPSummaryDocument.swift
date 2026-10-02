@@ -78,6 +78,7 @@ struct GPSummaryInputs: Equatable {
     var period: GPPeriod = .default
     var includeName: Bool = false        // off by default (spec)
     var includeAge: Bool = false         // off by default (spec)
+    var includeHysterectomy: Bool = false  // off by default: only if she turns it on (3C)
     var priorities: [String] = []        // up to 3, her words, in her order
     var impactAreas: [String] = []       // selected fixed labels
     var impactOther: String = ""         // her 60-char free text (verbatim)
@@ -95,6 +96,8 @@ struct GPSummaryDocument: Equatable {
     // About me
     var name: String?
     var age: Int?
+    /// "yes, one ovary removed (as recorded by her)"; only when she turned it on.
+    var hysterectomyLine: String? = nil
     var periodLabel: String       // "18 May to 16 August 2026"
     var checkInsLabel: String     // "64 of 90 days"
 

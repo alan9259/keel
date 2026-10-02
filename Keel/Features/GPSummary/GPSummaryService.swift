@@ -101,10 +101,13 @@ struct GPSummaryService {
         let profile = users.currentProfile()
         let name = inputs.includeName ? profile?.firstName.nilIfEmpty : nil
         let age = inputs.includeAge ? profile?.age : nil
+        let hysterectomyLine = inputs.includeHysterectomy
+            ? Hysterectomy.summaryLine(profile?.hysterectomy, year: profile?.hysterectomyYear) : nil
 
         return GPSummaryDocument(
             name: name,
             age: age,
+            hysterectomyLine: hysterectomyLine,
             periodLabel: periodLabel(window),
             checkInsLabel: "\(checkInDaysThis) of \(window.dayCount) \(window.dayCount == 1 ? "day" : "days")",
             priorities: priorities,
@@ -215,6 +218,13 @@ struct GPSummaryService {
     }
 
     /// Whether a name/age exist to offer as opt-in "About me" fields.
+    /// Whether she has a hysterectomy answer that can go on the summary (not "rather
+    /// not say"), so the opt-in is offered only when there's something to include.
+    func hasHysterectomyAnswer() -> Bool {
+        let profile = users.currentProfile()
+        return Hysterectomy.summaryLine(profile?.hysterectomy, year: profile?.hysterectomyYear) != nil
+    }
+
     func profileNameAndAge() -> (name: String?, age: Int?) {
         let profile = users.currentProfile()
         return (profile?.firstName.nilIfEmpty, profile?.age)

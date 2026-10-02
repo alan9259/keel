@@ -56,6 +56,7 @@ enum GPSummaryCopy {
     // Row labels used by the renderer (kept here so the release lint covers them).
     static let aboutName = "Name"
     static let aboutAge = "Age"
+    static let aboutHysterectomy = "Hysterectomy"
     static let aboutPeriod = "Summary period"
     static let aboutCheckIns = "Check-ins in this period"
     static let cycleLastStart = "Last recorded period start"
@@ -115,7 +116,7 @@ enum GPSummaryCopy {
          mhtHeading, otherMedsHeading, supplementsHeading, treatmentChangesHeading,
          sleepEnergyMoodHeading, questionsHeading, noSymptoms, noEarlierComparison,
          notEnoughPeriodsForRange, notRecorded, footer, shareWarning,
-         impactOtherOption, noneRecorded, aboutName, aboutAge, aboutPeriod, aboutCheckIns,
+         impactOtherOption, noneRecorded, aboutName, aboutAge, aboutHysterectomy, aboutPeriod, aboutCheckIns,
          cycleLastStart, cyclePeriodsRecorded, cycleLengths, cycleFlow, cycleBleeding,
          cycleNotApplicable, sleepRowLabel, sleepRowSuffix, energyRowLabel, moodRowLabel, alcoholRowLabel,
          symptomColumn, thisPeriodColumn, previousPeriodColumn, treatmentColumn,

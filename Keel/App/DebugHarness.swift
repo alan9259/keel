@@ -136,6 +136,7 @@ enum DebugHarness {
         if args.contains("-uitRouteSupport") { return .support }
         if args.contains("-uitRouteGPSummary") { return .gpSummary }
         if args.contains("-uitRoutePrivacy") { return .privacy }
+        if args.contains("-uitRouteBackground") { return .myBackground }
         return nil
     }
 
@@ -185,6 +186,8 @@ enum DebugHarness {
             env.medications.setTaken(med, on: .now, slot: nil, taken: true) // TODAY only
         }
         if showSensitiveSymptoms { env.settings.showsSensitiveSymptoms = true }
+        // A sample My background answer, to screenshot the selected state + year field.
+        if args.contains("-uitSeedBackground") { env.users.setHysterectomy(.yesNotSureAboutOvaries, year: 2016) }
 
         if args.contains("-uitReset") {
             env.checkIns.all().forEach { $0.softDelete() }

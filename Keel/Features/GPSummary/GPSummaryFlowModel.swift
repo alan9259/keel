@@ -28,6 +28,7 @@ final class GPSummaryFlowModel {
 
     let hasName: Bool
     let hasAge: Bool
+    let hasHysterectomyAnswer: Bool
 
     private let service: GPSummaryService
 
@@ -38,6 +39,7 @@ final class GPSummaryFlowModel {
         let profile = service.profileNameAndAge()
         self.hasName = profile.name != nil
         self.hasAge = profile.age != nil
+        self.hasHysterectomyAnswer = service.hasHysterectomyAnswer()
         refreshCandidates()
         #if DEBUG
         if let debugStep = DebugHarness.gpInitialStep { step = debugStep }
