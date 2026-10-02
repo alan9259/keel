@@ -25,10 +25,6 @@ struct ScreenHeader: View {
 
     @State private var scrolledAway = false
 
-    /// The header counts as scrolled away once it has moved fully above the top of
-    /// the screen's content area. Pure so it's unit-testable.
-    nonisolated static func isScrolledAway(headerMaxY: CGFloat) -> Bool { headerMaxY < 0 }
-
     /// The action the home button runs, or nil when it shouldn't be shown.
     private var homeAction: (() -> Void)? {
         guard showsHome, let goHome else { return nil }
@@ -37,15 +33,13 @@ struct ScreenHeader: View {
 
     var body: some View {
         row
-            // Track where the header sits in the screen's own space (set by
-            // keelFeatureScreen) and derive "scrolled away" from each position. Tracking a
-            // Bool directly missed the flip back when content settled after a jump, leaving
-            // the floating bar up over a visible header; the state only changes on a flip.
-            .onGeometryChange(for: CGFloat.self) { proxy in
-                proxy.frame(in: .named(FloatingHeader.space)).maxY
-            } action: { maxY in
-                let away = Self.isScrolledAway(headerMaxY: maxY)
-                if away != scrolledAway { scrolledAway = away }
+            // Ask the scroll view itself whether the header is on screen (iOS 18). Measuring
+            // the header's position missed changes that came from layout rather than a
+            // touch (content loading in and re-anchoring), which left the bar hidden over a
+            // scrolled page or showing over a visible header. A header that isn't in a
+            // scroll view is never reported, so it never floats.
+            .onScrollVisibilityChange(threshold: 0.05) { visible in
+                if scrolledAway == visible { scrolledAway = !visible }
             }
             .preference(key: FloatingHeader.Key.self,
                         value: FloatingHeader.State(title: title, scrolledAway: scrolledAway,
@@ -102,8 +96,6 @@ private struct HeaderIconButton: View {
 /// The floating header a feature screen shows once its `ScreenHeader` has scrolled
 /// away: back, the page title, and Home, pinned to the top.
 enum FloatingHeader {
-    static let space = "keelFeatureScreen"
-
     struct State {
         let title: String
         let scrolledAway: Bool
@@ -161,7 +153,6 @@ enum FloatingHeader {
 extension View {
     func keelFeatureScreen() -> some View {
         self
-            .coordinateSpace(.named(FloatingHeader.space))
             .overlayPreferenceValue(FloatingHeader.Key.self, alignment: .top) { FloatingHeader.Bar(state: $0) }
             #if DEBUG
             .defaultScrollAnchor(DebugHarness.scrollToBottom ? .bottom : nil)
