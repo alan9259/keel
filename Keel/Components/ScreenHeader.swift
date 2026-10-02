@@ -1,8 +1,10 @@
 import SwiftUI
 import UIKit
 
-/// Back-arrow + Cormorant title header used on pushed feature screens (the new
-/// design replaces the native nav bar with this).
+/// Back-arrow + title + Home header used on pushed feature screens (the new design
+/// replaces the native nav bar with this). When she scrolls it out of view, the screen
+/// (via `keelFeatureScreen()`) shows a floating header with the same back and Home
+/// buttons and the page title, so both stay within reach on long pages.
 struct ScreenHeader: View {
     @Environment(\.keelTheme) private var theme
     @Environment(\.goHome) private var goHome
@@ -21,6 +23,12 @@ struct ScreenHeader: View {
     var onHome: (() -> Void)? = nil
     let onBack: () -> Void
 
+    @State private var scrolledAway = false
+
+    /// The header counts as scrolled away once it has moved fully above the top of
+    /// the screen's content area. Pure so it's unit-testable.
+    nonisolated static func isScrolledAway(headerMaxY: CGFloat) -> Bool { headerMaxY < 0 }
+
     /// The action the home button runs, or nil when it shouldn't be shown.
     private var homeAction: (() -> Void)? {
         guard showsHome, let goHome else { return nil }
@@ -28,14 +36,25 @@ struct ScreenHeader: View {
     }
 
     var body: some View {
-        HStack(alignment: subtitle == nil ? .center : .top, spacing: 14) {
-            Button(action: onBack) {
-                Image(systemName: "arrow.left")
-                    .font(.system(size: 22, weight: .regular))
-                    .foregroundStyle(theme.muted)
-                    .headerHitTarget()
+        row
+            // Track where the header sits in the screen's own space (set by
+            // keelFeatureScreen) and derive "scrolled away" from each position. Tracking a
+            // Bool directly missed the flip back when content settled after a jump, leaving
+            // the floating bar up over a visible header; the state only changes on a flip.
+            .onGeometryChange(for: CGFloat.self) { proxy in
+                proxy.frame(in: .named(FloatingHeader.space)).maxY
+            } action: { maxY in
+                let away = Self.isScrolledAway(headerMaxY: maxY)
+                if away != scrolledAway { scrolledAway = away }
             }
-            .accessibilityLabel("Back")
+            .preference(key: FloatingHeader.Key.self,
+                        value: FloatingHeader.State(title: title, scrolledAway: scrolledAway,
+                                                    onBack: onBack, onHome: homeAction))
+    }
+
+    private var row: some View {
+        HStack(alignment: subtitle == nil ? .center : .top, spacing: 14) {
+            HeaderIconButton(symbol: "arrow.left", label: "Back", action: onBack)
 
             VStack(alignment: .leading, spacing: 2) {
                 Text(title)
@@ -53,15 +72,84 @@ struct ScreenHeader: View {
             Spacer(minLength: 0)
 
             if let homeAction {
-                Button(action: homeAction) {
-                    Image(systemName: "house")
-                        .font(.system(size: 22, weight: .regular))
-                        .foregroundStyle(theme.muted)
-                        .headerHitTarget()
-                }
-                .accessibilityLabel("Home")
-                .accessibilityHint("Returns to the home screen")
+                HeaderIconButton(symbol: "house", label: "Home",
+                                 hint: "Returns to the home screen", action: homeAction)
             }
+        }
+    }
+}
+
+/// The back / Home icon button, shared by the inline header and the floating one.
+private struct HeaderIconButton: View {
+    @Environment(\.keelTheme) private var theme
+    let symbol: String
+    let label: String
+    var hint: String? = nil
+    let action: () -> Void
+
+    var body: some View {
+        Button(action: action) {
+            Image(systemName: symbol)
+                .font(.system(size: 22, weight: .regular))
+                .foregroundStyle(theme.muted)
+                .headerHitTarget()
+        }
+        .accessibilityLabel(label)
+        .accessibilityHint(hint ?? "")
+    }
+}
+
+/// The floating header a feature screen shows once its `ScreenHeader` has scrolled
+/// away: back, the page title, and Home, pinned to the top.
+enum FloatingHeader {
+    static let space = "keelFeatureScreen"
+
+    struct State {
+        let title: String
+        let scrolledAway: Bool
+        let onBack: () -> Void
+        let onHome: (() -> Void)?
+    }
+
+    struct Key: PreferenceKey {
+        static var defaultValue: State? { nil }
+        static func reduce(value: inout State?, nextValue: () -> State?) { value = value ?? nextValue() }
+    }
+
+    struct Bar: View {
+        @Environment(\.keelTheme) private var theme
+        @Environment(\.accessibilityReduceMotion) private var reduceMotion
+        let state: State?
+
+        var body: some View {
+            let visible = state?.scrolledAway == true
+            ZStack(alignment: .top) {
+                if visible, let state {
+                    HStack(spacing: 14) {
+                        HeaderIconButton(symbol: "arrow.left", label: "Back", action: state.onBack)
+                        Text(state.title)
+                            .font(KeelFont.serif(18, weight: .semibold))
+                            .foregroundStyle(theme.heading)
+                            .lineLimit(1)
+                            .frame(maxWidth: .infinity)
+                            .accessibilityAddTraits(.isHeader)
+                        if let onHome = state.onHome {
+                            HeaderIconButton(symbol: "house", label: "Home",
+                                             hint: "Returns to the home screen", action: onHome)
+                        } else {
+                            Color.clear.frame(width: 32, height: 32) // keeps the title centred
+                        }
+                    }
+                    .padding(.horizontal, 20)
+                    .padding(.vertical, 8)
+                    .frame(maxWidth: .infinity)
+                    .background(theme.background.ignoresSafeArea(edges: .top))
+                    .overlay(alignment: .bottom) { Rectangle().fill(theme.border).frame(height: 1) }
+                    .keelCardShadow()
+                    .transition(reduceMotion ? .opacity : .move(edge: .top).combined(with: .opacity))
+                }
+            }
+            .animation(.easeOut(duration: 0.2), value: visible)
         }
     }
 }
@@ -73,6 +161,11 @@ struct ScreenHeader: View {
 extension View {
     func keelFeatureScreen() -> some View {
         self
+            .coordinateSpace(.named(FloatingHeader.space))
+            .overlayPreferenceValue(FloatingHeader.Key.self, alignment: .top) { FloatingHeader.Bar(state: $0) }
+            #if DEBUG
+            .defaultScrollAnchor(DebugHarness.scrollToBottom ? .bottom : nil)
+            #endif
             .navigationBarBackButtonHidden(true)
             .toolbar(.hidden, for: .navigationBar)
             .background(InteractivePopEnabler())

@@ -24,6 +24,8 @@ enum DebugHarness {
 
     static var forcedOnboarded: Bool { args.contains("-uitOnboarded") }
     static var forceOnboarding: Bool { args.contains("-uitForceOnboarding") }
+    /// Open feature screens scrolled to the bottom, so the floating header shows in a screenshot.
+    static var scrollToBottom: Bool { args.contains("-uitScrollToBottom") }
     /// Force the biometric lock gate on for screenshots (real auth can't run on-sim).
     static var forceLocked: Bool { args.contains("-uitLocked") }
     /// Demo the App Lock screen enabled with a (fake) Face ID available, for screenshots.
