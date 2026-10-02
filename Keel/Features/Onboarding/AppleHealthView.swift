@@ -20,11 +20,9 @@ struct AppleHealthView: View {
                 Image(systemName: "plus")
                     .font(.system(size: 24))
                     .foregroundStyle(theme.muted)
-                iconTile(gradient: [theme.accent, theme.accent]) {
-                    Text("K")
-                        .font(KeelFont.serif(36, weight: .semibold))
-                        .foregroundStyle(theme.onFill)
-                }
+                // The v2 brand mark, matching the Health tile's size and corners.
+                KeelMark(cornerRadius: Radius.lg)
+                    .frame(width: 64, height: 64)
             }
 
             VStack(spacing: Spacing.lg) {

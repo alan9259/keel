@@ -8,8 +8,10 @@ struct WelcomeView: View {
         VStack(spacing: 0) {
             Spacer()
 
+            // v2 mark. 96pt (was 72): v2 sets the disc smaller within its tile, so the
+            // tile grows to make the mark itself read larger than v1 did.
             KeelMark()
-                .frame(width: 72, height: 72)
+                .frame(width: 96, height: 96)
                 .padding(.bottom, Spacing.md)
 
             Text("Keel")

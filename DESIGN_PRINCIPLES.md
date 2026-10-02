@@ -82,9 +82,11 @@ navigation, body and captions. Use the semantic helpers (`KeelFont.serif(_:)`,
 Serif carries warmth and headlines; sans carries clarity and everything
 functional.
 
-**The mark** (`KeelMark`, and the app icon). A rosewood disc holding water
-settled to level, with the letter **K knocked through** it (the K is always
-upright; the waterline crosses its lower leg). Never the old sailboat: the
+**The mark** (`KeelMark`, and the app icon), v2. A solid off-white disc on a
+rosewood tile, holding mist-tinted water settled to level, with the letter **K**
+drawn through it in rosewood (the K is always upright; the waterline crosses its
+lower leg). Source art: `brand/keel-icon-1024.png`. The v1 treatment (translucent
+disc, off-white water, smaller mark) is retired. Never the old sailboat: the
 guidelines forbid sails, anchors, wheels, compass roses, and anything resembling
 anatomy or a wellness/meditation icon.
 
