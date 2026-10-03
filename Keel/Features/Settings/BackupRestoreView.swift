@@ -203,6 +203,7 @@ struct BackupRestoreView: View {
         guard let p = pending else { return }
         do {
             summary = try BackupService.restore(from: p, into: env.context)
+            env.markOnboarded()   // even if the archive held no profile, she stays onboarded here
             Haptics.success()
             pending = nil
             refreshExport()

@@ -43,7 +43,7 @@ final class EraseAllDataTests: XCTestCase {
         XCTAssertEqual(env.settings.enabledReminderIDs, ["dailyCheckIn", "medication"])
 
         XCTAssertTrue(env.auth.ownerID.isEmpty)                     // local identity cleared
-        XCTAssertFalse(env.auth.hasCompletedOnboarding)
+        XCTAssertFalse(env.hasCompletedOnboarding)
     }
 
     override func tearDown() {

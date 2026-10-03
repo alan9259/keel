@@ -2,10 +2,10 @@ import XCTest
 import SwiftData
 @testable import Keel
 
-/// Apple Health access when she opens the app. After a reinstall (iOS drops an app's
-/// Health permissions when it's deleted, but Keel's "onboarded" flag survives in the
-/// Keychain, so onboarding and its Connect step are skipped) Keel offers to connect,
-/// once. It never asks again after Not now, and never when she has already answered
+/// Apple Health access when she opens the app. When she has onboarded but iOS would ask
+/// for Health access again (her data is back, for example on a phone restored from a
+/// backup, but the Health grant isn't) Keel offers to connect, once. (A plain reinstall
+/// deletes the database, onboarded record included, so she onboards again.) It never asks again after Not now, and never when she has already answered
 /// the iOS sheet, whether she allowed or refused.
 @MainActor
 final class HealthAccessOfferTests: XCTestCase {
@@ -26,7 +26,7 @@ final class HealthAccessOfferTests: XCTestCase {
         source = Source()
         env = AppEnvironment(container: KeelSchema.makeContainer(inMemory: true),
                              provider: NoopSyncProvider(), health: source)
-        env.auth.markOnboarded()                                   // a returning user
+        env.markOnboarded()                                        // a returning user
         env.users.upsertProfile(firstName: "Mischa", email: nil, appleUserID: nil)
     }
 
@@ -72,10 +72,13 @@ final class HealthAccessOfferTests: XCTestCase {
         XCTAssertFalse(offer)
     }
 
+    /// Includes a reinstall: the database (and its onboarded record) is gone, so she
+    /// onboards again and connects there.
     func testNothingOfferedBeforeOnboardingWhichHasItsOwnConnectStep() async {
-        env.auth.signOut()
+        let notOnboarded = AppEnvironment(container: KeelSchema.makeContainer(inMemory: true),
+                                          provider: NoopSyncProvider(), health: source)
         source.status = .shouldRequest
-        let offer = await env.checkHealthAccessOnLaunch()
+        let offer = await notOnboarded.checkHealthAccessOnLaunch()
         XCTAssertFalse(offer)
     }
 

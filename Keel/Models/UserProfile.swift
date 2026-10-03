@@ -31,6 +31,11 @@ final class UserProfile: Syncable {
     var appleUserID: String?
     var pathwayRaw: String?
     var healthKitAuthorized: Bool = false
+    /// When she finished onboarding on this phone. Kept in the database (not the
+    /// Keychain, which survives deleting the app) so a reinstall starts fresh with
+    /// onboarding, including its Apple Health and reminders steps. Device state: not
+    /// in backups or sync, like `healthKitAuthorized`.
+    var onboardingCompletedAt: Date? = nil
     var trackingStartDate: Date = Date.now
 
     // Non-identifying environment context (see `DeviceContext`). Recorded so we

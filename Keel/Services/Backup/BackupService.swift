@@ -102,8 +102,11 @@ enum BackupService {
         // archive. Keep whatever this device has now: restoring a "connected" backup onto
         // a fresh install must not switch syncing on, or the next foreground sync would
         // raise the HealthKit prompt without her tapping Connect.
-        let healthConnectedHere = try context.fetch(FetchDescriptor<UserProfile>())
-            .contains { $0.healthKitAuthorized && $0.deletedAt == nil }
+        let profilesHere = try context.fetch(FetchDescriptor<UserProfile>()).filter { $0.deletedAt == nil }
+        let healthConnectedHere = profilesHere.contains { $0.healthKitAuthorized }
+        // Likewise onboarding: she's restoring from inside the app, so she has onboarded
+        // here. Keep this phone's record so the restore doesn't send her back to it.
+        let onboardedHere = profilesHere.compactMap(\.onboardingCompletedAt).min()
 
         try wipeAll(context)
 
@@ -112,6 +115,7 @@ enum BackupService {
         for dto in backup.profiles {
             let profile = dto.model()
             profile.healthKitAuthorized = healthConnectedHere
+            profile.onboardingCompletedAt = onboardedHere
             context.insert(profile)
         }
         for dto in backup.cycleEntries { context.insert(dto.model()) }

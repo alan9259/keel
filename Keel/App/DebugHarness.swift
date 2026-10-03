@@ -1147,15 +1147,19 @@ enum DebugHarness {
         fflush(stdout)
     }
 
-    /// Establishes an identity + marks onboarding done, then reads it back through
-    /// a fresh AuthService to confirm a returning user is restored (and would skip
-    /// onboarding). Keychain columns are device-only; UserDefaults proves the logic.
+    /// Establishes an identity + marks onboarding done, then reads both back: the owner
+    /// id through a fresh AuthService, the onboarded record from the database (where it
+    /// now lives, so deleting the app clears it). The legacy Keychain/UserDefaults flag
+    /// must be gone. Keychain columns are device-only; UserDefaults proves the logic.
     @MainActor
     private static func runReturningUserProbe(env: AppEnvironment) {
         env.auth.continueLocally()
-        env.auth.markOnboarded()
+        env.markOnboarded()
         let fresh = AuthService()
-        print("KEEL_RETURNING ownerRestored=\(!fresh.ownerID.isEmpty) onboardedRestored=\(fresh.hasCompletedOnboarding) keychainOwner=\(Keychain.string(for: "keel.ownerID") != nil) keychainOnboarded=\(Keychain.string(for: "keel.hasOnboarded") != nil)")
+        let inDatabase = env.users.currentProfile()?.onboardingCompletedAt != nil
+        let legacy = Keychain.string(for: "keel.hasOnboarded") != nil
+            || UserDefaults.standard.object(forKey: "keel.hasOnboarded") != nil
+        print("KEEL_RETURNING ownerRestored=\(!fresh.ownerID.isEmpty) onboardedInDatabase=\(inDatabase) mirror=\(env.hasCompletedOnboarding) legacyFlag=\(legacy)")
         fflush(stdout)
     }
 

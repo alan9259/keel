@@ -12,6 +12,7 @@ protocol UserRepositoring {
     func setHealthKitAuthorized(_ authorized: Bool)
     func setPeriodsNotApplicableReason(_ reason: String?)
     func setHysterectomy(_ answer: Hysterectomy?, year: Int?)
+    func markOnboardingCompleted(at date: Date)
 }
 
 @MainActor
@@ -119,6 +120,20 @@ struct UserRepository: UserRepositoring {
             return created
         }()
         profile.healthKitAuthorized = authorized
+        profile.touch()
+        save()
+    }
+
+    /// Record that she finished onboarding. Keeps the first date if already set.
+    /// Creates a profile if somehow none exists yet, so the flag is never dropped.
+    func markOnboardingCompleted(at date: Date = .now) {
+        let profile = currentProfile() ?? {
+            let created = UserProfile(firstName: "there", ownerID: ownerID())
+            context.insert(created)
+            return created
+        }()
+        guard profile.onboardingCompletedAt == nil else { return }
+        profile.onboardingCompletedAt = date
         profile.touch()
         save()
     }

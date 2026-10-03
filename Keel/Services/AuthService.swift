@@ -12,16 +12,13 @@ final class AuthService {
     private let ownerKey = "keel.ownerID"
     private let nameKey = "keel.displayName"
     private let appleIDKey = "keel.appleUserID"
-    private let onboardedKey = "keel.hasOnboarded"
+    /// Where builds before 53 kept the onboarded flag. It survived deleting the app, so
+    /// a reinstall skipped onboarding; it now lives on the profile and this is cleared.
+    private let legacyOnboardedKey = "keel.hasOnboarded"
 
     private(set) var ownerID: String
     private(set) var displayName: String?
     private(set) var appleUserID: String?
-    /// True once she has finished onboarding. Persisted in the Keychain so a
-    /// returning user (e.g. after a reinstall, where her identity is restored) is
-    /// not made to onboard again.
-    private(set) var hasCompletedOnboarding: Bool
-
     var isAuthenticated: Bool { !ownerID.isEmpty }
     /// True once identity came from a real Apple credential (vs. local fallback).
     var hasAppleIdentity: Bool { appleUserID != nil }
@@ -33,14 +30,8 @@ final class AuthService {
         ownerID = Keychain.string(for: ownerKey) ?? defaults.string(forKey: ownerKey) ?? ""
         displayName = defaults.string(forKey: nameKey)
         appleUserID = Keychain.string(for: appleIDKey) ?? defaults.string(forKey: appleIDKey)
-        hasCompletedOnboarding = Keychain.string(for: onboardedKey) == "1" || defaults.bool(forKey: onboardedKey)
-    }
-
-    /// Record that onboarding is done, durably, so it survives a reinstall.
-    func markOnboarded() {
-        hasCompletedOnboarding = true
-        UserDefaults.standard.set(true, forKey: onboardedKey)
-        Keychain.set("1", for: onboardedKey)
+        defaults.removeObject(forKey: legacyOnboardedKey)
+        Keychain.remove(legacyOnboardedKey)
     }
 
     /// Establish (or reuse) a stable local identity — Simulator / skip path.
@@ -63,12 +54,11 @@ final class AuthService {
 
     func signOut() {
         let defaults = UserDefaults.standard
-        [ownerKey, nameKey, appleIDKey, onboardedKey].forEach(defaults.removeObject(forKey:))
-        [ownerKey, appleIDKey, onboardedKey].forEach(Keychain.remove)
+        [ownerKey, nameKey, appleIDKey].forEach(defaults.removeObject(forKey:))
+        [ownerKey, appleIDKey].forEach(Keychain.remove)
         ownerID = ""
         displayName = nil
         appleUserID = nil
-        hasCompletedOnboarding = false
     }
 
     private func persist() {

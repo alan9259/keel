@@ -7,7 +7,6 @@ struct SettingsView: View {
     @Environment(\.keelTheme) private var theme
     @Environment(\.dismiss) private var dismiss
     @Environment(\.openURL) private var openURL
-    @AppStorage("keel.hasOnboarded") private var hasOnboarded = false
 
     @State private var showCloseDialog = false
     @State private var typed = ""
@@ -209,6 +208,5 @@ struct SettingsView: View {
     private func closeAccount() {
         guard typed == "DELETE" else { return }
         env.eraseAllData()
-        hasOnboarded = false
     }
 }

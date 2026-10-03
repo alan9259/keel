@@ -11,13 +11,13 @@ struct RootView: View {
     var body: some View {
         Group {
             if Self.shouldShowMain(completedThisLaunch: completedThisLaunch,
-                                   hasOnboarded: env.auth.hasCompletedOnboarding,
+                                   hasOnboarded: env.hasCompletedOnboarding,
                                    forcedOnboarded: debugForcedOnboarded,
                                    forceOnboarding: debugForceOnboarding) {
                 MainView()
             } else {
                 OnboardingFlow {
-                    env.auth.markOnboarded()
+                    env.markOnboarded()
                     completedThisLaunch = true
                     // Ask for notification permission now (on the way into the app),
                     // not on the welcome screen, and set up her default reminders.
@@ -56,7 +56,7 @@ struct RootView: View {
 
     /// Pure routing decision: main app vs. onboarding.
     /// - completedThisLaunch: she just finished onboarding in this session — always enters the app.
-    /// - hasOnboarded: durably recorded (Keychain/UserDefaults); a returning user skips onboarding.
+    /// - hasOnboarded: recorded on her profile in the database; deleting the app clears it.
     /// - forcedOnboarded: `-uitOnboarded` debug flag — skip straight to the app for screenshots.
     /// - forceOnboarding: `-uitForceOnboarding` debug flag — pin onboarding on (until she finishes it).
     nonisolated static func shouldShowMain(completedThisLaunch: Bool,

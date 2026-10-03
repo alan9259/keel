@@ -39,6 +39,9 @@ final class AppEnvironment {
     /// Writes the companion has drafted for her to confirm (never auto-applied).
     let proposals: CompanionProposals
     let treatments: TreatmentCatalogService
+    /// She has finished onboarding on this phone. Mirrors `UserProfile.onboardingCompletedAt`
+    /// (the source of truth, in the database) so routing can observe it.
+    private(set) var hasCompletedOnboarding = false
 
     let users: UserRepository
     let symptoms: SymptomRepository
@@ -104,6 +107,14 @@ final class AppEnvironment {
         notifications.registerCategories()
         notificationCoordinator.env = self
         notifications.setDelegate(notificationCoordinator)
+        hasCompletedOnboarding = users.currentProfile()?.onboardingCompletedAt != nil
+    }
+
+    /// She finished onboarding: record it on her profile (so a reinstall, which deletes
+    /// the database, onboards again) and update the mirror.
+    func markOnboarded() {
+        users.markOnboardingCompleted(at: .now)
+        hasCompletedOnboarding = true
     }
 
     /// Seed reference data on launch.
@@ -242,6 +253,7 @@ final class AppEnvironment {
         resetHealthSyncState()
         settings.resetToDefaults()
         auth.signOut()
+        hasCompletedOnboarding = false     // her profile (which held it) is gone
     }
 
     private func deleteAll<T: PersistentModel>(_ type: T.Type) {
@@ -273,7 +285,7 @@ final class AppEnvironment {
         #if DEBUG
         if DebugHarness.forceHealthOffer { return true }
         #endif
-        guard auth.hasCompletedOnboarding else { return false }
+        guard hasCompletedOnboarding else { return false }
         let status = await health.requestStatus()
         if status == .shouldRequest, users.currentProfile()?.healthKitAuthorized == true {
             users.setHealthKitAuthorized(false)
