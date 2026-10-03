@@ -5,7 +5,6 @@ enum MainRoute: Hashable {
     case medications
     case patterns
     case more
-    case chat
     case profile
     case colourMode
     case themes
@@ -21,6 +20,7 @@ enum MainRoute: Hashable {
     case about
     case support
     case gpSummary
+    case notes
     case privacy
     case myBackground
 }
@@ -88,7 +88,6 @@ struct MainView: View {
                 case .medications: MedicationsView()
                 case .patterns: PatternsView()
                 case .more: MoreView()
-                case .chat: ChatView()
                 case .profile: ProfileView()
                 case .colourMode: ColourModeView()
                 case .themes: ThemesView()
@@ -104,6 +103,7 @@ struct MainView: View {
                 case .about: AboutView()
                 case .support: SupportView()
                 case .gpSummary: GPSummaryFlowView()
+                case .notes: AllNotesView()
                 case .privacy: PrivacyPolicyView()
                 case .myBackground: MyBackgroundView()
                 }
@@ -164,7 +164,7 @@ struct MainView: View {
             Button("Not now", role: .cancel) { env.declineHealthConnectOffer() }
             Button("Connect") { Task { await env.connectAppleHealth() } }
         } message: {
-            Text("Keel can read your sleep, activity and heart readings from Apple Health to show alongside your own record. You can change this any time under More, then Apple Health.")
+            Text("Keel can read your sleep, activity, heart readings and periods from Apple Health to show alongside your own record. You can change this any time under More, then Apple Health.")
         }
         .task {
             // Once per launch, after Home settles: is Apple Health access still there?

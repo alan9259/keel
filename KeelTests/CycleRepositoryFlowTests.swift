@@ -67,18 +67,23 @@ final class CycleRepositoryFlowTests: XCTestCase {
         XCTAssertEqual(repo.estimatedPhase(on: base), .menstrual) // day 3
     }
 
-    func testHealthFlowIsNoLongerImported() {
+    /// Apple Health periods import into the health store, never into her own cycle
+    /// entries: a day she typed keeps her value, and a Health-only day is not a
+    /// `CycleEntry` (so estimates, which read `CycleEntry`, never see it).
+    func testHealthFlowImportsApartFromHerCycleEntries() {
         let base = Date.now.startOfDay
         let manualDay = base.adding(days: -1)
         repo.setFlow(.heavy, on: manualDay) // she logged this by hand
 
-        // Apple Health menstrual flow is no longer imported (the snapshot has no flow
-        // field). Ingesting Health data must not create or change any cycle entry.
         let symptoms = SymptomRepository(context: context, ownerID: TestStore.ownerID)
         let ingestor = HealthIngestor(context: context, ownerID: TestStore.ownerID, symptoms: symptoms)
-        _ = ingestor.ingest(HealthSnapshot(sleepByDay: [base.adding(days: -3): 7.0]))
+        var snapshot = HealthSnapshot()
+        snapshot.menstrualFlow = [manualDay: .light, base.adding(days: -3): .medium]
+        _ = ingestor.ingest(snapshot)
 
         XCTAssertEqual(repo.flow(on: manualDay), .heavy)          // her value stands
-        XCTAssertNil(repo.flow(on: base.adding(days: -3)))        // Health did not fill any gap
+        XCTAssertNil(repo.flow(on: base.adding(days: -3)))        // not written into CycleEntry
+        XCTAssertEqual(repo.importedFlow(from: base.adding(days: -5), to: base),
+                       [manualDay: .light, base.adding(days: -3): .medium])
     }
 }

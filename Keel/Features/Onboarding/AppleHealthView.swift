@@ -30,7 +30,7 @@ struct AppleHealthView: View {
                     .onboardingTitle()
                     .padding(.top, Spacing.xl)
 
-                Text("Keel can read your sleep, activity and vitals from Apple Health, so there is less for you to enter by hand. Keel shows these alongside your own record and labels where each one came from. Keel only ever reads. It never writes anything back.")
+                Text("Keel can read your sleep, activity, vitals and periods from Apple Health, so there is less for you to enter by hand. Keel shows these alongside your own record and labels where each one came from. Keel only ever reads. It never writes anything back.")
                     .onboardingSubtitle()
                     .foregroundStyle(theme.text.opacity(0.8))
             }

@@ -51,14 +51,8 @@ struct InsightRepository: InsightRepositoring {
         let accent: InsightAccent
     }
 
-    /// Cards come straight from the shared `PatternEngine`, so the Patterns page and
-    /// the daily summary always describe the same patterns.
-    ///
-    /// Only real findings become cards. The low-data and no-pattern states are told
-    /// once, accurately and live, by the Patterns screen's "Today's reflection"
-    /// placeholder (`DailySummaryService.placeholderReflection`). A "still learning"
-    /// card here just repeated that message, and its "N days logged so far" count
-    /// went stale between launches (it's only regenerated on launch), so it's gone.
+    /// Cards come straight from the shared `PatternEngine`. Only real findings become
+    /// cards; Looking back's month summary covers the low-data state.
     private func derive() -> [Draft] {
         let engine = PatternEngine.build(context: context)
         guard engine.loggedDayCount >= Self.minDays else { return [] }

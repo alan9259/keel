@@ -105,6 +105,22 @@ final class HealthAccessOfferTests: XCTestCase {
         XCTAssertEqual(env.users.currentProfile()?.healthKitAuthorized, false)
     }
 
+    /// Keel now reads periods too, so iOS asks again for someone already connected.
+    /// She had chosen to connect, so she's offered once even past an earlier Not now;
+    /// a Not now this time is final.
+    func testConnectedUserIsOfferedOnceWhenKeelReadsSomethingNew() async {
+        env.declineHealthConnectOffer()                 // an old Not now, before she connected
+        env.users.setHealthKitAuthorized(true)
+        source.status = .shouldRequest
+        let first = await env.checkHealthAccessOnLaunch()
+        XCTAssertTrue(first)
+        XCTAssertEqual(env.users.currentProfile()?.healthKitAuthorized, false)
+
+        env.declineHealthConnectOffer()                 // Not now again
+        let second = await env.checkHealthAccessOnLaunch()
+        XCTAssertFalse(second)
+    }
+
     func testDeleteAllMyDataForgetsTheDecline() {
         env.declineHealthConnectOffer()
         env.settings.resetToDefaults()

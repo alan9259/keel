@@ -2,10 +2,10 @@ import XCTest
 import SwiftData
 @testable import Keel
 
-/// Keel no longer imports symptoms or menstrual flow from Apple Health. The one-time
-/// purge must remove exactly the discontinued imports (HealthKit symptom links, cycle
+/// Earlier builds wrote Apple Health symptoms and flow into her own records. The
+/// one-time purge must remove exactly those (HealthKit symptom links, HealthKit cycle
 /// entries, and `symptom.*` archive samples) and leave everything she logged herself,
-/// plus imported vitals, untouched.
+/// plus imported vitals, untouched. Flow now imports into `HealthFlowSample` instead.
 @MainActor
 final class HealthImportPurgeTests: XCTestCase {
 

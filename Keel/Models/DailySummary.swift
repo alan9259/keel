@@ -1,10 +1,10 @@
 import Foundation
 import SwiftData
 
-/// A once-a-day reflection, kept over time so past patterns are recorded rather
-/// than only regenerated. The narrative is written by Apple Intelligence from
-/// grounded facts, or a plain deterministic summary when on-device AI isn't
-/// available. Maps to a `daily_summaries` row.
+/// A daily reflection stored by earlier builds (partly written by Apple Intelligence).
+/// V1 has no generated text: nothing writes these any more, and bootstrap deletes any
+/// that exist (`AppEnvironment.purgeStoredReflections`). The model stays in the schema
+/// only so existing stores open without a migration.
 @Model
 final class DailySummary: Syncable {
     var id: UUID = UUID()
@@ -12,7 +12,7 @@ final class DailySummary: Syncable {
     var day: Date = Date.now
     /// The reflection shown to her.
     var text: String = ""
-    /// "ai" (Apple Intelligence narrated) or "deterministic" (plain fallback).
+    /// "ai" or "deterministic", as written by earlier builds.
     var sourceRaw: String = ""
     /// The grounded facts it was built from, JSON-encoded, kept for the record.
     var signalsJSON: String?

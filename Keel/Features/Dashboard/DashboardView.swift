@@ -199,7 +199,7 @@ struct DashboardView: View {
             // Energy shown in her own words, not a percentage (R10).
             barTrendCard(
                 title: "Energy",
-                trailing: energyAvg > 0 ? "mostly \(EnergyLevel.from(percent: energyAvg).label.lowercased())" : "No data yet",
+                trailing: Self.energyTrailing(entryCount: energyEntryCount, averagePercent: energyAvg),
                 series: energyBars, color: theme.accent, maxValue: 100,
                 selection: $selectedEnergyDay,
                 selectedText: { day, value in "\(dayLabel(day, todayWord: "Today")) · \(EnergyLevel.from(percent: Int(value)).label)" }
@@ -538,6 +538,22 @@ struct DashboardView: View {
 
     private var energyBars: [(day: Date, value: Double?)] {
         last7.map { day in (day, avgEnergy(for: day)) }
+    }
+
+    /// Check-ins in the last 7 days (each carries an energy reading).
+    private var energyEntryCount: Int {
+        last7.reduce(0) { $0 + entries(for: $1).count }
+    }
+
+    /// The Energy card's summary. A word like "mostly okay" only once there are three or
+    /// more entries that week (fewer is too little to sum up); otherwise just the count.
+    nonisolated static func energyTrailing(entryCount: Int, averagePercent: Int) -> String {
+        switch entryCount {
+        case ..<1: "No data yet"
+        case 1: "1 entry this week"
+        case 2: "2 entries this week"
+        default: "mostly \(EnergyLevel.from(percent: averagePercent).label.lowercased())"
+        }
     }
 
     private var energyAvg: Int {

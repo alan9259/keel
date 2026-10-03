@@ -29,6 +29,7 @@ enum KeelSchema {
     static let healthModels: [any PersistentModel.Type] = [
         HealthSample.self,
         HealthActivitySample.self,
+        HealthFlowSample.self,
     ]
 
     static let models: [any PersistentModel.Type] = mainModels + healthModels

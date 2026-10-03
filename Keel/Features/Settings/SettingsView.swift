@@ -46,8 +46,18 @@ struct SettingsView: View {
                 }
 
                 group("Privacy") {
-                    NavigationLink(value: MainRoute.privacy) { linkRow("hand.raised.fill", "Privacy policy") }
-                        .buttonStyle(.plain)
+                    if let url = KeelLinks.privacyPolicy {
+                        Button { openURL(url) } label: { linkRow("hand.raised.fill", "Read the full privacy policy") }
+                            .buttonStyle(.plain)
+                    } else {
+                        NavigationLink(value: MainRoute.privacy) { linkRow("hand.raised.fill", "Read the full privacy policy") }
+                            .buttonStyle(.plain)
+                    }
+                    if let url = KeelLinks.support {
+                        Divider().background(theme.border)
+                        Button { openURL(url) } label: { linkRow("questionmark.circle", "Support") }
+                            .buttonStyle(.plain)
+                    }
                 }
 
                 accountGroup

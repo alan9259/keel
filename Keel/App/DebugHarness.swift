@@ -4,9 +4,6 @@ import SwiftData
 import HealthKit
 import UserNotifications
 import PDFKit
-#if canImport(FoundationModels)
-import FoundationModels
-#endif
 
 /// Launch-argument hooks used only for local verification (DEBUG builds). They
 /// drive the *real* repositories so screenshots and the persistence check
@@ -18,6 +15,7 @@ import FoundationModels
 ///   -uitSeedCheckIn          create one representative check-in
 ///   -uitSeedMed              add two sample medications
 ///   -uitPrintCounts          log current row counts to stdout
+///   -uitSeedImportedFlow     Apple Health period days beside one of her own
 ///   -uitRouteCycle|Meds|Patterns  push that screen on launch
 enum DebugHarness {
     private static var args: Set<String> { Set(ProcessInfo.processInfo.arguments) }
@@ -93,11 +91,6 @@ enum DebugHarness {
         return 0
     }
 
-    /// Auto-send a demo message on the chat screen to exercise streaming.
-    static var chatDemoMessage: String? {
-        args.contains("-uitChatDemo") ? "I've been struggling with sleep lately." : nil
-    }
-
     /// Jump onboarding to a specific screen for screenshots.
     static var onboardingStartStep: Int? {
         if args.contains("-uitOnboardRightPlace") { return 1 }
@@ -123,7 +116,6 @@ enum DebugHarness {
         if args.contains("-uitRoutePatterns") { return .patterns }
         if args.contains("-uitRouteMore") { return .more }
         if args.contains("-uitRouteProfile") { return .profile }
-        if args.contains("-uitRouteChat") { return .chat }
         if args.contains("-uitRouteColour") { return .colourMode }
         if args.contains("-uitRouteThemes") { return .themes }
         if args.contains("-uitRouteMoodIcons") { return .moodIcons }
@@ -350,6 +342,19 @@ enum DebugHarness {
             try? env.context.save()
         }
 
+        if args.contains("-uitSeedImportedFlow") {
+            // Apple Health periods beside her own: an imported-only day, a day both have
+            // (hers should show, once) and today imported-only.
+            let today = Date().startOfDay
+            let owner = env.auth.ownerID
+            env.context.insert(CycleEntry(date: today.adding(days: -1), type: .periodStart,
+                                          flowLevel: .heavy, ownerID: owner))
+            for (off, level) in [(-2, FlowLevel.medium), (-1, .light), (0, .light)] {
+                env.context.insert(HealthFlowSample(date: today.adding(days: off), flowLevel: level, ownerID: owner))
+            }
+            try? env.context.save()
+        }
+
         if args.contains("-uitSeedPumpMed") {
             // A gel dosed in pumps (the requested unit), to check it renders "2 pumps".
             let med = Medication(name: "Oestrogen gel", dosage: "2 pumps",
@@ -437,7 +442,9 @@ enum DebugHarness {
         if args.contains("-uitPrintCounts") {
             let checkIns = env.checkIns.all().count
             let meds = env.medications.active().count
-            print("KEEL_UITEST checkIns=\(checkIns) meds=\(meds)")
+            let daily = (try? env.context.fetchCount(FetchDescriptor<DailySummary>())) ?? -1
+            let flow = (try? env.context.fetchCount(FetchDescriptor<HealthFlowSample>())) ?? -1
+            print("KEEL_UITEST checkIns=\(checkIns) meds=\(meds) reflections=\(daily) importedFlow=\(flow)")
             fflush(stdout)
         }
 
@@ -452,45 +459,15 @@ enum DebugHarness {
             runBackupRoundtrip(env: env)
         }
 
-        if args.contains("-uitCompanionTools") {
-            runCompanionToolsProbe(env: env)
-        }
 
-        if args.contains("-uitCompanionProposal") {
-            runCompanionProposalProbe(env: env)
-        }
 
-        if args.contains("-uitGeminiLimiter") {
-            runGeminiLimiterProbe()
-        }
 
-        if args.contains("-uitCompanionReply") {
-            runCompanionReplyProbe(env: env)
-        }
 
-        if args.contains("-uitAIStatus") {
-            printAIStatus()
-        }
 
-        if args.contains("-uitAppleReply") {
-            runAppleReplyProbe(env: env)
-        }
 
-        if args.contains("-uitAppleAddEntry") {
-            runAppleAddEntryProbe(env: env)
-        }
 
-        if args.contains("-uitOfflineAddEntry") {
-            runOfflineAddEntryProbe(env: env)
-        }
 
-        if args.contains("-uitAppleBare") {
-            runAppleBareProbe()
-        }
 
-        if args.contains("-uitGeminiReply") {
-            runGeminiReplyProbe(env: env)
-        }
 
         if args.contains("-uitEditCheckIn") {
             runEditCheckInProbe(env: env)
@@ -516,9 +493,6 @@ enum DebugHarness {
             runInsightsProbe(env: env)
         }
 
-        if args.contains("-uitDailySummary") {
-            runDailySummaryProbe(env: env)
-        }
 
         if args.contains("-uitGPSummary") {
             runGPSummaryProbe(env: env)
@@ -744,27 +718,24 @@ enum DebugHarness {
         fflush(stdout)
     }
 
-    /// Verifies the lifestyle-tip plumbing: a passed tip is woven into the body
-    /// (deterministic, no model needed), and the on-device writer returns nil on
-    /// the simulator so the static copy stands. Live tip generation needs a real
-    /// Apple-Intelligence device on iOS 26 and can't be exercised here.
+    /// Prints the fixed wording of each lifestyle reminder as it lands in the pending
+    /// queue (V1 has no generated tips).
     @MainActor
     private static func runTipProbe(env: AppEnvironment) {
         let n = env.notifications
         Task {
             _ = await n.requestAuthorization()
-            n.scheduleHydration(startHour: 8, endHour: 8, everyHours: 2, tip: "Keep a glass by your desk.")
-            n.scheduleMovement(hour: 14, minute: 0, weekdaysOnly: false, tip: "Try a slow lap of the garden.")
-            n.scheduleWindDown(hour: 21, minute: 30, tip: "Dim the lights an hour before bed.")
+            n.scheduleHydration(startHour: 8, endHour: 8, everyHours: 2)
+            n.scheduleMovement(hour: 14, minute: 0, weekdaysOnly: false)
+            n.scheduleWindDown(hour: 21, minute: 30)
             try? await Task.sleep(for: .milliseconds(500))
             let reqs = await UNUserNotificationCenter.current().pendingNotificationRequests()
             func body(_ prefix: String) -> String {
                 reqs.first { $0.identifier.hasPrefix(prefix) }?.content.body ?? "nil"
             }
-            let modelTip = await LifestyleTipWriter.tip(for: .hydration) // nil on the simulator
             print("KEEL_TIPPROBE hydration='\(body("keel.hydration."))'")
             print("KEEL_TIPPROBE movement='\(body("keel.movement."))'")
-            print("KEEL_TIPPROBE winddown='\(body("keel.winddown"))' modelTipOnSim=\(modelTip ?? "nil")")
+            print("KEEL_TIPPROBE winddown='\(body("keel.winddown"))'")
             fflush(stdout)
         }
     }
@@ -1060,69 +1031,6 @@ enum DebugHarness {
         fflush(stdout)
     }
 
-    /// Seeds data that trips all five `PatternEngine` detectors, generates the
-    /// daily summary (deterministic on the sim; Apple Intelligence narrates on a
-    /// capable OS), and prints the findings, source, stored text, and history
-    /// count. Also seeds a prior day so the "looking back" history has content.
-    @MainActor
-    private static func runDailySummaryProbe(env: AppEnvironment) {
-        env.symptoms.syncBuiltIns()
-        // Clean slate: -uitReset leaves ActivityLogs/cycle behind, so wipe every
-        // signal so leftover rows can't skew the detectors.
-        (try? env.context.fetch(FetchDescriptor<CheckIn>()))?.forEach { env.context.delete($0) }
-        (try? env.context.fetch(FetchDescriptor<ActivityLog>()))?.forEach { env.context.delete($0) }
-        (try? env.context.fetch(FetchDescriptor<CheckInSymptom>()))?.forEach { env.context.delete($0) }
-        (try? env.context.fetch(FetchDescriptor<CycleEntry>()))?.forEach { env.context.delete($0) }
-        (try? env.context.fetch(FetchDescriptor<DailySummary>()))?.forEach { env.context.delete($0) }
-        (try? env.context.fetch(FetchDescriptor<HealthSample>()))?.forEach { env.context.delete($0) }
-        try? env.context.save()
-
-        let owner = env.auth.ownerID
-        let today = Date().startOfDay
-        let hot = env.symptoms.allActive().first { $0.name == "Hot flushes" } ?? env.symptoms.allActive().first
-
-        // Period starts with a >7-day swing in interval (35, 25, 25) → variability.
-        for offset in [-105, -70, -45, -20] {
-            env.context.insert(CycleEntry(date: today.adding(days: offset), type: .periodStart, ownerID: owner))
-        }
-        // Recent symptom-free check-ins, alternating sleep → sleep↔energy link, with
-        // resting HR running higher on the short-sleep days → sleep↔resting-HR link.
-        for i in 0..<10 {
-            let day = today.adding(days: -i)
-            let low = i % 2 == 1
-            env.context.insert(CheckIn(date: day, mood: low ? .low : .good, energy: low ? 40 : 75, ownerID: owner))
-            env.context.insert(ActivityLog(date: day, activityID: "sleep", amount: low ? 5.5 : 8.0, ownerID: owner))
-            env.context.insert(HealthSample(typeID: "restingHeartRate", day: day,
-                                            value: low ? 66 : 60, unit: "bpm", source: .healthKit, ownerID: owner))
-            env.context.insert(HealthSample(typeID: "wristTemperature", day: day,
-                                            value: low ? 35.6 : 35.1, unit: "°C", source: .healthKit, ownerID: owner))
-        }
-        // Symptom days sitting inside the 7-day pre-period windows → premenstrual
-        // clustering; the three most recent also make hot flushes the top symptom.
-        for offset in [-26, -24, -22, -51, -49, -47, -76, -74, -110, -108] {
-            let ci = CheckIn(date: today.adding(days: offset), mood: .okay, energy: 55, ownerID: owner)
-            env.context.insert(ci)
-            if let hot { env.context.insert(CheckInSymptom(checkIn: ci, symptom: hot, severity: 2, ownerID: owner)) }
-        }
-        // A prior day's reflection so the history section has something to show.
-        env.context.insert(DailySummary(day: today.adding(days: -1),
-                                        text: "Yesterday was steady. Nothing in particular stood out.",
-                                        source: .deterministic, ownerID: owner, syncStatus: .synced))
-        try? env.context.save()
-        // Re-derive the insight cards from the fresh seed too (bootstrap derived
-        // them from whatever the store held before this probe's wipe).
-        env.insights.refreshDerived()
-
-        Task { @MainActor in
-            await env.dailySummary.regenerate()
-            let kinds = PatternEngine.build(context: env.context).findings().map { $0.kind.rawValue }.joined(separator: ",")
-            let stored = env.dailySummary.today()
-            print("KEEL_DAILY findings=[\(kinds)] source=\(stored?.source.rawValue ?? "nil") history=\(env.dailySummary.history().count)")
-            print("KEEL_DAILY_TEXT \((stored?.text ?? "nil").replacingOccurrences(of: "\n", with: " "))")
-            fflush(stdout)
-        }
-    }
-
     /// Drives the sleep-ingestion path with synthetic samples (HealthKit itself
     /// needs a signed build), confirming a manual entry is preserved and empty
     /// days are backfilled.
@@ -1210,244 +1118,6 @@ enum DebugHarness {
         let after = env.checkIns.todays()
         print("KEEL_EDIT countBefore=\(countBefore) countAfter=\(env.checkIns.all().count) sameID=\(after?.id == entryID) noteBefore='\(noteBefore)' noteAfter='\(after?.notes ?? "")' symBefore=\(symBefore) symAfter=\(after?.symptoms.count ?? -1) energyAfter=\(after?.energy ?? -1)")
         fflush(stdout)
-    }
-
-    /// Streams directly from the Gemini engine (reading the proxy URL from the
-    /// launch env), so we can verify the real cloud path end to end, including the
-    /// tool-calling loop. The prompt nudges it to consult her data.
-    @MainActor
-    private static func runGeminiReplyProbe(env: AppEnvironment) {
-        let vars = ProcessInfo.processInfo.environment
-        guard let urlString = vars["KEEL_GEMINI_BASE_URL"], let url = URL(string: urlString) else {
-            print("KEEL_GEMINI no_base_url (set SIMCTL_CHILD_KEEL_GEMINI_BASE_URL)")
-            fflush(stdout)
-            return
-        }
-        let engine = GeminiChatEngine(baseURL: url, apiKey: vars["KEEL_GEMINI_API_KEY"],
-                                      model: "gemini-2.5-flash", toolbox: makeToolbox(env: env),
-                                      limiter: GeminiRateLimiter())
-        let history = [ChatTurn(role: .user,
-                                text: "I've been waking at 3am feeling wired. Can you look at my recent sleep and check-ins and tell me if you notice anything?")]
-        Task { @MainActor in
-            var reply = ""
-            do {
-                for try await delta in engine.streamReply(history: history) { reply += delta }
-                print("KEEL_GEMINI chars=\(reply.count) text=\(reply.replacingOccurrences(of: "\n", with: " ").prefix(500))")
-            } catch {
-                print("KEEL_GEMINI error=\(String(describing: error))")
-            }
-            fflush(stdout)
-        }
-    }
-
-    /// The simplest possible Foundation Models call: no tools, no custom prompt.
-    /// If this fails too, the simulator can't load the model and the issue is the
-    /// environment, not our engine.
-    private static func runAppleBareProbe() {
-        #if canImport(FoundationModels)
-        if #available(iOS 26.0, *) {
-            Task {
-                do {
-                    let session = LanguageModelSession(instructions: "You are a friendly assistant.")
-                    let response = try await session.respond(to: "Say hello in one short sentence.")
-                    print("KEEL_BARE ok text=\(response.content)")
-                } catch {
-                    print("KEEL_BARE error=\(String(describing: error))")
-                }
-                fflush(stdout)
-            }
-        } else {
-            print("KEEL_BARE os_below_26")
-        }
-        #else
-        print("KEEL_BARE framework_not_in_sdk")
-        #endif
-    }
-
-    /// Streams directly from the Apple Intelligence engine (bypassing the
-    /// composite's silent fallback) and prints the reply or the exact error, so we
-    /// can see why it isn't answering.
-    @MainActor
-    private static func runAppleReplyProbe(env: AppEnvironment) {
-        #if canImport(FoundationModels)
-        if #available(iOS 26.0, *) {
-            let engine = AppleIntelligenceEngine(toolbox: makeToolbox(env: env))
-            print("KEEL_APPLE available=\(engine.isAvailable())")
-            let history = [ChatTurn(role: .user, text: "I've been waking at 3am and feeling wired.")]
-            Task { @MainActor in
-                var reply = ""
-                do {
-                    for try await delta in engine.streamReply(history: history) { reply += delta }
-                    print("KEEL_APPLE chars=\(reply.count) text=\(reply.replacingOccurrences(of: "\n", with: " ").prefix(240))")
-                } catch {
-                    print("KEEL_APPLE error=\(String(describing: error))")
-                }
-                fflush(stdout)
-            }
-        } else {
-            print("KEEL_APPLE os_below_26")
-        }
-        #else
-        print("KEEL_APPLE framework_not_in_sdk")
-        #endif
-    }
-
-    /// Verifies the OFFLINE fallback still drafts a log card from a clear request
-    /// (so "add a check-in" works even with no AI engine available).
-    @MainActor
-    private static func runOfflineAddEntryProbe(env: AppEnvironment) {
-        let fallback = LocalCompanionFallback(toolbox: makeToolbox(env: env))
-        let history = [ChatTurn(role: .user, text: "Please add a check-in for me: I'm feeling good and my energy is about 70.")]
-        Task { @MainActor in
-            var reply = ""
-            do {
-                for try await delta in fallback.streamReply(history: history, system: "") { reply += delta }
-            } catch {
-                print("KEEL_OFFLINE error=\(error)"); fflush(stdout); return
-            }
-            let pending = env.proposals.pending
-            print("KEEL_OFFLINE replyChars=\(reply.count) proposals=\(pending.count) first='\(pending.first?.summary ?? "none")'")
-            fflush(stdout)
-        }
-    }
-
-    /// Asks Apple Intelligence to add a check-in and checks whether it actually
-    /// drafts a proposal (calls `propose_log_checkin`). Isolates the model/tool
-    /// path from the write path, so a "can't add an entry" report can be pinned
-    /// on the model not calling the tool vs the confirm not saving.
-    @MainActor
-    private static func runAppleAddEntryProbe(env: AppEnvironment) {
-        #if canImport(FoundationModels)
-        if #available(iOS 26.0, *) {
-            let engine = AppleIntelligenceEngine(toolbox: makeToolbox(env: env))
-            // Realistic, casual phrasings — the way she'd actually ask.
-            let phrases = [
-                "add an entry for me",
-                "can you add an entry for me?",
-                "log today for me",
-                "I want to add a check-in",
-                "note that I've got a headache",
-            ]
-            Task { @MainActor in
-                for phrase in phrases {
-                    for p in env.proposals.pending { env.proposals.dismiss(p) }
-                    var reply = ""
-                    do {
-                        for try await delta in engine.streamReply(history: [ChatTurn(role: .user, text: phrase)]) { reply += delta }
-                    } catch {
-                        print("KEEL_ADDENTRY phrase='\(phrase)' error=\(String(describing: error))"); continue
-                    }
-                    print("KEEL_ADDENTRY phrase='\(phrase)' proposals=\(env.proposals.pending.count) reply='\(reply.replacingOccurrences(of: "\n", with: " ").prefix(90))'")
-                    fflush(stdout)
-                }
-                fflush(stdout)
-            }
-        } else {
-            print("KEEL_ADDENTRY os_below_26")
-        }
-        #else
-        print("KEEL_ADDENTRY framework_not_in_sdk")
-        #endif
-    }
-
-    /// Prints whether on-device Apple Intelligence can serve a reply here, and if
-    /// not, the exact reason (so we know whether it's enable-able or not eligible).
-    private static func printAIStatus() {
-        #if canImport(FoundationModels)
-        if #available(iOS 26.0, *) {
-            switch SystemLanguageModel.default.availability {
-            case .available:
-                print("KEEL_AI available=true")
-            case .unavailable(let reason):
-                print("KEEL_AI available=false reason=\(String(describing: reason))")
-            }
-        } else {
-            print("KEEL_AI available=false reason=os_below_26")
-        }
-        #else
-        print("KEEL_AI available=false reason=framework_not_in_sdk")
-        #endif
-        fflush(stdout)
-    }
-
-    /// Drives the real composite `ChatService` end to end and prints the reply, so
-    /// the engine selection + fallback chain (Apple Intelligence, else Gemini, else
-    /// mock) can be verified to actually return text.
-    @MainActor
-    private static func runCompanionReplyProbe(env: AppEnvironment) {
-        Task { @MainActor in
-            let history = [ChatTurn(role: .user, text: "I've been waking at 3am and feeling wired.")]
-            var reply = ""
-            do {
-                for try await delta in env.chat.streamReply(history: history, system: KeelChatPrompt.system) {
-                    reply += delta
-                }
-                print("KEEL_REPLY chars=\(reply.count) text=\(reply.replacingOccurrences(of: "\n", with: " ").prefix(240))")
-            } catch {
-                print("KEEL_REPLY error=\(error)")
-            }
-            fflush(stdout)
-        }
-    }
-
-    /// Drives the Gemini free-tier limiter past its daily budget to confirm it
-    /// starts throwing `rateLimited`. Uses a throwaway defaults suite so it never
-    /// touches real counters.
-    private static func runGeminiLimiterProbe() {
-        let suite = UserDefaults(suiteName: "keel.test.limiter.\(UUID().uuidString)")!
-        let limiter = GeminiRateLimiter(tier: GeminiFreeTier(requestsPerMinute: 100, requestsPerDay: 5),
-                                        defaults: suite)
-        Task {
-            var ok = 0, limited = 0
-            for _ in 0..<7 {
-                do { try await limiter.reserve(); ok += 1 } catch { limited += 1 }
-            }
-            print("KEEL_LIMITER perDay=5 attempts=7 ok=\(ok) limited=\(limited)")
-            fflush(stdout)
-        }
-    }
-
-    /// Runs every read tool against the seeded store and prints its JSON, so the
-    /// agent's data layer can be verified without an LLM in the loop. Pair with
-    /// the seed flags (e.g. -uitSeedCheckIn -uitSeedSchedules -uitSeedWeek).
-    @MainActor
-    private static func runCompanionToolsProbe(env: AppEnvironment) {
-        let toolbox = makeToolbox(env: env)
-        let readTools = ["get_recent_checkins", "get_symptom_trends", "get_sleep_and_energy",
-                         "get_medications", "get_cycle_summary", "get_tracking_overview", "build_gp_report"]
-        Task { @MainActor in
-            for name in readTools {
-                let out = await toolbox.run(name: name, arguments: [:])
-                print("KEEL_TOOL \(name) => \(out)")
-            }
-            fflush(stdout)
-        }
-    }
-
-    /// Exercises a confirmed write end to end: draft a symptom proposal, confirm
-    /// it, and print the check-in-symptom link count before and after.
-    @MainActor
-    private static func runCompanionProposalProbe(env: AppEnvironment) {
-        let toolbox = makeToolbox(env: env)
-        Task { @MainActor in
-            let linkCount = { (try? env.context.fetchCount(FetchDescriptor<CheckInSymptom>())) ?? -1 }
-            let before = linkCount()
-            let status = await toolbox.run(name: "propose_log_symptom",
-                                           arguments: ["name": "Headache", "severity": "moderate"])
-            let pending = env.proposals.pending.count
-            if let proposal = env.proposals.pending.first { env.proposals.confirm(proposal) }
-            let after = linkCount()
-            print("KEEL_PROPOSAL pending=\(pending) linksBefore=\(before) linksAfter=\(after) added=\(after - before) status=\(status)")
-            fflush(stdout)
-        }
-    }
-
-    @MainActor
-    private static func makeToolbox(env: AppEnvironment) -> CompanionToolbox {
-        let data = CompanionDataService(context: env.context, checkIns: env.checkIns,
-                                        symptoms: env.symptoms, cycle: env.cycle,
-                                        medications: env.medications, users: env.users)
-        return CompanionToolbox(data: data, proposals: env.proposals)
     }
 
     /// Exercises the real BackupService: export the seeded store → wipe → restore

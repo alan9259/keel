@@ -66,7 +66,7 @@ struct AppleHealthSettingsView: View {
             Button("Cancel", role: .cancel) {}
             Button("Remove", role: .destructive) { removeImported() }
         } message: {
-            Text("This deletes the sleep, activity and vitals imported from Apple Health on this device. It does not change Apple Health, and does not touch anything you entered in Keel yourself. Imported data returns on the next sync if you stay connected.")
+            Text("This deletes the sleep, activity, vitals and periods imported from Apple Health on this device. It does not change Apple Health, and does not touch anything you entered in Keel yourself. Imported data returns on the next sync if you stay connected.")
         }
     }
 

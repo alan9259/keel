@@ -12,6 +12,9 @@ struct HealthSnapshot {
     var activityAmounts: [String: [Date: Double]] = [:]
     /// Vitals and workload with no natural Keel home, stored as `HealthSample`.
     var vitals: [VitalSeries] = []
+    /// Menstrual-flow days, keyed to the heaviness recorded (days marked "none" are
+    /// left out). Stored as `HealthFlowSample`.
+    var menstrualFlow: [Date: FlowLevel] = [:]
 
     struct VitalSeries {
         let typeID: String
@@ -24,6 +27,7 @@ struct HealthSnapshot {
     /// consume the throttle window.
     var isEmpty: Bool {
         sleepByDay.isEmpty && activityAmounts.allSatisfy(\.value.isEmpty) && vitals.allSatisfy(\.byDay.isEmpty)
+            && menstrualFlow.isEmpty
     }
 }
 
@@ -49,10 +53,9 @@ enum HealthRequestStatus: Equatable {
 
 extension HealthKitService: HealthDataSource {}
 
-/// Reads a broad, perimenopause-relevant slice of Apple Health so Keel can learn
-/// with less manual logging: sleep, activity, vitals, body temperatures,
-/// menstrual flow, and Health's own symptoms (hot flushes, night sweats, mood
-/// changes, and the rest). Read-only. Real reads need the HealthKit entitlement
+/// Reads a perimenopause-relevant slice of Apple Health so she can see it alongside
+/// her own record: sleep, activity, vitals, body temperatures and menstrual flow.
+/// Read-only. Real reads need the HealthKit entitlement
 /// on a signed device; on the unsigned Simulator authorization fails and every
 /// query returns empty, so the ingestion logic is exercised with synthetic data.
 @MainActor
@@ -101,11 +104,12 @@ final class HealthKitService {
     nonisolated static var readActivityIDs: [String] { activityQuantities.map(\.activityID) }
 
     private var readTypes: Set<HKObjectType> {
-        // Symptoms, menstrual flow and mindful minutes are deliberately NOT read: Keel no
-        // longer imports them from Apple Health (she logs symptoms and cycle in Keel
-        // directly). Only sleep, activity and vitals are imported. See HealthIngestor.
+        // Symptoms and mindful minutes are deliberately NOT read. Menstrual flow is read
+        // and shown on the Cycle screen (labelled as from Apple Health, never used for an
+        // estimate). See HealthIngestor.
         var types = Set<HKObjectType>()
         if let sleep = HKObjectType.categoryType(forIdentifier: .sleepAnalysis) { types.insert(sleep) }
+        if let flow = HKObjectType.categoryType(forIdentifier: .menstrualFlow) { types.insert(flow) }
         for (_, id, _) in Self.activityQuantities {
             if let t = HKObjectType.quantityType(forIdentifier: id) { types.insert(t) }
         }
@@ -178,6 +182,7 @@ final class HealthKitService {
             }
         }
 
+        snapshot.menstrualFlow = await menstrualFlow(lastDays: lastDays)
         return snapshot
     }
 
@@ -268,6 +273,47 @@ final class HealthKitService {
                 continuation.resume(returning: totals)
             }
             store.execute(query)
+        }
+    }
+
+    // MARK: Menstrual flow
+
+    private func menstrualFlow(lastDays: Int) async -> [Date: FlowLevel] {
+        guard let type = HKObjectType.categoryType(forIdentifier: .menstrualFlow) else { return [:] }
+        let predicate = HKQuery.predicateForSamples(withStart: floor(lastDays), end: Date(), options: [])
+        return await withCheckedContinuation { continuation in
+            let query = HKSampleQuery(sampleType: type, predicate: predicate,
+                                      limit: HKObjectQueryNoLimit, sortDescriptors: nil) { [calendar] _, samples, _ in
+                let entries = ((samples as? [HKCategorySample]) ?? []).map {
+                    (day: calendar.startOfDay(for: $0.startDate), value: $0.value)
+                }
+                continuation.resume(returning: Self.flowByDay(entries))
+            }
+            store.execute(query)
+        }
+    }
+
+    /// Apple Health's flow samples as one level per day: "none" and unknown values are
+    /// dropped (not a period day), and where a day has several samples the heaviest
+    /// wins. Pure, so it's unit-tested.
+    nonisolated static func flowByDay(_ samples: [(day: Date, value: Int)]) -> [Date: FlowLevel] {
+        var byDay: [Date: FlowLevel] = [:]
+        for sample in samples {
+            guard let level = flowLevel(from: sample.value) else { continue }
+            if let existing = byDay[sample.day], existing.intensity >= level.intensity { continue }
+            byDay[sample.day] = level
+        }
+        return byDay
+    }
+
+    /// Map Apple Health's bleeding level to ours; "none" returns nil (not a period day).
+    nonisolated static func flowLevel(from value: Int) -> FlowLevel? {
+        switch HKCategoryValueVaginalBleeding(rawValue: value) {
+        case .light: .light
+        case .medium: .medium
+        case .heavy: .heavy
+        case .unspecified: .unspecified
+        default: nil // .none or unknown
         }
     }
 

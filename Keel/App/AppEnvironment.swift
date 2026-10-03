@@ -35,9 +35,6 @@ final class AppEnvironment {
     let speech: SpeechRecognitionService
     /// Biometric app lock (Face ID / Touch ID, device passcode fallback).
     let lock: AppLockService
-    let chat: ChatService
-    /// Writes the companion has drafted for her to confirm (never auto-applied).
-    let proposals: CompanionProposals
     let treatments: TreatmentCatalogService
     /// She has finished onboarding on this phone. Mirrors `UserProfile.onboardingCompletedAt`
     /// (the source of truth, in the database) so routing can observe it.
@@ -49,8 +46,6 @@ final class AppEnvironment {
     let cycle: CycleRepository
     let medications: MedicationRepository
     let insights: InsightRepository
-    /// Once-a-day reflection over her own data, kept as a dated record.
-    let dailySummary: DailySummaryService
 
     /// Builds the GP Visit Summary from her records for the chosen period.
     var gpSummary: GPSummaryService {
@@ -74,7 +69,6 @@ final class AppEnvironment {
         self.cycle = CycleRepository(context: context, ownerID: ownerID)
         self.medications = MedicationRepository(context: context, ownerID: ownerID)
         self.insights = InsightRepository(context: context, ownerID: ownerID)
-        self.dailySummary = DailySummaryService(context: context, ownerID: ownerID)
 
         self.sync = SyncEngine(context: context, provider: provider)
         self.health = health ?? HealthKitService()
@@ -89,17 +83,6 @@ final class AppEnvironment {
         self.lock = AppLockService()
         #endif
 
-        // The companion agent: a read/analysis layer over the repositories, a
-        // confirm-before-write proposal sink, and the shared toolbox both engines
-        // drive.
-        let proposals = CompanionProposals(context: context, checkIns: checkIns,
-                                           symptoms: symptoms, ownerID: ownerID)
-        self.proposals = proposals
-        let dataService = CompanionDataService(context: context, checkIns: checkIns,
-                                               symptoms: symptoms, cycle: cycle,
-                                               medications: medications, users: users)
-        let toolbox = CompanionToolbox(data: dataService, proposals: proposals)
-        self.chat = AppEnvironment.makeCompanion(toolbox: toolbox)
         self.treatments = TreatmentCatalogService()
 
         // Medication reminder taps: register the "Mark taken" / "Always mark taken"
@@ -142,9 +125,18 @@ final class AppEnvironment {
         // syncHealthData self-gates on the connected flag and never requests HealthKit
         // authorization otherwise, so this can't trigger the permission prompt at launch.
         syncHealthData()
-        // Write today's reflection on the first open of each calendar day. Runs
-        // after the derivations above so it reads the freshest local data.
-        Task { await dailySummary.refreshIfNeeded() }
+        // V1 has no generated text: delete any reflections earlier builds stored.
+        purgeStoredReflections()
+    }
+
+    /// Delete every stored daily reflection (written by earlier builds, partly by Apple
+    /// Intelligence). "Looking back" is now a fixed-wording monthly summary built live
+    /// from her records, so nothing replaces them. Idempotent; a no-op once empty.
+    func purgeStoredReflections() {
+        let stored = (try? context.fetch(FetchDescriptor<DailySummary>())) ?? []
+        guard !stored.isEmpty else { return }
+        for summary in stored { context.delete(summary) }
+        try? context.save()
     }
 
     /// She just finished onboarding. This is the moment to ask for notification
@@ -245,6 +237,7 @@ final class AppEnvironment {
         deleteAll(DailySummary.self)
         deleteAll(HealthSample.self)
         deleteAll(HealthActivitySample.self)
+        deleteAll(HealthFlowSample.self)
         try? context.save()
         symptoms.syncBuiltIns()
 
@@ -288,7 +281,13 @@ final class AppEnvironment {
         guard hasCompletedOnboarding else { return false }
         let status = await health.requestStatus()
         if status == .shouldRequest, users.currentProfile()?.healthKitAuthorized == true {
+            // She had Apple Health connected, but iOS would ask again: access was lost
+            // (a restored phone) or Keel now reads something new (periods). Clear the
+            // flag so a background sync can't raise the sheet out of context, and offer
+            // once, even past an earlier Not now, since she had chosen to connect. If she
+            // says Not now this time, the usual once-only rule applies from here.
             users.setHealthKitAuthorized(false)
+            return true
         }
         return Self.shouldOfferHealthConnect(status: status, hasOnboarded: true,
                                              declined: settings.healthConnectOfferDeclined)
@@ -452,12 +451,6 @@ final class AppEnvironment {
     /// Re-arm the lifestyle reminders she has enabled. Calendar triggers persist
     /// across launches, but not across a reinstall, so we top them up on open.
     /// Only touches ones already enabled, so nothing is scheduled she didn't ask for.
-    /// The last Apple-Intelligence lifestyle tip generated per reminder id. Editing a
-    /// reminder's schedule reuses the cached tip instead of reverting to static copy,
-    /// and without a fresh model call on every picker tick. Refilled here on launch /
-    /// foreground; nil-valued (or absent) means the static copy stands.
-    private var lifestyleTips: [String: String] = [:]
-
     func refreshLifestyleReminders() {
         #if DEBUG
         if DebugHarness.suppressReminders { return }
@@ -474,41 +467,24 @@ final class AppEnvironment {
             // turns a reminder on.
             guard NotificationService.gate(for: await notifications.authorizationStatus()) == .proceed else { return }
             if enabled.contains("dailyCheckIn") { notifications.scheduleDailyCheckInReminder(hour: c.checkInHour, minute: c.checkInMinute) }
-            // Each recurring lifestyle nudge gets a fresh Apple-Intelligence tip in
-            // its area when the device can make one; otherwise the static copy stands.
-            // The tip is cached so a later schedule edit keeps it (see below).
-            if enabled.contains("hydration") {
-                let tip = await LifestyleTipWriter.tip(for: .hydration)
-                lifestyleTips["hydration"] = tip
-                notifications.scheduleHydration(startHour: c.hydrationStartHour, endHour: c.hydrationEndHour, everyHours: c.hydrationIntervalHours, tip: tip)
-            }
-            if enabled.contains("movement") {
-                let tip = await LifestyleTipWriter.tip(for: .movement)
-                lifestyleTips["movement"] = tip
-                notifications.scheduleMovement(hour: c.movementHour, minute: c.movementMinute, weekdaysOnly: c.movementWeekdaysOnly, tip: tip)
-            }
-            if enabled.contains("winddown") {
-                let tip = await LifestyleTipWriter.tip(for: .windDown)
-                lifestyleTips["winddown"] = tip
-                notifications.scheduleWindDown(hour: c.windDownHour, minute: c.windDownMinute, tip: tip)
+            for id in ["hydration", "movement", "winddown"] where enabled.contains(id) {
+                rescheduleLifestyleReminder(id)
             }
         }
     }
 
-    /// Reschedule one lifestyle reminder from the current config, reusing the last
-    /// generated Apple-Intelligence tip (no new model call). Used by the Reminders
-    /// screen so editing a reminder's time keeps its tip instead of reverting to the
-    /// static copy. Falls back to static (nil) until a tip has been generated.
+    /// Reschedule one lifestyle reminder from the current config. Used on launch and by
+    /// the Reminders screen when she edits a reminder's time.
     func rescheduleLifestyleReminder(_ id: String) {
         guard settings.pushNotifications else { return }
         let c = settings.reminderConfig
         switch id {
         case "hydration":
-            notifications.scheduleHydration(startHour: c.hydrationStartHour, endHour: c.hydrationEndHour, everyHours: c.hydrationIntervalHours, tip: lifestyleTips["hydration"])
+            notifications.scheduleHydration(startHour: c.hydrationStartHour, endHour: c.hydrationEndHour, everyHours: c.hydrationIntervalHours)
         case "movement":
-            notifications.scheduleMovement(hour: c.movementHour, minute: c.movementMinute, weekdaysOnly: c.movementWeekdaysOnly, tip: lifestyleTips["movement"])
+            notifications.scheduleMovement(hour: c.movementHour, minute: c.movementMinute, weekdaysOnly: c.movementWeekdaysOnly)
         case "winddown":
-            notifications.scheduleWindDown(hour: c.windDownHour, minute: c.windDownMinute, tip: lifestyleTips["winddown"])
+            notifications.scheduleWindDown(hour: c.windDownHour, minute: c.windDownMinute)
         default: break
         }
     }
@@ -594,47 +570,4 @@ final class AppEnvironment {
     // iCloud backup was removed: personal health information must not be stored in
     // iCloud (App Store Guideline 5.1.3(ii)). Backups are on-device files only (see
     // BackupService / the Backup & Restore screen).
-
-    /// Assembles the companion: Apple Intelligence first (on eligible devices
-    /// running iOS 26+), then Gemini if `KEEL_GEMINI_BASE_URL` is configured, then
-    /// `LocalCompanionFallback` so the chat always answers offline (and can still
-    /// draft a log card).
-    ///
-    /// A Gemini key must never ship in the client: point `KEEL_GEMINI_BASE_URL` at
-    /// a proxy / Supabase Edge Function that holds the key, and leave the app's key
-    /// nil. `KEEL_GEMINI_API_KEY` is a dev-only convenience for calling
-    /// generativelanguage.googleapis.com directly.
-    static func makeCompanion(toolbox: CompanionToolbox) -> ChatService {
-        var engines: [ChatEngine] = []
-
-        let info = Bundle.main.infoDictionary
-        var geminiBaseURL = info?["KEEL_GEMINI_BASE_URL"] as? String
-        var geminiKey = info?["KEEL_GEMINI_API_KEY"] as? String
-        var skipApple = false
-        #if DEBUG
-        // Launch env overrides for local testing without editing Info.plist, e.g.
-        // SIMCTL_CHILD_KEEL_GEMINI_BASE_URL=http://localhost:8787. KEEL_DISABLE_APPLE
-        // skips the on-device engine (which can't generate in the Simulator) so
-        // interactive Gemini replies aren't held up behind its slow failure.
-        let env = ProcessInfo.processInfo.environment
-        if let overrideURL = env["KEEL_GEMINI_BASE_URL"], !overrideURL.isEmpty { geminiBaseURL = overrideURL }
-        if let overrideKey = env["KEEL_GEMINI_API_KEY"], !overrideKey.isEmpty { geminiKey = overrideKey }
-        skipApple = env["KEEL_DISABLE_APPLE"] != nil
-        #endif
-
-        #if canImport(FoundationModels)
-        if !skipApple, #available(iOS 26.0, *) {
-            engines.append(AppleIntelligenceEngine(toolbox: toolbox))
-        }
-        #endif
-
-        if let urlString = geminiBaseURL, !urlString.isEmpty, let url = URL(string: urlString) {
-            engines.append(GeminiChatEngine(baseURL: url, apiKey: geminiKey, model: "gemini-2.5-flash",
-                                            toolbox: toolbox, limiter: GeminiRateLimiter()))
-        }
-
-        // The offline fallback can still draft a log card from a clear request, so
-        // "add a check-in" keeps working even when no AI engine is available.
-        return CompanionChatService(engines: engines, fallback: LocalCompanionFallback(toolbox: toolbox))
-    }
 }

@@ -22,10 +22,6 @@
 	<string>$(CURRENT_PROJECT_VERSION)</string>
 	<key>ITSAppUsesNonExemptEncryption</key>
 	<false/>
-	<key>KEEL_GEMINI_API_KEY</key>
-	<string></string>
-	<key>KEEL_GEMINI_BASE_URL</key>
-	<string></string>
 	<key>LSRequiresIPhoneOS</key>
 	<true/>
 	<key>NSAppTransportSecurity</key>

@@ -1,20 +1,17 @@
 import Foundation
 import SwiftData
 
-/// One grounded observation about her own data. `fact` is a terse, factual
-/// sentence the daily summary hands to Apple Intelligence to narrate; the card
-/// fields render the Patterns insight cards. Nothing here invents a statistic.
-/// Every number is a real count or range from her own logs, and every claim is
-/// framed as something to notice, never a diagnosis.
+/// One grounded observation about her own data, rendered as a Looking back / Cycle
+/// card. Nothing here invents a statistic: every number is a real count or range from
+/// her own logs, framed as something to notice, never a diagnosis.
+///
+/// Each finding describes ONE measure. Keel never links two measures in a sentence
+/// (e.g. "after less sleep, your resting heart rate was higher"): that reads as a
+/// claim about cause, so the detectors that did so were removed for V1. Showing
+/// readings side by side elsewhere is fine.
 struct PatternFinding {
     enum Kind: String {
-        case sleepEnergy
-        case restingHeartRateSleep
-        case wristTemperatureSleep
-        case dietTrigger
-        case recurringSymptom
         case cycleVariability
-        case premenstrual
     }
 
     let kind: Kind
@@ -23,215 +20,33 @@ struct PatternFinding {
     let timeframe: String
     let icon: String
     let accent: InsightAccent
-    /// A short factual line for AI narration, e.g. "On nights she slept less,
-    /// her next-day energy was often lower."
-    let fact: String
 }
 
-/// Derives perimenopause-relevant patterns from her own check-ins, sleep, and
-/// cycle logs. A pure value type over already-extracted data so it is easy to
-/// test and safe to run off the model context; build it with `PatternEngine.build`.
+/// Derives single-measure observations from her own logs. A pure value type over
+/// already-extracted data so it is easy to test; build it with `PatternEngine.build`.
 ///
-/// Detectors, in the order they read best in a summary:
-///  1. Sleep → next-day energy (the strongest everyday link).
-///  2. Sleep → resting heart rate (the body's own read of a short night).
-///  3. Premenstrual / late-luteal clustering of symptoms or low mood.
-///  4. Cycle-length variability (a hallmark early-perimenopause change).
-///  5. A recurring symptom she has logged often (hot flushes and the rest).
+/// Detectors: cycle-length variability (her real range of cycle lengths). Her
+/// most-logged symptoms are covered by Looking back's month summary (`MonthSummary`).
 struct PatternEngine {
     /// A day's worth of her logs, flattened off the SwiftData models.
     struct DayCheckIn {
         let day: Date
-        let mood: Mood
-        let energy: Int
-        let symptoms: [String]
     }
 
     let checkIns: [DayCheckIn]
-    let sleepByDay: [Date: Double]
-    /// Resting heart rate (bpm) per day, from Apple Health. Empty when unimported.
-    let restingHRByDay: [Date: Double]
-    /// Overnight wrist temperature (°C) per day, from Apple Watch. Empty when absent.
-    let wristTempByDay: [Date: Double]
-    /// Distinct days each symptom was reported, keyed by name, merged from her
-    /// check-ins AND Apple Health's own symptom logs (see [[SymptomTally]]).
-    let symptomDaysByName: [String: Set<Date>]
-    /// Her yes/no diet-trigger logs (alcohol, caffeine, …) for the trigger↔symptom
-    /// comparison. Empty when she hasn't used the eating panel.
-    let dietTriggers: [DietTriggerCorrelation.Input]
     /// First day of each logged period run (start of day), ascending.
     let periodStarts: [Date]
-    let today: Date
-    /// Injected so day-keyed comparisons are deterministic in tests (fixed UTC).
-    let calendar: Calendar
-
-    /// Detectors that need recent, everyday signal look back this far.
-    private static let recentWindow = 30
 
     func findings() -> [PatternFinding] {
         var out: [PatternFinding] = []
-        if let f = sleepEnergy() { out.append(f) }
-        if let f = restingHeartRateSleep() { out.append(f) }
-        if let f = wristTemperatureSleep() { out.append(f) }
-        if let f = dietTrigger() { out.append(f) }
-        if let f = premenstrual() { out.append(f) }
         if let f = cycleVariability() { out.append(f) }
-        if let f = recurringSymptom() { out.append(f) }
         return out
     }
 
     /// Distinct calendar days she has checked in on (any window).
     var loggedDayCount: Int { Set(checkIns.map { $0.day }).count }
 
-    // MARK: - 1. Sleep → next-day energy
-
-    private func sleepEnergy() -> PatternFinding? {
-        let recent = checkInsWithin(Self.recentWindow)
-        var lowSleep: [Int] = []
-        var goodSleep: [Int] = []
-        for entry in recent {
-            guard let hours = sleepByDay[entry.day] else { continue }
-            if hours < 6.5 { lowSleep.append(entry.energy) }
-            else if hours >= 7 { goodSleep.append(entry.energy) }
-        }
-        guard lowSleep.count >= 3, goodSleep.count >= 3 else { return nil }
-        let lowAvg = lowSleep.reduce(0, +) / lowSleep.count
-        let goodAvg = goodSleep.reduce(0, +) / goodSleep.count
-        // Only surface a clear direction; describe the direction, never a number.
-        guard goodAvg - lowAvg >= 10 else { return nil }
-        return PatternFinding(
-            kind: .sleepEnergy,
-            title: "Sleep and energy",
-            detail: "On the days you logged both, your energy was lower on average after nights of less sleep. That's the kind of detail that can be useful to bring to your GP.",
-            timeframe: "Seen across \(lowSleep.count + goodSleep.count) days with both logged",
-            icon: "moon.stars.fill",
-            accent: .terracotta,
-            fact: "On the days she logged both, her energy was lower on average after nights of less sleep.")
-    }
-
-    // MARK: - 2. Sleep → resting heart rate
-
-    /// Her resting heart rate the mornings after shorter sleep, against her good-sleep
-    /// mornings. The body's own, objective echo of the subjective sleep→energy link —
-    /// a real paired comparison from Apple Health, never an invented figure. Surfaced
-    /// only when the difference is clear (about 3 bpm+), so a trivial gap stays quiet.
-    private func restingHeartRateSleep() -> PatternFinding? {
-        guard let gap = VitalTrend.restingHRSleepGap(
-            restingHRByDay: restingHRByDay, sleepHoursByDay: sleepByDay, calendar: calendar),
-              gap.gap >= 3 else { return nil }
-        return PatternFinding(
-            kind: .restingHeartRateSleep,
-            title: "Sleep and your heart rate",
-            detail: "On the mornings after less sleep, your resting heart rate readings were a little higher on average. That's the kind of detail that can be useful to bring to your GP.",
-            timeframe: "Seen across \(gap.pairedDays) days with both logged",
-            icon: "heart.fill",
-            accent: .terracotta,
-            // Qualitative on purpose: no bpm figure, so the AI narration can't restate
-            // a number. The exact vitals live on the Activities screen.
-            fact: "On mornings after less sleep, her resting heart rate readings were a little higher on average.")
-    }
-
-    // MARK: - 3. Sleep → overnight body temperature
-
-    /// Her overnight wrist temperature after shorter sleep vs good sleep. Temperature
-    /// regulation is one of the clearest ways perimenopause shows up at night (hot
-    /// flushes, night sweats), so a real, paired warmer-after-short-sleep signal is
-    /// worth surfacing gently. Threshold is small (0.2°C) because skin-temperature
-    /// swings are small; framed as "notice", never a reading to worry about.
-    private func wristTemperatureSleep() -> PatternFinding? {
-        guard let gap = VitalTrend.sleepSplitGap(
-            valueByDay: wristTempByDay, sleepHoursByDay: sleepByDay, calendar: calendar),
-              gap.gap >= 0.2 else { return nil }
-        return PatternFinding(
-            kind: .wristTemperatureSleep,
-            title: "Sleep and body temperature",
-            detail: "On the nights you slept less, your overnight temperature readings were a little warmer on average. That's the kind of detail that can be useful to bring to your GP.",
-            timeframe: "Seen across \(gap.pairedDays) nights with both logged",
-            icon: "thermometer.medium",
-            accent: .terracotta,
-            fact: "On shorter-sleep nights, her overnight temperature readings were a little warmer on average.")
-    }
-
-    // MARK: - 4. Diet trigger → vasomotor symptoms
-
-    /// Days hot flushes or night sweats were reported (either source).
-    private func vasomotorDays() -> Set<Date> {
-        var union: Set<Date> = []
-        for name in SymptomTally.vasomotorNames { union.formUnion(symptomDaysByName[name] ?? []) }
-        return union
-    }
-
-    /// Whether hot flushes / night sweats have turned up more on the days she logged a
-    /// trigger (alcohol, caffeine, spicy food) than on the days she logged she didn't.
-    /// A real yes-vs-no comparison from her own logs; co-occurrence only, never cause.
-    private func dietTrigger() -> PatternFinding? {
-        guard DietTriggerCorrelation.surfacesToUser else { return nil } // gated pending clinical review
-        guard let result = DietTriggerCorrelation.strongest(dietTriggers, symptomDays: vasomotorDays()) else { return nil }
-        let label = result.label.lowercased()
-        return PatternFinding(
-            kind: .dietTrigger,
-            title: "\(result.label) and your symptoms",
-            detail: "Hot flushes or night sweats were recorded on \(result.yesHit) of the \(result.yesTotal) days you logged \(label), and on \(result.noHit) of the \(result.noTotal) days you didn't. That's the kind of detail that can be useful to bring to your GP.",
-            timeframe: "From the days you logged \(label)",
-            icon: "fork.knife",
-            accent: .terracotta,
-            fact: "Hot flushes or night sweats were recorded more often on her \(label) days than on the days without.")
-    }
-
-    // MARK: - 5. Premenstrual / late-luteal clustering
-
-    private func premenstrual() -> PatternFinding? {
-        // Need at least two cycles to say something turns up "before your period".
-        guard periodStarts.count >= 2 else { return nil }
-        let windows = periodStarts.map { ($0.adding(days: -7), $0) } // [start-7, start)
-        func inWindow(_ day: Date) -> Bool {
-            windows.contains { day >= $0.0 && day < $0.1 }
-        }
-
-        let logged = checkIns
-        guard !logged.isEmpty else { return nil }
-        let windowDays = logged.filter { inWindow($0.day) }.count
-        guard windowDays >= 3 else { return nil }
-        let share = Double(windowDays) / Double(logged.count) // baseline chance of landing in a window
-
-        // Symptoms clustering before the period.
-        let symptomDays = logged.filter { !$0.symptoms.isEmpty }
-        let symptomInWindow = symptomDays.filter { inWindow($0.day) }.count
-        if symptomInWindow >= 3, !symptomDays.isEmpty {
-            let expected = Double(symptomDays.count) * share
-            if Double(symptomInWindow) >= expected * 1.5 {
-                return PatternFinding(
-                    kind: .premenstrual,
-                    title: "Before your period",
-                    detail: "You recorded more symptom days in the week before your period than at other times. That's the kind of detail that can be useful to bring to your GP.",
-                    timeframe: "Across your last \(periodStarts.count) logged cycles",
-                    icon: "calendar.badge.clock",
-                    accent: .terracotta,
-                    fact: "She recorded more symptom days in the week before her period than at other times.")
-            }
-        }
-
-        // Mood dipping before the period, if symptoms didn't already surface it.
-        let moodInWindow = logged.filter { inWindow($0.day) }.map(\.mood.score)
-        let moodOutside = logged.filter { !inWindow($0.day) }.map(\.mood.score)
-        if moodInWindow.count >= 3, moodOutside.count >= 3 {
-            let inAvg = moodInWindow.reduce(0, +) / Double(moodInWindow.count)
-            let outAvg = moodOutside.reduce(0, +) / Double(moodOutside.count)
-            if outAvg - inAvg >= 0.6 {
-                return PatternFinding(
-                    kind: .premenstrual,
-                    title: "Before your period",
-                    detail: "Your recorded mood was lower on average in the week before your period than at other times. That's the kind of detail that can be useful to bring to your GP.",
-                    timeframe: "Across your last \(periodStarts.count) logged cycles",
-                    icon: "calendar.badge.clock",
-                    accent: .terracotta,
-                    fact: "Her recorded mood was lower on average in the week before her period than at other times.")
-            }
-        }
-        return nil
-    }
-
-    // MARK: - 6. Cycle-length variability
+    // MARK: - Cycle-length variability
 
     private func cycleVariability() -> PatternFinding? {
         guard periodStarts.count >= 3 else { return nil }
@@ -252,44 +67,10 @@ struct PatternEngine {
             detail: "Your recent cycles ranged from about \(lo) to \(hi) days apart. That's the kind of detail that can be useful to bring to your GP.",
             timeframe: "Across your last \(sorted.count) logged cycles",
             icon: "arrow.left.and.right",
-            accent: .sage,
-            // Number-free on purpose: the exact range lives on the card, so the
-            // AI narration can't restate a figure. States the record, not a meaning.
-            fact: "Her recent cycles were different lengths from one to the next.")
-    }
-
-    // MARK: - 7. A recurring symptom
-
-    private func recurringSymptom() -> PatternFinding? {
-        let floor = today.startOfDay.adding(days: -(Self.recentWindow - 1))
-        // Days per symptom in the recent window, merged across check-ins and Apple
-        // Health (via `symptomDaysByName`), so a symptom logged only in Health counts.
-        var recentDays: [String: Int] = [:]
-        for (name, days) in symptomDaysByName {
-            let n = days.filter { $0 >= floor }.count
-            if n > 0 { recentDays[name] = n }
-        }
-        guard let top = recentDays.max(by: { $0.value != $1.value ? $0.value < $1.value : $0.key > $1.key }),
-              top.value >= 3 else { return nil }
-        let count = top.value
-        let name = top.key.lowercased()
-        return PatternFinding(
-            kind: .recurringSymptom,
-            title: "A symptom you've logged often",
-            detail: "You recorded \(name) on \(count) of your recent days. That's the kind of detail that can be useful to bring to your GP.",
-            timeframe: "Your most-logged symptom lately",
-            icon: "list.bullet.clipboard",
-            accent: .sage,
-            // Qualitative on purpose: the exact day count is on the card.
-            fact: "\(name) has been her most frequently logged symptom lately.")
+            accent: .sage)
     }
 
     // MARK: - Helpers
-
-    private func checkInsWithin(_ days: Int) -> [DayCheckIn] {
-        let floor = today.startOfDay.adding(days: -(days - 1))
-        return checkIns.filter { $0.day >= floor }
-    }
 
     /// First day of each run of logged period days.
     static func periodStarts(from periodDays: Set<Date>) -> [Date] {
@@ -301,62 +82,17 @@ struct PatternEngine {
 
 @MainActor
 extension PatternEngine {
-    /// Reads the last `window` days of check-ins/sleep and all cycle logs in that
-    /// span, flattening them into the pure engine. Cycle detectors need several
-    /// months to see variability, so the window is wider than the recency ones.
-    static func build(context: ModelContext, window: Int = 120, today: Date = Date(),
-                      calendar: Calendar = .current) -> PatternEngine {
+    /// Reads the last `window` days of check-ins and cycle logs, flattening them into
+    /// the pure engine. Cycle variability needs several months, hence 120 days.
+    static func build(context: ModelContext, window: Int = 120, today: Date = Date()) -> PatternEngine {
         let floor = today.startOfDay.adding(days: -(window - 1))
 
         let checkInDescriptor = FetchDescriptor<CheckIn>(
             predicate: #Predicate { $0.deletedAt == nil && $0.date >= floor },
             sortBy: [SortDescriptor(\.date, order: .reverse)]
         )
-        let rawCheckIns = (try? context.fetch(checkInDescriptor)) ?? []
-        let checkIns = rawCheckIns.map { ci in
-            DayCheckIn(day: ci.date.startOfDay, mood: ci.mood, energy: ci.energy,
-                       symptoms: ci.symptoms.map(\.name))
-        }
-
-        // Activity for the window. Sleep merges her manual entries with Apple Health
-        // imports (health store); diet-trigger logs (the eating panel) are manual only.
-        let activityDescriptor = FetchDescriptor<ActivityLog>(
-            predicate: #Predicate<ActivityLog> { $0.deletedAt == nil && $0.date >= floor }
-        )
-        let activityLogs = (try? context.fetch(activityDescriptor)) ?? []
-        let importedActivity = (try? context.fetch(FetchDescriptor<HealthActivitySample>(
-            predicate: #Predicate<HealthActivitySample> { $0.deletedAt == nil && $0.date >= floor }))) ?? []
-        let sleepByDay = MergedActivity.byDay("sleep", manual: activityLogs, imported: importedActivity)
-        let dietTriggers: [DietTriggerCorrelation.Input] = EatingCatalog.triggers.map { item in
-            var yes: Set<Date> = [], no: Set<Date> = []
-            for log in activityLogs where log.activityID == item.id {
-                let day = log.date.startOfDay
-                if log.amount > 0.5 { yes.insert(day) } else { no.insert(day) }
-            }
-            return DietTriggerCorrelation.Input(label: item.label, yes: yes, no: no)
-        }
-
-        // One Apple Health fetch for the window, for the vitals the detectors need:
-        // resting heart rate and overnight wrist temperature (daily aggregates).
-        let sampleDescriptor = FetchDescriptor<HealthSample>(
-            predicate: #Predicate<HealthSample> { $0.deletedAt == nil && $0.day >= floor }
-        )
-        let healthSamples = (try? context.fetch(sampleDescriptor)) ?? []
-        var restingHRByDay: [Date: Double] = [:]
-        var wristTempByDay: [Date: Double] = [:]
-        for sample in healthSamples where sample.value > 0 {
-            let day = sample.day.startOfDay
-            switch sample.typeID {
-            case "restingHeartRate": if restingHRByDay[day] == nil { restingHRByDay[day] = sample.value }
-            case "wristTemperature": if wristTempByDay[day] == nil { wristTempByDay[day] = sample.value }
-            default: break
-            }
-        }
-
-        // Symptom days from her check-ins. Apple Health symptoms are no longer imported.
-        var symptomDaysByName: [String: Set<Date>] = [:]
-        for entry in checkIns {
-            for name in entry.symptoms { symptomDaysByName[name, default: []].insert(entry.day) }
+        let checkIns = ((try? context.fetch(checkInDescriptor)) ?? []).map { ci in
+            DayCheckIn(day: ci.date.startOfDay)
         }
 
         let cycleDescriptor = FetchDescriptor<CycleEntry>(
@@ -366,13 +102,6 @@ extension PatternEngine {
 
         return PatternEngine(
             checkIns: checkIns,
-            sleepByDay: sleepByDay,
-            restingHRByDay: restingHRByDay,
-            wristTempByDay: wristTempByDay,
-            symptomDaysByName: symptomDaysByName,
-            dietTriggers: dietTriggers,
-            periodStarts: periodStarts(from: periodDays),
-            today: today,
-            calendar: calendar)
+            periodStarts: periodStarts(from: periodDays))
     }
 }

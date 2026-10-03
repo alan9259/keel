@@ -36,11 +36,12 @@ struct CycleTrackingView: View {
         .background(theme.background.ignoresSafeArea())
         .keelFeatureScreen()
         .sheet(item: editingBinding) { day in
-            CycleDaySheet(date: day.date, current: env.cycle.flow(on: day.date)) { level in
+            CycleDaySheet(date: day.date, current: env.cycle.flow(on: day.date),
+                          fromAppleHealth: env.cycle.importedFlow(from: day.date, to: day.date)[day.date.startOfDay]) { level in
                 env.cycle.setFlow(level, on: day.date)
                 refresh += 1
             }
-            .presentationDetents([.height(320)])
+            .presentationDetents([.height(360)])
             .presentationDragIndicator(.visible)
         }
         .onAppear {
@@ -74,12 +75,11 @@ struct CycleTrackingView: View {
     private var today: Date { Date.now.startOfDay }
     private var hasAnyPeriod: Bool { stats.lastStart != nil }
 
-    /// A real premenstrual or cycle-variability observation from the shared engine,
-    /// never a hardcoded line. Nil when there's no genuine signal yet.
+    /// A real cycle-variability observation from the shared engine, never a hardcoded
+    /// line. Nil when there's no genuine signal yet.
     private var insight: PatternFinding? {
         _ = refresh
-        let findings = PatternEngine.build(context: env.context).findings()
-        return findings.first { $0.kind == .premenstrual } ?? findings.first { $0.kind == .cycleVariability }
+        return PatternEngine.build(context: env.context).findings().first { $0.kind == .cycleVariability }
     }
 
     // MARK: Timeline (hero)
@@ -100,9 +100,16 @@ struct CycleTrackingView: View {
                     }
                     .onAppear { proxy.scrollTo(today, anchor: .center) }
                 }
-                if hasAnyPeriod {
+                if hasAnyPeriod || hasAnyImported {
                     legend.padding(.top, 16)
-                } else {
+                }
+                if hasAnyImported {
+                    Text("Days outlined are from Apple Health. They're shown here, but Keel's estimates only use the periods you log in Keel.")
+                        .font(KeelFont.caption).foregroundStyle(theme.muted).lineSpacing(2)
+                        .fixedSize(horizontal: false, vertical: true)
+                        .padding(.top, 10)
+                }
+                if !hasAnyPeriod {
                     Text("Tap a day here or in the calendar below to log a period, and Keel will build your timeline, keep your cycle lengths, and gently estimate the next one once there's a pattern.")
                         .font(KeelFont.caption).foregroundStyle(theme.text.opacity(0.7)).lineSpacing(2)
                         .fixedSize(horizontal: false, vertical: true)
@@ -113,7 +120,8 @@ struct CycleTrackingView: View {
     }
 
     private func dayPip(_ day: Date) -> some View {
-        let level = flowByDay[day]
+        let mark = marks[day]
+        let level = mark?.level
         let isToday = day == today
         let inEstimate = estimateWindow?.contains(day) == true && day > today
         let isFuture = day > today
@@ -125,30 +133,39 @@ struct CycleTrackingView: View {
                     .font(KeelFont.sans(11)).foregroundStyle(theme.muted)
                 Text("\(cal.component(.day, from: day))")
                     .font(KeelFont.sans(13, weight: isToday ? .semibold : .regular))
-                    .foregroundStyle(pipTextColor(level: level, isFuture: isFuture))
+                    .foregroundStyle(pipTextColor(mark: mark, isFuture: isFuture))
                     .frame(width: 34, height: 34)
-                    .background(level.map { theme.accent.opacity(fillOpacity($0)) } ?? .clear)
+                    .background(mark.map { theme.accent.opacity(fillOpacity($0)) } ?? .clear)
                     .clipShape(Circle())
-                    .overlay(pipOverlay(isToday: isToday, inEstimate: inEstimate))
+                    .overlay(pipOverlay(isToday: isToday, inEstimate: inEstimate,
+                                        fromAppleHealth: mark?.fromAppleHealth == true))
             }
         }
         .buttonStyle(.plain)
         .id(day)
-        .accessibilityLabel(accessibilityLabel(day: day, level: level, inEstimate: inEstimate))
+        .accessibilityLabel(accessibilityLabel(day: day, mark: mark, inEstimate: inEstimate))
     }
 
     @ViewBuilder
-    private func pipOverlay(isToday: Bool, inEstimate: Bool) -> some View {
+    private func pipOverlay(isToday: Bool, inEstimate: Bool, fromAppleHealth: Bool) -> some View {
         if isToday {
             Circle().stroke(theme.text, lineWidth: 2)
+        } else if fromAppleHealth {
+            Circle().stroke(theme.accent, lineWidth: 1.5)
         } else if inEstimate {
             Circle().stroke(theme.accent, style: StrokeStyle(lineWidth: 1.5, dash: [3, 2.5]))
         }
     }
 
-    private func pipTextColor(level: FlowLevel?, isFuture: Bool) -> Color {
-        if let level, fillOpacity(level) >= 0.7 { return theme.onFill }
+    private func pipTextColor(mark: CycleDayMark?, isFuture: Bool) -> Color {
+        if let mark, fillOpacity(mark) >= 0.7 { return theme.onFill }
         return isFuture ? theme.muted.opacity(0.7) : theme.text
+    }
+
+    /// Her own days fill by heaviness; Apple Health days are a lighter fill with an
+    /// outline (see the legend), so the two are never confused.
+    private func fillOpacity(_ mark: CycleDayMark) -> Double {
+        mark.fromAppleHealth ? fillOpacity(mark.level) * 0.35 : fillOpacity(mark.level)
     }
 
     private func fillOpacity(_ level: FlowLevel) -> Double {
@@ -161,9 +178,17 @@ struct CycleTrackingView: View {
     }
 
     private var legend: some View {
-        HStack(spacing: 16) {
+        // Wraps rather than squeezing, so five items never break mid-word.
+        FlowLayout(spacing: 14) {
             legendItem(fill: theme.accent, "Period")
             legendItem(fill: theme.accent.opacity(0.5), "Lighter")
+            if hasAnyImported {
+                HStack(spacing: 6) {
+                    Circle().fill(theme.accent.opacity(0.3)).overlay(Circle().stroke(theme.accent, lineWidth: 1.5))
+                        .frame(width: 12, height: 12)
+                    Text("Apple Health")
+                }
+            }
             legendChip(ring: theme.text, "Today")
             legendChip(ring: theme.accent, dashed: true, "Estimated")
         }
@@ -284,37 +309,52 @@ struct CycleTrackingView: View {
     @ViewBuilder
     private func gridCell(_ date: Date?) -> some View {
         if let date {
-            let level = flowByDay[date.startOfDay]
+            let mark = marks[date.startOfDay]
             let isToday = date.isSameDay(as: .now)
             let isFuture = date.startOfDay > today
             Button { Haptics.selection(); editing = date.startOfDay } label: {
                 Text("\(cal.component(.day, from: date))")
                     .font(KeelFont.body)
-                    .foregroundStyle(level.map { fillOpacity($0) >= 0.7 ? theme.onFill : theme.text } ?? (isFuture ? theme.muted.opacity(0.5) : theme.text))
+                    .foregroundStyle(mark.map { fillOpacity($0) >= 0.7 ? theme.onFill : theme.text } ?? (isFuture ? theme.muted.opacity(0.5) : theme.text))
                     .frame(maxWidth: .infinity, minHeight: 40)
-                    .background(level.map { theme.accent.opacity(fillOpacity($0)) } ?? .clear)
+                    .background(mark.map { theme.accent.opacity(fillOpacity($0)) } ?? .clear)
                     .clipShape(RoundedRectangle(cornerRadius: 11, style: .continuous))
                     .overlay(RoundedRectangle(cornerRadius: 11, style: .continuous)
-                        .stroke(isToday && level == nil ? theme.accent : .clear, lineWidth: 2))
+                        .stroke(gridStroke(mark: mark, isToday: isToday), lineWidth: mark?.fromAppleHealth == true ? 1.5 : 2))
             }
             .buttonStyle(.plain)
             .disabled(isFuture)
+            .accessibilityLabel(accessibilityLabel(day: date.startOfDay, mark: mark, inEstimate: false))
         } else {
             Color.clear.frame(minHeight: 40)
         }
     }
 
+    private func gridStroke(mark: CycleDayMark?, isToday: Bool) -> Color {
+        if mark?.fromAppleHealth == true { return theme.accent }
+        return isToday && mark == nil ? theme.accent : .clear
+    }
+
     // MARK: Derived values
 
-    /// Period days (with level) across the timeline and the shown month, fetched once.
-    private var flowByDay: [Date: FlowLevel] {
+    private var visibleRange: (lower: Date, upper: Date) {
+        (min(railStart, monthStart).adding(days: -1), max(railEnd, monthEnd))
+    }
+
+    /// Period days across the timeline and the shown month: hers, plus Apple Health's
+    /// where she hasn't logged that day (shown once, hers winning).
+    private var marks: [Date: CycleDayMark] {
         _ = refresh
-        let lower = min(railStart, monthStart).adding(days: -1)
-        let upper = max(railEnd, monthEnd)
-        return env.cycle.entries(from: lower, to: upper)
+        let range = visibleRange
+        let manual = env.cycle.entries(from: range.lower, to: range.upper)
             .filter { $0.type != .periodEnd }
             .reduce(into: [Date: FlowLevel]()) { $0[$1.date.startOfDay] = $1.flowLevel }
+        return CycleDayMark.merge(manual: manual,
+                                  imported: env.cycle.importedFlow(from: range.lower, to: range.upper))
     }
+
+    private var hasAnyImported: Bool { marks.values.contains(where: \.fromAppleHealth) }
+
 
     private var estimateWindow: ClosedRange<Date>? { stats.estimatedWindow() }
 
@@ -390,9 +430,9 @@ struct CycleTrackingView: View {
         return cells
     }
 
-    private func accessibilityLabel(day: Date, level: FlowLevel?, inEstimate: Bool) -> String {
+    private func accessibilityLabel(day: Date, mark: CycleDayMark?, inEstimate: Bool) -> String {
         let d = day.formatted(.dateTime.weekday(.wide).month(.wide).day())
-        if let level { return "\(d), \(level.label)" }
+        if let mark { return "\(d), \(mark.level.label)\(mark.fromAppleHealth ? ", from Apple Health" : "")" }
         if day == today { return "\(d), today" }
         if inEstimate { return "\(d), estimated period" }
         return d
@@ -411,6 +451,8 @@ private struct CycleDaySheet: View {
     @Environment(\.dismiss) private var dismiss
     let date: Date
     let current: FlowLevel?
+    /// Apple Health's level for this day, if it has one (shown for reference).
+    let fromAppleHealth: FlowLevel?
     let onSave: (FlowLevel?) -> Void
 
     var body: some View {
@@ -419,6 +461,15 @@ private struct CycleDaySheet: View {
                 Text(date.formatted(.dateTime.weekday(.wide).month(.wide).day()))
                     .font(KeelFont.serif(20, weight: .semibold)).foregroundStyle(theme.heading)
                 Text("How was your flow?").font(KeelFont.sans(13)).foregroundStyle(theme.muted)
+                if let imported = fromAppleHealth, current == nil {
+                    Text((imported == .unspecified
+                          ? "Apple Health has this as a period day."
+                          : "Apple Health has this as a period day, \(imported.label.lowercased()) flow.")
+                         + " Choose a level to log it in Keel too.")
+                        .font(KeelFont.caption).foregroundStyle(theme.muted)
+                        .fixedSize(horizontal: false, vertical: true)
+                        .padding(.top, 4)
+                }
             }
 
             FlowLayout(spacing: 10) {

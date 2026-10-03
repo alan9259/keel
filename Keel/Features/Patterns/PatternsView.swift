@@ -1,6 +1,8 @@
 import SwiftUI
 import SwiftData
 
+/// Looking back: a fixed-wording summary of the current month from her own check-ins
+/// (`MonthSummary`), plus any single-measure pattern cards. No generated text.
 struct PatternsView: View {
     @Environment(\.keelTheme) private var theme
     @Environment(\.dismiss) private var dismiss
@@ -8,27 +10,27 @@ struct PatternsView: View {
 
     @Query(filter: #Predicate<Insight> { $0.deletedAt == nil }, sort: \Insight.generatedAt, order: .reverse)
     private var insights: [Insight]
+    /// Observed so the summary rebuilds when she adds or edits a check-in.
     @Query(filter: #Predicate<CheckIn> { $0.deletedAt == nil })
     private var checkIns: [CheckIn]
-    @Query(filter: #Predicate<DailySummary> { $0.deletedAt == nil }, sort: \DailySummary.day, order: .reverse)
-    private var summaries: [DailySummary]
 
-    @State private var isRefreshing = false
+    private var summary: MonthSummary {
+        _ = checkIns.count
+        return MonthSummary.current(context: env.context)
+    }
 
-    /// The current reflection is the most recent one, whatever day it was written:
-    /// a reflection is keyed to a change in her patterns, not the calendar, so it
-    /// stands until something is different (see `DailySummaryService`).
-    private var latest: DailySummary? { summaries.first }
-
-    /// Earlier distinct reflections, most recent first.
-    private var past: [DailySummary] { Array(summaries.dropFirst().prefix(14)) }
+    private var hasAnyNotes: Bool {
+        checkIns.contains { !($0.notes ?? "").trimmingCharacters(in: .whitespacesAndNewlines).isEmpty }
+    }
 
     var body: some View {
+        let summary = summary
         ScrollView {
             VStack(alignment: .leading, spacing: 24) {
                 ScreenHeader(title: "Looking back") { dismiss() }
 
-                todaysReflection
+                monthCard(summary)
+                notesSection(summary)
 
                 if !insights.isEmpty {
                     VStack(spacing: 16) {
@@ -36,12 +38,7 @@ struct PatternsView: View {
                     }
                 }
 
-                if !past.isEmpty {
-                    lookingBack
-                }
-
-                InfoNoteCard(lead: "Keep going:",
-                             message: "The longer you track, the more nuanced these patterns become. Keel learns what's unique to you.")
+                gpSummaryButton
             }
             .padding(.horizontal, 24).padding(.vertical, 12)
         }
@@ -49,80 +46,147 @@ struct PatternsView: View {
         .keelFeatureScreen()
     }
 
-    // MARK: Today's reflection (hero)
+    // MARK: This month
 
-    private var todaysReflection: some View {
+    private func monthCard(_ summary: MonthSummary) -> some View {
         HeroCard {
-            VStack(alignment: .leading, spacing: 10) {
-                HStack {
-                    Image(systemName: "sparkles")
-                        .font(.system(size: 15)).foregroundStyle(theme.accent)
-                    Text("Today's reflection")
+            VStack(alignment: .leading, spacing: 14) {
+                VStack(alignment: .leading, spacing: 6) {
+                    Text(summary.heading(calendar: .current).uppercased())
                         .font(KeelFont.eyebrow).tracking(1).foregroundStyle(theme.muted)
-                    Spacer()
-                    Button(action: refresh) {
-                        if isRefreshing {
-                            ProgressView().controlSize(.small)
+                    Text(summary.checkInLine)
+                        .font(KeelFont.serif(19, weight: .semibold)).foregroundStyle(theme.heading)
+                        .fixedSize(horizontal: false, vertical: true)
+                }
+
+                if summary.daysCheckedIn > 0 {
+                    VStack(alignment: .leading, spacing: 8) {
+                        Text("Symptoms you logged most often")
+                            .font(KeelFont.sans(15, weight: .medium)).foregroundStyle(theme.text)
+                        if summary.topSymptoms.isEmpty {
+                            Text("No symptoms logged this month.")
+                                .font(KeelFont.body).foregroundStyle(theme.muted)
                         } else {
-                            Image(systemName: "arrow.clockwise").font(.system(size: 14, weight: .semibold))
-                                .foregroundStyle(theme.muted)
+                            ForEach(summary.topSymptoms, id: \.name) { item in
+                                HStack {
+                                    Text(item.name).font(KeelFont.body).foregroundStyle(theme.text)
+                                    Spacer()
+                                    Text(MonthSummary.days(item.days))
+                                        .font(KeelFont.body).monospacedDigit().foregroundStyle(theme.muted)
+                                }
+                                .accessibilityElement(children: .combine)
+                            }
                         }
                     }
-                    .disabled(isRefreshing)
-                    .accessibilityLabel("Refresh today's reflection")
-                }
-
-                if let summary = latest {
-                    Text(summary.text)
-                        .font(KeelFont.serif(17, weight: .regular)).foregroundStyle(theme.heading).lineSpacing(4)
-                        .fixedSize(horizontal: false, vertical: true)
-                } else {
-                    Text(placeholder)
-                        .font(KeelFont.body).foregroundStyle(theme.text.opacity(0.7)).lineSpacing(2)
-                        .fixedSize(horizontal: false, vertical: true)
                 }
             }
+            .frame(maxWidth: .infinity, alignment: .leading)
         }
     }
 
-    /// Distinct days she has checked in on, so the placeholder can be accurate
-    /// about how far along she is.
-    private var loggedDays: Int {
-        Set(checkIns.map { $0.date.startOfDay }).count
-    }
+    // MARK: What you wrote
 
-    private var placeholder: String {
-        DailySummaryService.placeholderReflection(loggedDays: loggedDays)
-    }
-
-    private func refresh() {
-        guard !isRefreshing else { return }
-        isRefreshing = true
-        Task {
-            await env.dailySummary.regenerate()
-            isRefreshing = false
-        }
-    }
-
-    // MARK: Earlier reflections (history)
-
-    private var lookingBack: some View {
+    private func notesSection(_ summary: MonthSummary) -> some View {
         VStack(alignment: .leading, spacing: 12) {
-            Text("Earlier reflections")
+            Text("What you wrote")
                 .font(KeelFont.serif(18, weight: .semibold)).foregroundStyle(theme.heading)
-            ForEach(past) { summary in
-                StandardCard(padding: 16) {
-                    VStack(alignment: .leading, spacing: 6) {
-                        Text(summary.day.formatted(.dateTime.weekday(.abbreviated).day().month(.abbreviated)))
-                            .font(KeelFont.caption).foregroundStyle(theme.muted)
-                        Text(summary.text)
-                            .font(KeelFont.body).foregroundStyle(theme.text.opacity(0.85)).lineSpacing(2)
-                            .fixedSize(horizontal: false, vertical: true)
+            if summary.notes.isEmpty {
+                Text("Nothing written this month.")
+                    .font(KeelFont.body).foregroundStyle(theme.muted)
+            } else {
+                ForEach(summary.notes.prefix(MonthSummary.notePreviewLimit)) { NoteCard(note: $0, lineLimit: 4) }
+            }
+            if hasAnyNotes {
+                NavigationLink(value: MainRoute.notes) {
+                    HStack {
+                        Text("See all notes").font(KeelFont.sans(15, weight: .medium)).foregroundStyle(theme.accent)
+                        Spacer()
+                        Image(systemName: "chevron.right").font(.system(size: 13, weight: .semibold))
+                            .foregroundStyle(theme.accent)
                     }
-                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .frame(minHeight: 44)
+                    .contentShape(Rectangle())
                 }
+                .buttonStyle(.plain)
             }
         }
+    }
+
+    // MARK: GP Visit Summary (always shown)
+
+    private var gpSummaryButton: some View {
+        NavigationLink(value: MainRoute.gpSummary) {
+            HStack(spacing: 14) {
+                Image(systemName: "doc.text")
+                    .font(.system(size: 20)).foregroundStyle(theme.accent)
+                    .frame(width: 40, height: 40)
+                    .background(theme.accentTint)
+                    .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
+                VStack(alignment: .leading, spacing: 2) {
+                    Text("Seeing your GP soon?")
+                        .font(KeelFont.sans(16, weight: .medium)).foregroundStyle(theme.text)
+                    Text("Turn this into a GP Visit Summary")
+                        .font(KeelFont.caption).foregroundStyle(theme.muted)
+                }
+                Spacer(minLength: 0)
+                Image(systemName: "chevron.right").font(.system(size: 14, weight: .semibold))
+                    .foregroundStyle(theme.muted)
+            }
+            .padding(16)
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .background(theme.card)
+            .clipShape(RoundedRectangle(cornerRadius: Radius.card, style: .continuous))
+            .overlay(RoundedRectangle(cornerRadius: Radius.card, style: .continuous).stroke(theme.border, lineWidth: 1))
+            .contentShape(Rectangle())
+        }
+        .buttonStyle(.plain)
+    }
+}
+
+/// One of her notes with its date. Shared by Looking back and All notes.
+struct NoteCard: View {
+    @Environment(\.keelTheme) private var theme
+    let note: MonthSummary.Note
+    var lineLimit: Int? = nil
+
+    var body: some View {
+        StandardCard(padding: 16) {
+            VStack(alignment: .leading, spacing: 6) {
+                Text(note.date.formatted(.dateTime.weekday(.abbreviated).day().month(.abbreviated)))
+                    .font(KeelFont.caption).foregroundStyle(theme.muted)
+                Text(note.text)
+                    .font(KeelFont.body).foregroundStyle(theme.text.opacity(0.85)).lineSpacing(2)
+                    .lineLimit(lineLimit)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
+            .frame(maxWidth: .infinity, alignment: .leading)
+        }
+    }
+}
+
+/// Every note she has written, newest first ("See all notes").
+struct AllNotesView: View {
+    @Environment(\.keelTheme) private var theme
+    @Environment(\.dismiss) private var dismiss
+    @Environment(AppEnvironment.self) private var env
+    @Query(filter: #Predicate<CheckIn> { $0.deletedAt == nil })
+    private var checkIns: [CheckIn]
+
+    var body: some View {
+        let notes = MonthSummary.notes(from: checkIns.map(MonthSummary.Entry.init))
+        ScrollView {
+            VStack(alignment: .leading, spacing: 16) {
+                ScreenHeader(title: "Your notes") { dismiss() }
+                if notes.isEmpty {
+                    Text("Nothing written yet.").font(KeelFont.body).foregroundStyle(theme.muted)
+                } else {
+                    ForEach(notes) { NoteCard(note: $0) }
+                }
+            }
+            .padding(.horizontal, 24).padding(.vertical, 12)
+        }
+        .background(theme.background.ignoresSafeArea())
+        .keelFeatureScreen()
     }
 }
 

@@ -1,10 +1,10 @@
 import XCTest
+import SwiftData
 @testable import Keel
 
-/// The resting-heart-rate ↔ sleep detector: a real paired comparison of her own
-/// Apple Health resting HR against her sleep, surfaced in Patterns + the daily
-/// reflection only when the difference is clear. Built on a fixed UTC calendar so
-/// the day-keyed lookups never depend on the machine timezone.
+/// The pattern engine reports single measures only (her cycle-length range). V1 never
+/// links two measures in a sentence, so the sleep, heart rate, temperature, diet and
+/// before-your-period detectors are gone.
 final class PatternEngineTests: XCTestCase {
 
     private let cal = TestStore.utcCalendar
@@ -13,120 +13,46 @@ final class PatternEngineTests: XCTestCase {
         cal.startOfDay(for: cal.date(byAdding: .day, value: offset, to: base)!)
     }
 
-    /// An engine with only vitals + sleep populated, so the resting-HR detector is
-    /// the only one that can fire (empty check-ins/cycles/symptoms silence the others).
-    private func engine(restingHR: [Date: Double] = [:], sleep: [Date: Double] = [:],
-                        wristTemp: [Date: Double] = [:],
-                        symptomDays: [String: Set<Date>] = [:],
-                        dietTriggers: [DietTriggerCorrelation.Input] = []) -> PatternEngine {
-        PatternEngine(
-            checkIns: [],
-            sleepByDay: sleep,
-            restingHRByDay: restingHR,
-            wristTempByDay: wristTemp,
-            symptomDaysByName: symptomDays,
-            dietTriggers: dietTriggers,
-            periodStarts: [],
-            today: day(0),
-            calendar: cal)
+    private func engine(periodStarts: [Date] = []) -> PatternEngine {
+        PatternEngine(checkIns: [], periodStarts: periodStarts)
     }
 
-    private func restingFinding(_ engine: PatternEngine) -> PatternFinding? {
-        engine.findings().first { $0.kind == .restingHeartRateSleep }
+    func testCycleVariabilityReportsHerRealRange() {
+        let starts = [day(-90), day(-65), day(-30)]   // 25 then 35 days apart
+        let finding = engine(periodStarts: starts).findings().first { $0.kind == .cycleVariability }
+        XCTAssertEqual(finding?.detail,
+                       "Your recent cycles ranged from about 25 to 35 days apart. That's the kind of detail that can be useful to bring to your GP.")
     }
 
-    func testSurfacesWhenRestingHRClearlyHigherAfterShortSleep() {
-        var rhr: [Date: Double] = [:], sleep: [Date: Double] = [:]
-        // 4 short-sleep nights (resting HR ~68) and 4 good ones (~60): an 8 bpm gap.
-        for i in 0..<8 {
+    /// Regression (submission pack): no finding sentence may link two measures, e.g.
+    /// "On the mornings after less sleep, your resting heart rate readings were a
+    /// little higher on average." Seeds every kind of record that the removed
+    /// detectors used and checks nothing pairs them.
+    @MainActor
+    func testNoFindingLinksTwoMeasures() {
+        let container = KeelSchema.makeContainer(inMemory: true)
+        let context = container.mainContext
+        let today = Date.now.startOfDay
+        for i in 0..<40 {
+            let d = today.adding(days: -i)
             let short = i.isMultiple(of: 2)
-            rhr[day(i)] = short ? 68 : 60
-            sleep[day(i)] = short ? 6.0 : 8.0
+            context.insert(ActivityLog(date: d, activityID: "sleep", amount: short ? 5.5 : 8, ownerID: "o"))
+            context.insert(HealthSample(typeID: "restingHeartRate", day: d, value: short ? 70 : 58, unit: "bpm", ownerID: "o"))
+            context.insert(HealthSample(typeID: "wristTemperature", day: d, value: short ? 35.8 : 35.0, unit: "degC", ownerID: "o"))
+            context.insert(CheckIn(date: d, mood: short ? .low : .good, energy: short ? 20 : 80, ownerID: "o"))
         }
-        let finding = restingFinding(engine(restingHR: rhr, sleep: sleep))
-        XCTAssertNotNil(finding)
-        // Honest, grounded copy: real day count, no invented number, no dashes.
-        XCTAssertEqual(finding?.timeframe, "Seen across 8 days with both logged")
-        XCTAssertFalse(finding?.fact.isEmpty ?? true)
-        XCTAssertFalse((finding?.detail ?? "").contains("—"))
-    }
+        // Period starts 25 and 35 days apart, so the single-measure cycle finding fires.
+        for start in [-95, -70, -35] { context.insert(CycleEntry(date: today.adding(days: start), type: .flow, flowLevel: .medium, ownerID: "o")) }
+        try? context.save()
 
-    func testStaysQuietWhenTheGapIsTrivial() {
-        var rhr: [Date: Double] = [:], sleep: [Date: Double] = [:]
-        // Only ~1 bpm apart: below the 3 bpm bar for surfacing a narrative.
-        for i in 0..<8 {
-            let short = i.isMultiple(of: 2)
-            rhr[day(i)] = short ? 61 : 60
-            sleep[day(i)] = short ? 6.0 : 8.0
+        let findings = PatternEngine.build(context: context).findings()
+        XCTAssertEqual(findings.map(\.kind), [.cycleVariability])
+        let linking = ["sleep", "heart rate", "temperature", "energy", "before your period", "on average", "after"]
+        for finding in findings {
+            for phrase in linking {
+                XCTAssertFalse(finding.detail.lowercased().contains(phrase), "\(finding.kind): \(finding.detail)")
+            }
         }
-        XCTAssertNil(restingFinding(engine(restingHR: rhr, sleep: sleep)))
-    }
-
-    func testStaysQuietWithoutEnoughPairedDays() {
-        // Two short + two good nights is not enough to say anything.
-        let rhr: [Date: Double] = [day(0): 68, day(1): 60, day(2): 69, day(3): 61]
-        let sleep: [Date: Double] = [day(0): 6, day(1): 8, day(2): 6, day(3): 8]
-        XCTAssertNil(restingFinding(engine(restingHR: rhr, sleep: sleep)))
-    }
-
-    func testNoVitalsMeansNoFinding() {
-        XCTAssertNil(restingFinding(engine(restingHR: [:], sleep: [:])))
-    }
-
-    // MARK: Wrist temperature ↔ sleep
-
-    func testSurfacesWhenOvernightTemperatureWarmerAfterShortSleep() {
-        var temp: [Date: Double] = [:], sleep: [Date: Double] = [:]
-        // 4 short-sleep nights (~35.6°C) and 4 good ones (~35.1°C): a 0.5°C gap.
-        for i in 0..<8 {
-            let short = i.isMultiple(of: 2)
-            temp[day(i)] = short ? 35.6 : 35.1
-            sleep[day(i)] = short ? 6.0 : 8.0
-        }
-        let finding = engine(sleep: sleep, wristTemp: temp)
-            .findings().first { $0.kind == .wristTemperatureSleep }
-        XCTAssertNotNil(finding)
-        XCTAssertFalse((finding?.detail ?? "").contains("—"))
-    }
-
-    func testTemperatureStaysQuietWhenGapTiny() {
-        var temp: [Date: Double] = [:], sleep: [Date: Double] = [:]
-        for i in 0..<8 {
-            let short = i.isMultiple(of: 2)
-            temp[day(i)] = short ? 35.15 : 35.1 // 0.05°C — below the 0.2°C bar
-            sleep[day(i)] = short ? 6.0 : 8.0
-        }
-        XCTAssertNil(engine(sleep: sleep, wristTemp: temp)
-            .findings().first { $0.kind == .wristTemperatureSleep })
-    }
-
-    // MARK: Diet trigger ↔ vasomotor symptoms
-
-    /// The diet-trigger correlation is gated off pending clinical review, so even a
-    /// clear signal must NOT surface as a finding. (The pure comparison is still
-    /// covered by DietTriggerCorrelationTests for when it returns.)
-    func testDietTriggerIsGatedOffPendingReview() {
-        XCTAssertFalse(DietTriggerCorrelation.surfacesToUser)
-        let alcohol = DietTriggerCorrelation.Input(
-            label: "Alcohol",
-            yes: [day(0), day(-1), day(-2), day(-3)],   // 3 of 4 have hot flushes
-            no: [day(-10), day(-11), day(-12), day(-13)]) // none do
-        let symptomDays: [String: Set<Date>] = ["Hot flushes": [day(0), day(-1), day(-2)]]
-        let finding = engine(symptomDays: symptomDays, dietTriggers: [alcohol])
-            .findings().first { $0.kind == .dietTrigger }
-        XCTAssertNil(finding, "gated: the diet-trigger link should not surface")
-    }
-
-    // MARK: Recurring symptom folds Apple Health logs
-
-    func testRecurringSymptomCountsAppleHealthOnlyDays() {
-        // Three hot-flush days that came only from Apple Health (no check-ins) still
-        // surface as her most-logged symptom.
-        let symptomDays = ["Hot flushes": Set([day(0), day(-1), day(-2)])]
-        let finding = engine(restingHR: [:], sleep: [:], symptomDays: symptomDays)
-            .findings().first { $0.kind == .recurringSymptom }
-        XCTAssertNotNil(finding)
-        XCTAssertTrue(finding?.detail.contains("hot flushes") ?? false)
-        XCTAssertTrue(finding?.detail.contains("3") ?? false)
+        _ = container
     }
 }

@@ -2,10 +2,10 @@ import Foundation
 import SwiftData
 import HealthKit
 
-/// Merges an Apple Health `HealthSnapshot` (activity + vitals) into Keel's own store,
-/// read-only and idempotent. **Symptoms and menstrual flow are not imported** — she logs
-/// those in Keel directly. Activity projects into `ActivityLog`; vitals are archived as
-/// `HealthSample`.
+/// Merges an Apple Health `HealthSnapshot` into the local-only health store, read-only
+/// and idempotent: activity into `HealthActivitySample`, vitals into `HealthSample`,
+/// menstrual flow into `HealthFlowSample`. **Symptoms are not imported** (she logs them
+/// in Keel directly), and nothing imported is written into her own records.
 ///
 /// Rules:
 ///  - Backfill only. A day she logged herself is never overwritten.
@@ -45,18 +45,18 @@ final class HealthIngestor {
             summary.vitals += ingestVitals(series)
         }
 
-        // Symptoms and menstrual flow are no longer imported from Apple Health — she
-        // logs symptoms and cycle in Keel directly. Only activity + vitals import here.
+        summary.flow = ingestFlow(snapshot.menstrualFlow)
+
+        // Symptoms are not imported from Apple Health; she logs them in Keel directly.
         try? context.save()
         return summary
     }
 
-    /// One-time cleanup for the discontinued symptom + flow imports: remove any
-    /// previously-imported HealthKit symptom links, `symptom.*` archive samples,
-    /// HealthKit-sourced cycle entries, and legacy HealthKit `ActivityLog` rows (which
-    /// now re-import into `HealthActivitySample`). Idempotent — nothing re-creates the
-    /// symptom/cycle rows, and imported activity re-populates the health store on the
-    /// next sync. Returns how many rows it removed.
+    /// One-time cleanup of imports earlier builds wrote into her own records: HealthKit
+    /// symptom links, `symptom.*` archive samples, HealthKit-sourced `CycleEntry` rows
+    /// (flow now imports into `HealthFlowSample` instead) and legacy HealthKit
+    /// `ActivityLog` rows (now `HealthActivitySample`). Idempotent: nothing re-creates
+    /// them, and the health store re-populates on the next sync. Returns rows removed.
     /// Vitals Keel used to read but never showed, so no longer requests (A3).
     static let discontinuedVitalTypeIDs: Set<String> = ["basalBodyTemperature"]
 
@@ -89,7 +89,7 @@ final class HealthIngestor {
         return removed
     }
 
-    /// Delete ALL Apple Health imports (activity + vitals) from the local health store,
+    /// Delete ALL Apple Health imports (activity, vitals, periods) from the local health store,
     /// on her request ("Remove imported Apple Health data"). They re-import on the next
     /// sync if she keeps Health connected. Returns how many rows it removed.
     @discardableResult
@@ -97,6 +97,7 @@ final class HealthIngestor {
         var removed = 0
         for row in (try? context.fetch(FetchDescriptor<HealthActivitySample>())) ?? [] { context.delete(row); removed += 1 }
         for row in (try? context.fetch(FetchDescriptor<HealthSample>())) ?? [] { context.delete(row); removed += 1 }
+        for row in (try? context.fetch(FetchDescriptor<HealthFlowSample>())) ?? [] { context.delete(row); removed += 1 }
         if removed > 0 { try? context.save() }
         return removed
     }
@@ -164,4 +165,26 @@ final class HealthIngestor {
         return wrote
     }
 
+    // MARK: Menstrual flow → HealthFlowSample
+
+    /// Imported period days. Kept apart from her own `CycleEntry` rows (never written
+    /// into them), refreshed to Apple Health's latest level for a day.
+    private func ingestFlow(_ byDay: [Date: FlowLevel]) -> Int {
+        guard !byDay.isEmpty else { return 0 }
+        var wrote = 0
+        let existingByDay = Dictionary(
+            ((try? context.fetch(FetchDescriptor<HealthFlowSample>(
+                predicate: #Predicate { $0.deletedAt == nil }))) ?? []).map { ($0.date.startOfDay, $0) },
+            uniquingKeysWith: { first, _ in first })
+        for (rawDay, level) in byDay {
+            let day = rawDay.startOfDay
+            if let existing = existingByDay[day] {
+                if existing.flowLevel != level { existing.flowLevel = level; existing.touch(); wrote += 1 }
+            } else {
+                context.insert(HealthFlowSample(date: day, flowLevel: level, ownerID: ownerID()))
+                wrote += 1
+            }
+        }
+        return wrote
+    }
 }

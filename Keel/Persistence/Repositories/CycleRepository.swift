@@ -11,6 +11,7 @@ protocol CycleRepositoring {
     func cycleStart(before date: Date) -> Date?
     func estimatedPhase(on date: Date) -> CyclePhase
     func stats(lookbackDays: Int, now: Date) -> CycleStats
+    func importedFlow(from start: Date, to end: Date) -> [Date: FlowLevel]
 }
 
 @MainActor
@@ -104,5 +105,30 @@ struct CycleRepository: CycleRepositoring {
     /// clinical prediction. Delegates to the pure `CycleStats.phase`.
     func estimatedPhase(on date: Date) -> CyclePhase {
         stats(now: date).phase(on: date)
+    }
+
+    /// Period days imported from Apple Health in a range (the health store), by day.
+    /// Shown on the Cycle screen only: `stats`, and so every estimate, never reads them.
+    func importedFlow(from start: Date, to end: Date) -> [Date: FlowLevel] {
+        let lower = start.startOfDay
+        let upper = end.startOfDay.adding(days: 1)
+        let descriptor = FetchDescriptor<HealthFlowSample>(
+            predicate: #Predicate { $0.deletedAt == nil && $0.date >= lower && $0.date < upper })
+        return ((try? context.fetch(descriptor)) ?? [])
+            .reduce(into: [:]) { $0[$1.date.startOfDay] = $1.flowLevel }
+    }
+}
+
+/// One day on the Cycle screen: the level shown, and whether it came from Apple Health.
+struct CycleDayMark: Equatable {
+    let level: FlowLevel
+    let fromAppleHealth: Bool
+
+    /// Her own period days and Apple Health's, one mark per day. Where both have the
+    /// day, hers is shown (once) and Apple Health's is dropped. Pure, so it's tested.
+    static func merge(manual: [Date: FlowLevel], imported: [Date: FlowLevel]) -> [Date: CycleDayMark] {
+        var out = imported.mapValues { CycleDayMark(level: $0, fromAppleHealth: true) }
+        for (day, level) in manual { out[day] = CycleDayMark(level: level, fromAppleHealth: false) }
+        return out
     }
 }

@@ -4,8 +4,8 @@ import Foundation
 /// source of truth for the Apple Health settings toggles and for filtering a
 /// freshly-read snapshot down to only the items she has left switched on.
 ///
-/// Deliberately does NOT include symptoms or menstrual flow: Keel no longer reads
-/// those from Apple Health (she logs them in Keel directly).
+/// Deliberately does NOT include symptoms: Keel doesn't read those from Apple Health
+/// (she logs them in Keel directly).
 enum HealthSyncCatalog {
     struct Item: Identifiable, Equatable {
         let id: String
@@ -15,6 +15,8 @@ enum HealthSyncCatalog {
         let activityIDs: [String]
         /// `HealthSample` vital typeIDs this item covers.
         let vitalTypeIDs: [String]
+        /// Covers menstrual flow (`HealthFlowSample`).
+        var includesFlow = false
     }
 
     /// Order shown on the Apple Health screen: movement first, then rest, then vitals.
@@ -40,6 +42,8 @@ enum HealthSyncCatalog {
              activityIDs: [], vitalTypeIDs: ["bodyTemperature", "wristTemperature"]),
         Item(id: "bodyWeight", label: "Body weight", desc: "Weight over time",
              activityIDs: [], vitalTypeIDs: ["bodyMass"]),
+        Item(id: "periods", label: "Periods", desc: "Menstrual flow, shown on your Cycle screen",
+             activityIDs: [], vitalTypeIDs: [], includesFlow: true),
     ]
 
     /// Remove everything belonging to switched-off items from a freshly-read snapshot,
@@ -55,6 +59,7 @@ enum HealthSyncCatalog {
         if offActivityIDs.contains("sleep") { out.sleepByDay = [:] } // sleep lives in its own field
         for key in offActivityIDs { out.activityAmounts[key] = nil }
         out.vitals = out.vitals.filter { !offVitalIDs.contains($0.typeID) }
+        if off.contains(where: \.includesFlow) { out.menstrualFlow = [:] }
         return out
     }
 }

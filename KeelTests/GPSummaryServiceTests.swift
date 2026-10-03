@@ -178,6 +178,20 @@ final class GPSummaryServiceTests: XCTestCase {
         XCTAssertEqual(doc.cycle.notApplicable, "After a hysterectomy in 2019")   // trimmed, her words
     }
 
+    /// Periods imported from Apple Health don't appear in the GP Visit Summary: its
+    /// cycle block reads only the periods she logged in Keel.
+    func testImportedAppleHealthPeriodsAreNotInTheSummary() {
+        for offset in [-40, -39, -12, -11] {
+            context.insert(HealthFlowSample(date: d(offset), flowLevel: .medium, ownerID: "test-owner"))
+        }
+        try? context.save()
+        var inputs = GPSummaryInputs(); inputs.period = .twelveWeeks
+        let doc = service.makeDocument(inputs: inputs, now: now)
+        XCTAssertEqual(doc.cycle.periodsRecorded, 0)
+        XCTAssertNil(doc.cycle.lastPeriodStart)
+        XCTAssertNil(doc.cycle.flow)
+    }
+
     func testStopOutsideWindowIsNotShown() {
         seedFullPicture()
         let ancient = Medication(name: "Ancient HRT", dosage: "1mg", timing: "",
