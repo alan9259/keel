@@ -61,6 +61,8 @@ struct MainView: View {
     @State private var toast: ToastData?
     /// The one-line reminders explanation shown once after onboarding, before iOS asks.
     @State private var showReminderExplainer = false
+    /// "Connect Apple Health?" when iOS would ask again (e.g. after a reinstall).
+    @State private var showHealthOffer = false
 
     var body: some View {
         NavigationStack(path: $path) {
@@ -157,6 +159,19 @@ struct MainView: View {
             Button("Continue") { env.answerNotificationExplainer(allow: true) }
         } message: {
             Text("Keel can remind you to check in and take your medicines. You can change this any time in Settings.")
+        }
+        .alert("Connect Apple Health?", isPresented: $showHealthOffer) {
+            Button("Not now", role: .cancel) { env.declineHealthConnectOffer() }
+            Button("Connect") { Task { await env.connectAppleHealth() } }
+        } message: {
+            Text("Keel can read your sleep, activity and heart readings from Apple Health to show alongside your own record. You can change this any time under More, then Apple Health.")
+        }
+        .task {
+            // Once per launch, after Home settles: is Apple Health access still there?
+            // Never alongside the reminders explanation (one ask at a time).
+            try? await Task.sleep(for: .seconds(1.2))
+            guard !env.settings.notificationExplainerPending else { return }
+            if await env.checkHealthAccessOnLaunch() { showHealthOffer = true }
         }
         .task(id: env.settings.notificationExplainerPending) {
             // Let Home settle first so the explanation doesn't land mid-transition.

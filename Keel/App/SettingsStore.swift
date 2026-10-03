@@ -77,6 +77,10 @@ final class SettingsStore {
     /// that comes before the iOS permission prompt. Persisted so closing the app first
     /// doesn't skip it.
     var notificationExplainerPending: Bool { didSet { defaults.set(notificationExplainerPending, forKey: "keel.notificationExplainerPending") } }
+    /// She said "Not now" to connecting Apple Health (the launch offer, or Skip in
+    /// onboarding). Kept in UserDefaults on purpose: a reinstall clears it, so a fresh
+    /// install, where iOS has also dropped Keel's Health access, can offer once again.
+    var healthConnectOfferDeclined: Bool { didSet { defaults.set(healthConnectOfferDeclined, forKey: "keel.healthOfferDeclined") } }
 
     init() {
         colourMode = ColourMode(rawValue: defaults.string(forKey: "keel.colourMode") ?? "") ?? .system
@@ -99,6 +103,7 @@ final class SettingsStore {
         showsSensitiveSymptoms = defaults.object(forKey: "keel.sensitiveSymptoms") as? Bool ?? false
         notesAlcohol = defaults.object(forKey: "keel.notesAlcohol") as? Bool ?? false
         notificationExplainerPending = defaults.object(forKey: "keel.notificationExplainerPending") as? Bool ?? false
+        healthConnectOfferDeclined = defaults.object(forKey: "keel.healthOfferDeclined") as? Bool ?? false
 
         Haptics.userEnabled = haptics // all stored properties are set by here
     }
@@ -120,6 +125,7 @@ final class SettingsStore {
         showsSensitiveSymptoms = false
         notesAlcohol = false
         notificationExplainerPending = false
+        healthConnectOfferDeclined = false
     }
 
     // MARK: Derived

@@ -34,6 +34,17 @@ struct HealthSnapshot {
 protocol HealthDataSource: AnyObject {
     func requestAuthorization() async -> Bool
     func snapshot(lastDays: Int) async -> HealthSnapshot
+    /// Whether asking for Keel's read types would show the iOS permission sheet.
+    func requestStatus() async -> HealthRequestStatus
+}
+
+/// HealthKit's answer to "would asking show the permission sheet?". It never reveals
+/// whether she allowed or denied reading, only whether she has been asked on this
+/// install. `shouldRequest` after a reinstall (iOS drops an app's Health permissions
+/// when it's deleted) or on a phone restored from a backup; `unnecessary` once she
+/// has answered the sheet either way.
+enum HealthRequestStatus: Equatable {
+    case shouldRequest, unnecessary, unknown
 }
 
 extension HealthKitService: HealthDataSource {}
@@ -127,6 +138,21 @@ final class HealthKitService {
             // console reveals it, instead of failing silently.
             Self.log.error("HealthKit authorization request failed: \(error.localizedDescription, privacy: .public) — \(String(describing: error), privacy: .public)")
             return false
+        }
+    }
+
+    func requestStatus() async -> HealthRequestStatus {
+        guard isAvailable else { return .unknown }
+        do {
+            switch try await store.statusForAuthorizationRequest(toShare: [], read: readTypes) {
+            case .shouldRequest: return .shouldRequest
+            case .unnecessary: return .unnecessary
+            default: return .unknown
+            }
+        } catch {
+            // Unsigned Simulator builds land here (no HealthKit entitlement).
+            Self.log.error("HealthKit request status failed: \(error.localizedDescription, privacy: .public)")
+            return .unknown
         }
     }
 

@@ -24,6 +24,9 @@ enum DebugHarness {
 
     static var forcedOnboarded: Bool { args.contains("-uitOnboarded") }
     static var forceOnboarding: Bool { args.contains("-uitForceOnboarding") }
+    /// Show the "Connect Apple Health?" launch offer, for a screenshot (HealthKit can't
+    /// report a real request status on the unsigned Simulator).
+    static var forceHealthOffer: Bool { args.contains("-uitHealthOffer") }
     /// Open feature screens scrolled to the bottom, so the floating header shows in a screenshot.
     static var scrollToBottom: Bool { args.contains("-uitScrollToBottom") }
     /// Force the biometric lock gate on for screenshots (real auth can't run on-sim).

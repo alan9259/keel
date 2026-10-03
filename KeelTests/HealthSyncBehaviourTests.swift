@@ -7,6 +7,9 @@ import SwiftData
 @MainActor
 private final class FakeHealthSource: HealthDataSource {
     var authorizationRequests = 0
+    /// She has answered the sheet before (the usual connected case).
+    var status: HealthRequestStatus = .unnecessary
+    func requestStatus() async -> HealthRequestStatus { status }
     var snapshotReads = 0
     var snapshotToReturn = HealthSnapshot()
     var holdNextRead = false

@@ -41,7 +41,8 @@ struct AppleHealthView: View {
                 KeelPrimaryButton("Connect Apple Health", isEnabled: !connecting) {
                     connect()
                 }
-                KeelTextLink("Skip for now") { onContinue() }
+                // Skipping is a choice: don't follow it with a Connect offer on next launch.
+                KeelTextLink("Skip for now") { env.declineHealthConnectOffer(); onContinue() }
                 Text("We never sell your data. Ever.")
                     .font(KeelFont.caption)
                     .foregroundStyle(theme.muted)

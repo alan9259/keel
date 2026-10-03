@@ -218,19 +218,22 @@ final class AppEnvironment {
     /// there is no server or iCloud copy. Built-in symptoms are reference data and are
     /// re-seeded for the next person who sets Keel up.
     func eraseAllData() {
-        try? context.delete(model: UserProfile.self)
-        try? context.delete(model: CheckIn.self)
-        try? context.delete(model: Symptom.self)
-        try? context.delete(model: CheckInSymptom.self)
-        try? context.delete(model: CycleEntry.self)
-        try? context.delete(model: Medication.self)
-        try? context.delete(model: MedicationLog.self)
-        try? context.delete(model: Insight.self)
-        try? context.delete(model: ChatMessage.self)
-        try? context.delete(model: ActivityLog.self)
-        try? context.delete(model: DailySummary.self)
-        try? context.delete(model: HealthSample.self)
-        try? context.delete(model: HealthActivitySample.self)
+        // Delete each object through the context. The bulk `delete(model:)` removes rows
+        // in the store but can leave objects the context already holds, so a profile or
+        // entry occasionally survived (caught by EraseAllDataTests run repeatedly).
+        deleteAll(CheckInSymptom.self)
+        deleteAll(MedicationLog.self)
+        deleteAll(CheckIn.self)
+        deleteAll(Medication.self)
+        deleteAll(Symptom.self)
+        deleteAll(UserProfile.self)
+        deleteAll(CycleEntry.self)
+        deleteAll(Insight.self)
+        deleteAll(ChatMessage.self)
+        deleteAll(ActivityLog.self)
+        deleteAll(DailySummary.self)
+        deleteAll(HealthSample.self)
+        deleteAll(HealthActivitySample.self)
         try? context.save()
         symptoms.syncBuiltIns()
 
@@ -241,12 +244,48 @@ final class AppEnvironment {
         auth.signOut()
     }
 
+    private func deleteAll<T: PersistentModel>(_ type: T.Type) {
+        for object in (try? context.fetch(FetchDescriptor<T>())) ?? [] { context.delete(object) }
+    }
+
     /// Close-account reset: forget the throttle stamp and her per-item choices so the
     /// next account starts from the defaults (every item on).
     func resetHealthSyncState() {
         lastHealthSyncAt = nil
         pendingForcedHealthSync = false
         settings.disabledHealthItemIDs = []
+    }
+
+    /// Whether to offer "Connect Apple Health?" when she opens the app. Only after
+    /// onboarding (which has its own Connect step), only when iOS would actually show the
+    /// permission sheet (she hasn't been asked on this install: a reinstall or a phone
+    /// restored from a backup), and never after she has said Not now. Pure, so it's
+    /// unit-tested.
+    nonisolated static func shouldOfferHealthConnect(status: HealthRequestStatus, hasOnboarded: Bool,
+                                                    declined: Bool) -> Bool {
+        hasOnboarded && !declined && status == .shouldRequest
+    }
+
+    /// The launch check. Returns whether to show the Connect offer. If her profile still
+    /// says connected but iOS would ask again (access lost), the flag is cleared so a
+    /// background sync can't raise the sheet out of context; the offer covers it instead.
+    func checkHealthAccessOnLaunch() async -> Bool {
+        #if DEBUG
+        if DebugHarness.forceHealthOffer { return true }
+        #endif
+        guard auth.hasCompletedOnboarding else { return false }
+        let status = await health.requestStatus()
+        if status == .shouldRequest, users.currentProfile()?.healthKitAuthorized == true {
+            users.setHealthKitAuthorized(false)
+        }
+        return Self.shouldOfferHealthConnect(status: status, hasOnboarded: true,
+                                             declined: settings.healthConnectOfferDeclined)
+    }
+
+    /// She chose Not now (or Skip in onboarding): don't offer again on this install.
+    /// Apple Health in More stays available whenever she wants it.
+    func declineHealthConnectOffer() {
+        settings.healthConnectOfferDeclined = true
     }
 
     /// Whether a background (foreground-triggered) sync is due. Gated on `connected`
@@ -315,6 +354,13 @@ final class AppEnvironment {
                     pendingForcedHealthSync = false
                     syncHealthData(force: true) // re-checks connected first
                 }
+            }
+            // Access lost (reinstall, or data restored onto a new phone): iOS would show
+            // the permission sheet. Never raise it from a background sync; clear the stale
+            // flag and let the launch offer ask, in context.
+            if await health.requestStatus() == .shouldRequest {
+                users.setHealthKitAuthorized(false)
+                return
             }
             // A failed auth (e.g. HealthKit not effective in the build) must not consume
             // the throttle — otherwise a later retry would silently no-op for 30 min.
