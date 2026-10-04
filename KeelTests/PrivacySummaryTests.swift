@@ -69,3 +69,12 @@ final class AboutCopyTests: XCTestCase {
         XCTAssertEqual(AboutView.versionLine, "Keel · Version \(DeviceContext.shortVersion) · © 2026 TRY Keel Pty Ltd")
     }
 }
+
+/// Connect with Us links: the accounts the owner gave (3 Sep 2026), as web URLs that
+/// open the app when installed.
+final class SocialLinkTests: XCTestCase {
+    func testSocialLinks() {
+        XCTAssertEqual(KeelLinks.instagram.absoluteString, "https://www.instagram.com/keelperiapp/")
+        XCTAssertEqual(KeelLinks.facebook.absoluteString, "https://www.facebook.com/KeelPeriApp")
+    }
+}

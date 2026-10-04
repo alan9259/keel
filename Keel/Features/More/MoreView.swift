@@ -24,6 +24,12 @@ struct MoreView: View {
 
     private var sections: [(String, [Item])] {
         [
+            // Her own things first: profile, app lock and settings.
+            ("Account", [
+                Item(title: "Profile", symbol: "person.crop.circle", tint: theme.accent, route: .profile),
+                Item(title: "App lock", symbol: "lock.fill", tint: theme.plum, route: .appLock),
+                Item(title: "Settings", symbol: "gearshape.fill", tint: theme.muted, route: .settings),
+            ]),
             ("Tracking", [
                 // Cycle Tracking and the GP Visit Summary both live on the home screen
                 // (button group / card), so they aren't duplicated here.
@@ -44,11 +50,6 @@ struct MoreView: View {
                 // Open a pre-filled draft in her own mail app (see compose(_:)).
                 Item(title: "Share feedback", symbol: "envelope.fill", tint: theme.accent, action: { compose(.feedback) }),
                 Item(title: "Request a feature", symbol: "lightbulb.fill", tint: theme.plum, action: { compose(.featureRequest) }),
-            ]),
-            ("Account", [
-                Item(title: "Profile", symbol: "person.crop.circle", tint: theme.accent, route: .profile),
-                Item(title: "App lock", symbol: "lock.fill", tint: theme.plum, route: .appLock),
-                Item(title: "Settings", symbol: "gearshape.fill", tint: theme.muted, route: .settings),
             ]),
             ("Support & about", [
                 Item(title: "Get Support", symbol: "lifepreserver.fill", tint: theme.accent, route: .support),
