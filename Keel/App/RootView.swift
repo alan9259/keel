@@ -55,7 +55,7 @@ struct RootView: View {
     }
 
     /// Pure routing decision: main app vs. onboarding.
-    /// - completedThisLaunch: she just finished onboarding in this session — always enters the app.
+    /// - completedThisLaunch: she just finished onboarding in this session; enters the app even under the force flag, while still onboarded.
     /// - hasOnboarded: recorded on her profile in the database; deleting the app clears it.
     /// - forcedOnboarded: `-uitOnboarded` debug flag — skip straight to the app for screenshots.
     /// - forceOnboarding: `-uitForceOnboarding` debug flag — pin onboarding on (until she finishes it).
@@ -63,7 +63,10 @@ struct RootView: View {
                                            hasOnboarded: Bool,
                                            forcedOnboarded: Bool,
                                            forceOnboarding: Bool) -> Bool {
-        if completedThisLaunch { return true }
+        // Finishing onboarding records it (`markOnboarded`) before setting
+        // `completedThisLaunch`, so both are true then. If the record is gone again
+        // ("Delete all my data" in the same launch), she goes back to onboarding.
+        if completedThisLaunch && hasOnboarded { return true }
         if forceOnboarding { return false }
         return hasOnboarded || forcedOnboarded
     }

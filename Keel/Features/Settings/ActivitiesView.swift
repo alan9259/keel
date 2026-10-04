@@ -180,7 +180,7 @@ struct ActivitiesView: View {
                 VStack(alignment: .leading, spacing: 2) {
                     Text(selectedDay.isSameDay(as: today) ? "How you felt today" : "How you felt")
                         .font(KeelFont.caption).foregroundStyle(theme.muted)
-                    Text("\(checkIn.mood.label) · energy \(EnergyLevel.from(percent: checkIn.energy).label.lowercased())")
+                    Text(checkIn.energyLevel.map { "\(checkIn.mood.label) · energy \($0.label.lowercased())" } ?? checkIn.mood.label)
                         .font(KeelFont.bodyLarge).foregroundStyle(theme.text)
                 }
                 Spacer(minLength: 0)

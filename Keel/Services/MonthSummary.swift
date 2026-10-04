@@ -37,7 +37,19 @@ struct MonthSummary: Equatable {
     /// How many notes "Looking back" shows before "See all notes".
     static let notePreviewLimit = 3
 
+    /// The calendar month always means the Gregorian month, in her time zone. A phone set
+    /// to another calendar (Hebrew, Coptic and Ethiopic have a 13th month; Islamic and
+    /// Chinese months are lunar) would otherwise get a different range and a month
+    /// number with no English name.
+    nonisolated static func gregorian(like calendar: Calendar) -> Calendar {
+        var g = Calendar(identifier: .gregorian)
+        g.timeZone = calendar.timeZone
+        g.locale = Locale(identifier: "en_AU")
+        return g
+    }
+
     nonisolated static func build(entries: [Entry], now: Date, calendar: Calendar) -> MonthSummary {
+        let calendar = gregorian(like: calendar)
         let month = calendar.dateInterval(of: .month, for: now)
             ?? DateInterval(start: calendar.startOfDay(for: now), duration: 86_400)
         let inMonth = entries.filter { month.contains($0.date) && $0.date < month.end }
@@ -74,10 +86,9 @@ struct MonthSummary: Equatable {
     func heading(calendar: Calendar) -> String {
         // English month names to match the rest of Keel's copy (a calendar without a
         // language, like a bare UTC one, would otherwise give "M10").
-        var english = Calendar(identifier: .gregorian)
-        english.locale = Locale(identifier: "en_AU")
-        let index = calendar.component(.month, from: month.start) - 1
-        return "\(english.standaloneMonthSymbols[index]) so far"
+        let g = Self.gregorian(like: calendar)
+        let index = g.component(.month, from: month.start) - 1
+        return "\(g.standaloneMonthSymbols[index]) so far"
     }
 
     var checkInLine: String {
@@ -96,7 +107,7 @@ struct MonthSummary: Equatable {
 extension MonthSummary {
     /// This month's summary from her live (not deleted) check-ins.
     static func current(context: ModelContext, now: Date = .now, calendar: Calendar = .current) -> MonthSummary {
-        let month = calendar.dateInterval(of: .month, for: now)
+        let month = gregorian(like: calendar).dateInterval(of: .month, for: now)
         let start = month?.start ?? calendar.startOfDay(for: now)
         let end = month?.end ?? now
         let descriptor = FetchDescriptor<CheckIn>(
@@ -105,10 +116,9 @@ extension MonthSummary {
         return build(entries: entries, now: now, calendar: calendar)
     }
 
-    /// Every note she has written, newest first (for "See all notes").
-    static func allNotes(context: ModelContext) -> [Note] {
-        let descriptor = FetchDescriptor<CheckIn>(predicate: #Predicate { $0.deletedAt == nil && $0.notes != nil })
-        return notes(from: ((try? context.fetch(descriptor)) ?? []).map(Entry.init))
+    /// Notes from check-ins, newest first, without loading their symptoms ("See all notes").
+    static func notes(fromCheckIns checkIns: [CheckIn]) -> [Note] {
+        notes(from: checkIns.map { Entry(id: $0.id, date: $0.date, symptoms: [], notes: $0.notes) })
     }
 }
 

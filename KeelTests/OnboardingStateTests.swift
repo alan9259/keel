@@ -21,7 +21,9 @@ final class OnboardingStateTests: XCTestCase {
     }
 
     /// Regression (reinstall): an empty database means onboarding, even when the old
-    /// Keychain/UserDefaults flag from a previous install is still there.
+    /// Keychain/UserDefaults flag from a previous install is still there. (On the
+    /// unsigned simulator the Keychain write is a no-op, so the UserDefaults half is
+    /// what this exercises; the Keychain half needs a signed device.)
     func testEmptyDatabaseIsNotOnboardedEvenWithTheLegacyFlag() {
         UserDefaults.standard.set(true, forKey: legacyKey)
         Keychain.set("1", for: legacyKey)
@@ -31,6 +33,36 @@ final class OnboardingStateTests: XCTestCase {
         XCTAssertFalse(env.hasCompletedOnboarding)
         XCTAssertNil(UserDefaults.standard.object(forKey: legacyKey))   // legacy flag cleared
         XCTAssertNil(Keychain.string(for: legacyKey))
+    }
+
+    /// Regression (review): upgrading from build 52, where the flag lived in the
+    /// Keychain/UserDefaults, sent every existing user back through onboarding (which
+    /// could overwrite her name and, via the reminders step, cancel her reminders). Her
+    /// profile plus the old flag now carries over as onboarded, dated when she joined.
+    /// (Uses the UserDefaults copy: the unsigned simulator has no Keychain.)
+    func testUpgradingUserWithAProfileStaysOnboarded() {
+        let container = KeelSchema.makeContainer(inMemory: true)
+        let before = makeEnv(container)                       // build 52: profile, no date
+        let profile = before.users.upsertProfile(firstName: "Mischa", email: nil, appleUserID: nil)
+        XCTAssertNil(profile.onboardingCompletedAt)
+        UserDefaults.standard.set(true, forKey: legacyKey)    // build 52's flag
+
+        let after = makeEnv(container)                        // first launch of build 53
+
+        XCTAssertTrue(after.hasCompletedOnboarding)
+        XCTAssertEqual(after.users.currentProfile()?.onboardingCompletedAt, profile.createdAt)
+        XCTAssertNil(UserDefaults.standard.object(forKey: legacyKey))
+        XCTAssertTrue(makeEnv(container).hasCompletedOnboarding)   // and on the launch after
+        _ = before
+    }
+
+    /// Without the old flag, a profile alone (quit midway) still isn't onboarded.
+    func testProfileWithoutTheLegacyFlagIsNotCarriedOver() {
+        let container = KeelSchema.makeContainer(inMemory: true)
+        let before = makeEnv(container)
+        before.users.upsertProfile(firstName: "Mischa", email: nil, appleUserID: nil)
+        XCTAssertFalse(makeEnv(container).hasCompletedOnboarding)
+        _ = before
     }
 
     /// Finishing onboarding is recorded on the profile and read back on the next launch.

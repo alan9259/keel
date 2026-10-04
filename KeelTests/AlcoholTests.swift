@@ -63,9 +63,14 @@ final class AlcoholTests: XCTestCase {
         XCTAssertEqual(c.alcoholCount, 2)
     }
 
-    func testTheSettingIsOffByDefault() {
+    /// On by default (4 Oct 2026), but only until she chooses: a stored choice to turn
+    /// it off is kept, and the check-in field itself still starts empty.
+    func testTheSettingIsOnByDefaultAndHerChoiceIsKept() {
         UserDefaults.standard.removeObject(forKey: "keel.notesAlcohol")
+        XCTAssertTrue(SettingsStore().notesAlcohol)
+        UserDefaults.standard.set(false, forKey: "keel.notesAlcohol")
         XCTAssertFalse(SettingsStore().notesAlcohol)
+        UserDefaults.standard.removeObject(forKey: "keel.notesAlcohol")
     }
 
     // MARK: GP Visit Summary line

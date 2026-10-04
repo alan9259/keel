@@ -1,4 +1,5 @@
 import SwiftUI
+import SwiftData
 
 /// Cycle tracking in the shape of Apple Health's, on her own data: a horizontal
 /// timeline of the current cycle, an honest status and history, and tap-to-log
@@ -12,6 +13,11 @@ struct CycleTrackingView: View {
     @State private var month = Date.now
     @State private var editing: Date?
     @State private var refresh = 0
+    /// Period marks for the visible days, computed once per change (not per day drawn).
+    @State private var marks: [Date: CycleDayMark] = [:]
+    /// Imported period days, observed so a sync that lands while this screen is open
+    /// shows straight away.
+    @Query(filter: #Predicate<HealthFlowSample> { $0.deletedAt == nil }) private var importedRows: [HealthFlowSample]
     private let cal = Calendar.current
 
     var body: some View {
@@ -41,9 +47,11 @@ struct CycleTrackingView: View {
                 env.cycle.setFlow(level, on: day.date)
                 refresh += 1
             }
-            .presentationDetents([.height(360)])
+            // Taller detent for large text sizes, where the Apple Health note wraps more.
+            .presentationDetents([.height(360), .large])
             .presentationDragIndicator(.visible)
         }
+        .task(id: marksKey) { marks = computeMarks() }
         .onAppear {
             _ = refresh
             #if DEBUG
@@ -52,12 +60,12 @@ struct CycleTrackingView: View {
         }
     }
 
-    /// A gentle way out for someone this screen doesn't fit (3C): leads to Settings >
-    /// My background, where she can note that periods no longer apply or add her
+    /// A gentle way out for someone this screen doesn't fit (3C): leads to Profile,
+    /// whose My background section is where she can note that periods no longer apply or add her
     /// background. Nothing here changes because of it.
     private var backgroundLink: some View {
-        NavigationLink(value: MainRoute.myBackground) {
-            Text("Periods don't apply to you? You can turn this off, or add your background in Settings.")
+        NavigationLink(value: MainRoute.profile) {
+            Text("Periods don't apply to you? You can turn this off, or add your background in Profile.")
                 .font(KeelFont.caption).foregroundStyle(theme.muted)
                 .multilineTextAlignment(.leading)
                 .fixedSize(horizontal: false, vertical: true)
@@ -121,7 +129,6 @@ struct CycleTrackingView: View {
 
     private func dayPip(_ day: Date) -> some View {
         let mark = marks[day]
-        let level = mark?.level
         let isToday = day == today
         let inEstimate = estimateWindow?.contains(day) == true && day > today
         let isFuture = day > today
@@ -341,16 +348,29 @@ struct CycleTrackingView: View {
         (min(railStart, monthStart).adding(days: -1), max(railEnd, monthEnd))
     }
 
+    /// What the marks depend on: her edits (`refresh`), the month shown, and the
+    /// imported rows (day and level).
+    private struct MarksKey: Equatable {
+        let refresh: Int
+        let month: Date
+        let imported: [String]
+    }
+    private var marksKey: MarksKey {
+        MarksKey(refresh: refresh, month: monthStart,
+                 imported: importedRows.map { "\($0.date.timeIntervalSince1970):\($0.flowRaw)" }.sorted())
+    }
+
     /// Period days across the timeline and the shown month: hers, plus Apple Health's
     /// where she hasn't logged that day (shown once, hers winning).
-    private var marks: [Date: CycleDayMark] {
-        _ = refresh
+    private func computeMarks() -> [Date: CycleDayMark] {
         let range = visibleRange
         let manual = env.cycle.entries(from: range.lower, to: range.upper)
             .filter { $0.type != .periodEnd }
             .reduce(into: [Date: FlowLevel]()) { $0[$1.date.startOfDay] = $1.flowLevel }
-        return CycleDayMark.merge(manual: manual,
-                                  imported: env.cycle.importedFlow(from: range.lower, to: range.upper))
+        let imported = importedRows
+            .filter { $0.date >= range.lower.startOfDay && $0.date < range.upper.startOfDay.adding(days: 1) }
+            .reduce(into: [Date: FlowLevel]()) { $0[$1.date.startOfDay] = $1.flowLevel }
+        return CycleDayMark.merge(manual: manual, imported: imported)
     }
 
     private var hasAnyImported: Bool { marks.values.contains(where: \.fromAppleHealth) }
@@ -456,45 +476,50 @@ private struct CycleDaySheet: View {
     let onSave: (FlowLevel?) -> Void
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 18) {
-            VStack(alignment: .leading, spacing: 2) {
-                Text(date.formatted(.dateTime.weekday(.wide).month(.wide).day()))
-                    .font(KeelFont.serif(20, weight: .semibold)).foregroundStyle(theme.heading)
-                Text("How was your flow?").font(KeelFont.sans(13)).foregroundStyle(theme.muted)
-                if let imported = fromAppleHealth, current == nil {
-                    Text((imported == .unspecified
-                          ? "Apple Health has this as a period day."
-                          : "Apple Health has this as a period day, \(imported.label.lowercased()) flow.")
-                         + " Choose a level to log it in Keel too.")
-                        .font(KeelFont.caption).foregroundStyle(theme.muted)
-                        .fixedSize(horizontal: false, vertical: true)
-                        .padding(.top, 4)
-                }
-            }
-
-            FlowLayout(spacing: 10) {
-                ForEach(FlowLevel.loggingOrder) { level in
-                    chip(level.label, selected: current == level, tint: theme.accent) {
-                        pick(level)
+        // Scrolls rather than clips at large text sizes.
+        ScrollView {
+            VStack(alignment: .leading, spacing: 18) {
+                VStack(alignment: .leading, spacing: 2) {
+                    Text(date.formatted(.dateTime.weekday(.wide).month(.wide).day()))
+                        .font(KeelFont.serif(20, weight: .semibold)).foregroundStyle(theme.heading)
+                    Text("How was your flow?").font(KeelFont.sans(13)).foregroundStyle(theme.muted)
+                    if let imported = fromAppleHealth, current == nil {
+                        Text((imported == .unspecified
+                              ? "Apple Health has this as a period day."
+                              : "Apple Health has this as a period day, \(imported.label.lowercased()) flow.")
+                             + " Choose a level to log it in Keel too.")
+                            .font(KeelFont.caption).foregroundStyle(theme.muted)
+                            .fixedSize(horizontal: false, vertical: true)
+                            .padding(.top, 4)
                     }
                 }
-            }
 
-            Button { pick(nil) } label: {
-                HStack(spacing: 6) {
-                    Image(systemName: current == nil ? "checkmark.circle" : "xmark.circle")
-                    Text(current == nil ? "Not a period day" : "Remove this period day")
+                FlowLayout(spacing: 10) {
+                    ForEach(FlowLevel.loggingOrder) { level in
+                        chip(level.label, selected: current == level, tint: theme.accent) {
+                            pick(level)
+                        }
+                    }
                 }
-                .font(KeelFont.body).foregroundStyle(theme.muted)
-                .frame(maxWidth: .infinity, minHeight: 44)
-                .contentShape(Rectangle())
-            }
-            .buttonStyle(.plain)
 
-            Spacer(minLength: 0)
+                // Keel can't change Apple Health, so a day only Apple Health has offers
+                // logging a level, not "Not a period day".
+                if current != nil || fromAppleHealth == nil {
+                    Button { pick(nil) } label: {
+                        HStack(spacing: 6) {
+                            Image(systemName: current == nil ? "checkmark.circle" : "xmark.circle")
+                            Text(current == nil ? "Not a period day" : "Remove this period day")
+                        }
+                        .font(KeelFont.body).foregroundStyle(theme.muted)
+                        .frame(maxWidth: .infinity, minHeight: 44)
+                        .contentShape(Rectangle())
+                    }
+                    .buttonStyle(.plain)
+                }
+            }
+            .padding(22)
+            .frame(maxWidth: .infinity, alignment: .leading)
         }
-        .padding(22)
-        .frame(maxWidth: .infinity, alignment: .leading)
         .background(theme.background.ignoresSafeArea())
     }
 

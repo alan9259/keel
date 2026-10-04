@@ -45,7 +45,7 @@ final class HealthIngestor {
             summary.vitals += ingestVitals(series)
         }
 
-        summary.flow = ingestFlow(snapshot.menstrualFlow)
+        summary.flow = ingestFlow(snapshot.menstrualFlow, windowStart: snapshot.flowWindowStart)
 
         // Symptoms are not imported from Apple Health; she logs them in Keel directly.
         try? context.save()
@@ -168,13 +168,22 @@ final class HealthIngestor {
     // MARK: Menstrual flow → HealthFlowSample
 
     /// Imported period days. Kept apart from her own `CycleEntry` rows (never written
-    /// into them), refreshed to Apple Health's latest level for a day.
-    private func ingestFlow(_ byDay: [Date: FlowLevel]) -> Int {
-        guard !byDay.isEmpty else { return 0 }
+    /// into them), refreshed to Apple Health's latest level for a day. With a window
+    /// start, a day in the window that Apple Health no longer has is removed.
+    private func ingestFlow(_ byDay: [Date: FlowLevel], windowStart: Date?) -> Int {
         var wrote = 0
+        let existing = (try? context.fetch(FetchDescriptor<HealthFlowSample>(
+            predicate: #Predicate { $0.deletedAt == nil }))) ?? []
+        let healthDays = Set(byDay.keys.map(\.startOfDay))
+        if let start = windowStart?.startOfDay {
+            for row in existing where row.date.startOfDay >= start && !healthDays.contains(row.date.startOfDay) {
+                context.delete(row)
+                wrote += 1
+            }
+        }
+        guard !byDay.isEmpty else { return wrote }
         let existingByDay = Dictionary(
-            ((try? context.fetch(FetchDescriptor<HealthFlowSample>(
-                predicate: #Predicate { $0.deletedAt == nil }))) ?? []).map { ($0.date.startOfDay, $0) },
+            existing.map { ($0.date.startOfDay, $0) },   // removed rows are never looked up again
             uniquingKeysWith: { first, _ in first })
         for (rawDay, level) in byDay {
             let day = rawDay.startOfDay

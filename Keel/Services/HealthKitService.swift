@@ -15,6 +15,11 @@ struct HealthSnapshot {
     /// Menstrual-flow days, keyed to the heaviness recorded (days marked "none" are
     /// left out). Stored as `HealthFlowSample`.
     var menstrualFlow: [Date: FlowLevel] = [:]
+    /// The first day `menstrualFlow` covers. When set, imported period days from then on
+    /// that Apple Health no longer has (she deleted them, or marked them "none") are
+    /// removed. Nil means "don't reconcile": periods switched off, or her answer for
+    /// periods isn't known yet, so an empty read can't be trusted to mean none.
+    var flowWindowStart: Date?
 
     struct VitalSeries {
         let typeID: String
@@ -100,8 +105,8 @@ final class HealthKitService {
     ]
 
     /// The vital type ids Keel reads (for tests and the record of what's requested).
-    nonisolated static var readVitalTypeIDs: [String] { vitalQuantities.map(\.typeID) }
-    nonisolated static var readActivityIDs: [String] { activityQuantities.map(\.activityID) }
+    static var readVitalTypeIDs: [String] { vitalQuantities.map(\.typeID) }
+    static var readActivityIDs: [String] { activityQuantities.map(\.activityID) }
 
     private var readTypes: Set<HKObjectType> {
         // Symptoms and mindful minutes are deliberately NOT read. Menstrual flow is read
@@ -183,6 +188,7 @@ final class HealthKitService {
         }
 
         snapshot.menstrualFlow = await menstrualFlow(lastDays: lastDays)
+        snapshot.flowWindowStart = floor(lastDays)
         return snapshot
     }
 

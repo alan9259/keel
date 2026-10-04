@@ -22,7 +22,6 @@ enum MainRoute: Hashable {
     case gpSummary
     case notes
     case privacy
-    case myBackground
 }
 
 /// A pending check-in detail screen. Identifiable so `.fullScreenCover(item:)`
@@ -61,8 +60,8 @@ struct MainView: View {
     @State private var toast: ToastData?
     /// The one-line reminders explanation shown once after onboarding, before iOS asks.
     @State private var showReminderExplainer = false
-    /// "Connect Apple Health?" when iOS would ask again (e.g. after a reinstall).
-    @State private var showHealthOffer = false
+    /// The Apple Health offer to show on launch, if any (see `checkHealthAccessOnLaunch`).
+    @State private var healthOffer: AppEnvironment.HealthOffer = .none
 
     var body: some View {
         NavigationStack(path: $path) {
@@ -104,8 +103,7 @@ struct MainView: View {
                 case .support: SupportView()
                 case .gpSummary: GPSummaryFlowView()
                 case .notes: AllNotesView()
-                case .privacy: PrivacyPolicyView()
-                case .myBackground: MyBackgroundView()
+                case .privacy: YourPrivacyView()
                 }
             }
         }
@@ -160,18 +158,26 @@ struct MainView: View {
         } message: {
             Text("Keel can remind you to check in and take your medicines. You can change this any time in Settings.")
         }
-        .alert("Connect Apple Health?", isPresented: $showHealthOffer) {
-            Button("Not now", role: .cancel) { env.declineHealthConnectOffer() }
-            Button("Connect") { Task { await env.connectAppleHealth() } }
+        .alert(healthOffer == .reconnect ? "Update Apple Health access?" : "Connect Apple Health?",
+               isPresented: Binding(get: { healthOffer != .none },
+                                    set: { if !$0 { healthOffer = .none } })) {
+            let offer = healthOffer
+            Button("Not now", role: .cancel) { env.answerHealthOffer(offer) }
+            Button(offer == .reconnect ? "Continue" : "Connect") {
+                env.answerHealthOffer(offer)
+                Task { await env.connectAppleHealth() }
+            }
         } message: {
-            Text("Keel can read your sleep, activity, heart readings and periods from Apple Health to show alongside your own record. You can change this any time under More, then Apple Health.")
+            Text(healthOffer == .reconnect
+                 ? "Keel can now also show your periods from Apple Health. Continue to choose what Keel can read. Anything you've already shared keeps syncing either way."
+                 : "Keel can read your sleep, activity, heart readings and periods from Apple Health to show alongside your own record. You can change this any time under More, then Apple Health.")
         }
         .task {
             // Once per launch, after Home settles: is Apple Health access still there?
             // Never alongside the reminders explanation (one ask at a time).
             try? await Task.sleep(for: .seconds(1.2))
             guard !env.settings.notificationExplainerPending else { return }
-            if await env.checkHealthAccessOnLaunch() { showHealthOffer = true }
+            healthOffer = await env.checkHealthAccessOnLaunch()
         }
         .task(id: env.settings.notificationExplainerPending) {
             // Let Home settle first so the explanation doesn't land mid-transition.

@@ -81,7 +81,7 @@ struct AboutView: View {
             }
             Text("Emoji artwork © Twemoji, licensed under CC-BY 4.0")
             NavigationLink(value: MainRoute.privacy) {
-                Text("Privacy Policy").foregroundStyle(theme.accent)
+                Text(PrivacySummary.title).foregroundStyle(theme.accent)
             }
             .padding(.top, 2)
         }

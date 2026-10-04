@@ -141,8 +141,10 @@ struct DashboardView: View {
                     }
                     Spacer()
                     // Energy in the word she chose (R10: a subjective scale, not a percentage).
-                    Text(EnergyLevel.from(percent: entry.energy).label)
-                        .font(KeelFont.sans(13, weight: .semibold)).foregroundStyle(theme.accent)
+                    if let level = entry.energyLevel {
+                        Text(level.label)
+                            .font(KeelFont.sans(13, weight: .semibold)).foregroundStyle(theme.accent)
+                    }
                     Image(systemName: "chevron.right").font(.system(size: 12, weight: .semibold)).foregroundStyle(theme.muted)
                 }
                 if !loggedSymptoms(entry).isEmpty {
@@ -199,7 +201,7 @@ struct DashboardView: View {
             // Energy shown in her own words, not a percentage (R10).
             barTrendCard(
                 title: "Energy",
-                trailing: Self.energyTrailing(entryCount: energyEntryCount, averagePercent: energyAvg),
+                trailing: Self.energyTrailing(weekEnergy),
                 series: energyBars, color: theme.accent, maxValue: 100,
                 selection: $selectedEnergyDay,
                 selectedText: { day, value in "\(dayLabel(day, todayWord: "Today")) · \(EnergyLevel.from(percent: Int(value)).label)" }
@@ -522,9 +524,9 @@ struct DashboardView: View {
         checkIns.filter { $0.date.isSameDay(as: date) }.sorted { $0.date < $1.date }
     }
 
-    /// The day's average energy across its check-ins.
+    /// The day's average energy across the check-ins where she picked one.
     private func avgEnergy(for date: Date) -> Double? {
-        let es = entries(for: date)
+        let es = entries(for: date).filter { $0.energyLevel != nil }
         guard !es.isEmpty else { return nil }
         return Double(es.reduce(0) { $0 + $1.energy }) / Double(es.count)
     }
@@ -540,26 +542,39 @@ struct DashboardView: View {
         last7.map { day in (day, avgEnergy(for: day)) }
     }
 
-    /// Check-ins in the last 7 days (each carries an energy reading).
-    private var energyEntryCount: Int {
-        last7.reduce(0) { $0 + entries(for: $1).count }
+    /// The energy levels she picked in the last 7 days, one per check-in (check-ins
+    /// without a pick are left out).
+    private var weekEnergy: [(date: Date, level: EnergyLevel)] {
+        last7.flatMap { day in entries(for: day).compactMap { e in e.energyLevel.map { (e.date, $0) } } }
     }
 
-    /// The Energy card's summary. A word like "mostly okay" only once there are three or
-    /// more entries that week (fewer is too little to sum up); otherwise just the count.
-    nonisolated static func energyTrailing(entryCount: Int, averagePercent: Int) -> String {
-        switch entryCount {
-        case ..<1: "No data yet"
-        case 1: "1 entry this week"
-        case 2: "2 entries this week"
-        default: "mostly \(EnergyLevel.from(percent: averagePercent).label.lowercased())"
+    /// The Energy card's summary: the level she picked most often (e.g. "Okay"), shown
+    /// only once there are three or more entries that week (fewer is too little to sum
+    /// up); otherwise just the count.
+    nonisolated static func energyTrailing(_ entries: [(date: Date, level: EnergyLevel)]) -> String {
+        switch entries.count {
+        case ..<1: return "No data yet"
+        case 1: return "1 entry this week"
+        case 2: return "2 entries this week"
+        default:
+            guard let level = mostFrequentEnergy(entries) else { return "No data yet" }
+            return level.label
         }
     }
 
-    private var energyAvg: Int {
-        let vals = last7.compactMap { avgEnergy(for: $0) }
-        guard !vals.isEmpty else { return 0 }
-        return Int(vals.reduce(0, +) / Double(vals.count))
+    /// The level she picked most often. A tie goes to whichever tied level she picked
+    /// most recently, so it reflects how she's been lately. Never an average, so it is
+    /// always a level she actually chose.
+    nonisolated static func mostFrequentEnergy(_ entries: [(date: Date, level: EnergyLevel)]) -> EnergyLevel? {
+        var count: [EnergyLevel: Int] = [:]
+        var latest: [EnergyLevel: Date] = [:]
+        for entry in entries {
+            count[entry.level, default: 0] += 1
+            latest[entry.level] = max(latest[entry.level] ?? .distantPast, entry.date)
+        }
+        return count.keys.max { a, b in
+            count[a]! != count[b]! ? count[a]! < count[b]! : latest[a]! < latest[b]!
+        }
     }
 
     // Sleep (hours logged in Activities, activityID "sleep").

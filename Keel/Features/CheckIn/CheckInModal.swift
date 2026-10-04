@@ -72,8 +72,8 @@ struct CheckInModal: View {
                     recap
                     energySection
                     sleepSection
-                    if env.settings.notesAlcohol { alcoholSection }
                     diarySection
+                    if env.settings.notesAlcohol { alcoholSection }
                     symptomsSection
                     if editingID != nil { removeButton }
                 }
@@ -445,7 +445,7 @@ struct CheckInModal: View {
         guard let id = editingID, !didPrefill else { return }
         didPrefill = true
         guard let entry = fetchEntry(id) else { return }
-        energy = EnergyLevel.from(percent: entry.energy)
+        energy = entry.energyLevel
         notes = entry.notes ?? ""
         alcohol = entry.alcoholCount
         selected = Dictionary(uniqueKeysWithValues:
@@ -493,7 +493,7 @@ struct CheckInModal: View {
         }
         let saved: CheckIn
         if let id = editingID, let entry = fetchEntry(id) {
-            env.checkIns.update(entry, mood: mood, energy: (energy ?? .okay).percent,
+            env.checkIns.update(entry, mood: mood, energy: energy?.percent ?? CheckIn.energyNotRecorded,
                                 notes: notes, symptoms: picked)
             saved = entry
         } else {
@@ -504,7 +504,7 @@ struct CheckInModal: View {
             let t = cal.dateComponents([.hour, .minute, .second], from: .now)
             let stamp = cal.date(bySettingHour: t.hour ?? 0, minute: t.minute ?? 0,
                                  second: t.second ?? 0, of: entryDate) ?? .now
-            saved = env.checkIns.create(mood: mood, energy: (energy ?? .okay).percent,
+            saved = env.checkIns.create(mood: mood, energy: energy?.percent ?? CheckIn.energyNotRecorded,
                                         notes: notes, symptoms: picked, date: stamp)
         }
         // Only when the section is shown: turning alcohol off later never erases a

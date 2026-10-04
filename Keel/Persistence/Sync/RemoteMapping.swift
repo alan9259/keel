@@ -13,15 +13,15 @@ enum RecordType {
     static let medicationLog = "medication_logs"
     static let insight = "insights"
     static let activityLog = "activity_logs"
-    static let chatMessage = "chat_messages"
-    static let dailySummary = "daily_summaries"
-    // Apple Health imports (HealthSample, HealthActivitySample) are deliberately NOT
-    // RemoteMappable: they live in the local-only health store and never sync (5.1.3(ii)).
+    // Apple Health imports (HealthSample, HealthActivitySample, HealthFlowSample) are
+    // deliberately NOT RemoteMappable: they live in the local-only health store and
+    // never sync (5.1.3(ii)). Chat messages and daily reflections (generated text from
+    // earlier builds) are no longer kept, so they don't sync either.
 
     static let all = [
         profile, checkIn, symptom, checkInSymptom,
         cycleEntry, medication, medicationLog, insight,
-        activityLog, chatMessage, dailySummary,
+        activityLog,
     ]
 }
 
@@ -193,27 +193,6 @@ extension ActivityLog: RemoteMappable {
     }
 }
 
-extension ChatMessage: RemoteMappable {
-    static var recordType: String { RecordType.chatMessage }
-    func remoteFields() -> [String: RemoteValue] {
-        ["roleRaw": .string(roleRaw), "text": .string(text)]
-    }
-}
-
-extension DailySummary: RemoteMappable {
-    static var recordType: String { RecordType.dailySummary }
-    func remoteFields() -> [String: RemoteValue] {
-        var f: [String: RemoteValue] = [
-            "day": .date(day),
-            "text": .string(text),
-            "sourceRaw": .string(sourceRaw),
-            "generatedAt": .date(generatedAt),
-        ]
-        if let signalsJSON { f["signalsJSON"] = .string(signalsJSON) }
-        return f
-    }
-}
-
 // MARK: - Decoding (RemoteRecord → model upsert)
 
 /// Applies pulled records into SwiftData: find-or-create by `id`, resolve
@@ -242,8 +221,6 @@ struct RemoteApplier {
         case RecordType.medicationLog: applyMedicationLog(r)
         case RecordType.insight: applyInsight(r)
         case RecordType.activityLog: applyActivityLog(r)
-        case RecordType.chatMessage: applyChatMessage(r)
-        case RecordType.dailySummary: applyDailySummary(r)
         default: break
         }
     }
@@ -323,7 +300,7 @@ struct RemoteApplier {
         } else {
             let c = CheckIn(
                 id: id, date: r.fields["date"]?.asDate ?? r.createdAt, mood: mood,
-                energy: r.fields["energy"]?.asInt ?? 50, notes: r.fields["notes"]?.asString,
+                energy: r.fields["energy"]?.asInt ?? CheckIn.energyNotRecorded, notes: r.fields["notes"]?.asString,
                 ownerID: r.ownerID, createdAt: r.createdAt, updatedAt: r.updatedAt,
                 deletedAt: r.deletedAt, syncStatus: .synced
             )
@@ -539,49 +516,6 @@ struct RemoteApplier {
                 deletedAt: r.deletedAt, syncStatus: .synced
             )
             context.insert(m)
-        }
-    }
-
-    private func applyChatMessage(_ r: RemoteRecord) {
-        let id = r.id
-        let role = ChatRole(rawValue: r.fields["roleRaw"]?.asString ?? "") ?? .assistant
-        let text = r.fields["text"]?.asString ?? ""
-        if let existing = fetchByID(FetchDescriptor<ChatMessage>(predicate: #Predicate { $0.id == id })) {
-            guard !isStale(existing, r) else { return }
-            existing.roleRaw = role.rawValue
-            existing.text = text
-            applyEnvelope(r, to: existing)
-        } else {
-            let m = ChatMessage(
-                id: id, role: role, text: text,
-                ownerID: r.ownerID, createdAt: r.createdAt, updatedAt: r.updatedAt,
-                deletedAt: r.deletedAt, syncStatus: .synced
-            )
-            context.insert(m)
-        }
-    }
-
-    private func applyDailySummary(_ r: RemoteRecord) {
-        let id = r.id
-        let source = DailySummarySource(rawValue: r.fields["sourceRaw"]?.asString ?? "") ?? .deterministic
-        if let existing = fetchByID(FetchDescriptor<DailySummary>(predicate: #Predicate { $0.id == id })) {
-            guard !isStale(existing, r) else { return }
-            if let d = r.fields["day"]?.asDate { existing.day = d }
-            existing.text = r.fields["text"]?.asString ?? existing.text
-            existing.sourceRaw = source.rawValue
-            existing.signalsJSON = r.fields["signalsJSON"]?.asString
-            if let g = r.fields["generatedAt"]?.asDate { existing.generatedAt = g }
-            applyEnvelope(r, to: existing)
-        } else {
-            let s = DailySummary(
-                id: id, day: r.fields["day"]?.asDate ?? r.createdAt,
-                text: r.fields["text"]?.asString ?? "", source: source,
-                signalsJSON: r.fields["signalsJSON"]?.asString,
-                generatedAt: r.fields["generatedAt"]?.asDate ?? r.createdAt,
-                ownerID: r.ownerID, createdAt: r.createdAt, updatedAt: r.updatedAt,
-                deletedAt: r.deletedAt, syncStatus: .synced
-            )
-            context.insert(s)
         }
     }
 

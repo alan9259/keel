@@ -27,7 +27,7 @@ struct SettingsView: View {
                               Binding(get: { env.settings.haptics }, set: { env.settings.haptics = $0 }))
                 }
 
-                // Optional check-in items she can choose to note. Off by default.
+                // Optional check-in items she can choose to note. Alcohol is on by default.
                 VStack(alignment: .leading, spacing: 8) {
                     group("Check-in") {
                         toggleRow("wineglass", "Alcohol", "Add a count to your check-in",
@@ -40,24 +40,10 @@ struct SettingsView: View {
                         .padding(.horizontal, 4)
                 }
 
-                group("My background") {
-                    NavigationLink(value: MainRoute.myBackground) { linkRow("person.text.rectangle", "Hysterectomy and periods") }
-                        .buttonStyle(.plain)
-                }
-
+                // The privacy summary, with the full policy and Support linked from it.
                 group("Privacy") {
-                    if let url = KeelLinks.privacyPolicy {
-                        Button { openURL(url) } label: { linkRow("hand.raised.fill", "Read the full privacy policy") }
-                            .buttonStyle(.plain)
-                    } else {
-                        NavigationLink(value: MainRoute.privacy) { linkRow("hand.raised.fill", "Read the full privacy policy") }
-                            .buttonStyle(.plain)
-                    }
-                    if let url = KeelLinks.support {
-                        Divider().background(theme.border)
-                        Button { openURL(url) } label: { linkRow("questionmark.circle", "Support") }
-                            .buttonStyle(.plain)
-                    }
+                    NavigationLink(value: MainRoute.privacy) { linkRow("hand.raised.fill", PrivacySummary.title) }
+                        .buttonStyle(.plain)
                 }
 
                 accountGroup

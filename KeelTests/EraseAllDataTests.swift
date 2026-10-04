@@ -21,7 +21,7 @@ final class EraseAllDataTests: XCTestCase {
         try? env.context.save()
         XCTAssertTrue(env.lock.setPIN("2468"))
         XCTAssertTrue(env.lock.isEnabled)
-        env.settings.notesAlcohol = true
+        env.settings.notesAlcohol = false                         // she had turned it off
         env.settings.disabledHealthItemIDs = ["steps"]
         env.settings.enabledReminderIDs = ["hydration"]
 
@@ -38,7 +38,7 @@ final class EraseAllDataTests: XCTestCase {
         XCTAssertFalse(env.lock.verifyPIN("2468"))
 
         // Regression: her preferences survived too.
-        XCTAssertFalse(env.settings.notesAlcohol)
+        XCTAssertTrue(env.settings.notesAlcohol)                    // back to the default (on)
         XCTAssertTrue(env.settings.disabledHealthItemIDs.isEmpty)
         XCTAssertEqual(env.settings.enabledReminderIDs, ["dailyCheckIn", "medication"])
 

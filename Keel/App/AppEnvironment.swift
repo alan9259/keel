@@ -90,6 +90,13 @@ final class AppEnvironment {
         notifications.registerCategories()
         notificationCoordinator.env = self
         notifications.setDelegate(notificationCoordinator)
+        // Upgrading from a build that kept the flag in the Keychain: her profile is here,
+        // so she has onboarded; carry it over rather than send her through it again. An
+        // empty database with the old flag is a reinstall, which onboards afresh.
+        if auth.hadLegacyOnboardedFlag, let profile = users.currentProfile(),
+           profile.onboardingCompletedAt == nil {
+            users.markOnboardingCompleted(at: profile.createdAt)
+        }
         hasCompletedOnboarding = users.currentProfile()?.onboardingCompletedAt != nil
     }
 
@@ -125,17 +132,20 @@ final class AppEnvironment {
         // syncHealthData self-gates on the connected flag and never requests HealthKit
         // authorization otherwise, so this can't trigger the permission prompt at launch.
         syncHealthData()
-        // V1 has no generated text: delete any reflections earlier builds stored.
-        purgeStoredReflections()
+        // V1 has no generated text: delete what earlier builds stored.
+        purgeGeneratedText()
     }
 
-    /// Delete every stored daily reflection (written by earlier builds, partly by Apple
-    /// Intelligence). "Looking back" is now a fixed-wording monthly summary built live
-    /// from her records, so nothing replaces them. Idempotent; a no-op once empty.
-    func purgeStoredReflections() {
-        let stored = (try? context.fetch(FetchDescriptor<DailySummary>())) ?? []
-        guard !stored.isEmpty else { return }
-        for summary in stored { context.delete(summary) }
+    /// Delete every stored daily reflection and companion chat message (written by
+    /// earlier builds, partly by Apple Intelligence or Gemini). "Looking back" is now a
+    /// fixed-wording monthly summary built live from her records, so nothing replaces
+    /// them. Idempotent; a no-op once empty.
+    func purgeGeneratedText() {
+        let reflections = (try? context.fetch(FetchDescriptor<DailySummary>())) ?? []
+        let messages = (try? context.fetch(FetchDescriptor<ChatMessage>())) ?? []
+        guard !reflections.isEmpty || !messages.isEmpty else { return }
+        reflections.forEach { context.delete($0) }
+        messages.forEach { context.delete($0) }
         try? context.save()
     }
 
@@ -170,14 +180,13 @@ final class AppEnvironment {
         if allow { settings.pushNotifications = true } else { setPushNotificationsEnabled(false) }
     }
 
-    /// How far back to import on a sync. A year gives the cycle and premenstrual
-    /// detectors enough history; dedup keeps repeat launches cheap on writes.
+    /// How far back to import on a sync. A year of history for the Activities and Cycle
+    /// screens; dedup keeps repeat launches cheap on writes.
     private static let healthImportDays = 365
 
-    /// Pull the broad Apple Health slice (sleep, activity, vitals, symptoms,
-    /// menstrual flow) and merge it into Keel's store, so it feeds the dashboard,
-    /// patterns, and companion automatically ("less to log"). Backfill only, so a
-    /// manual entry is never overwritten.
+    /// Pull the Apple Health slice (sleep, activity, vitals, menstrual flow) into the
+    /// local-only health store, so it shows alongside her own record ("less to log").
+    /// Imports are kept apart from what she logs, so a manual entry is never overwritten.
     ///
     /// Requires the HealthKit capability on a signed build; a no-op otherwise
     /// (the authorization request fails on an unsigned build).
@@ -199,7 +208,8 @@ final class AppEnvironment {
         // Same rule as the Apple Health screen's note: only live (not soft-deleted) rows count.
         let activity = (try? context.fetchCount(FetchDescriptor<HealthActivitySample>(predicate: #Predicate { $0.deletedAt == nil }))) ?? 0
         let vitals = (try? context.fetchCount(FetchDescriptor<HealthSample>(predicate: #Predicate { $0.deletedAt == nil }))) ?? 0
-        return activity + vitals > 0
+        let periods = (try? context.fetchCount(FetchDescriptor<HealthFlowSample>(predicate: #Predicate { $0.deletedAt == nil }))) ?? 0
+        return activity + vitals + periods > 0
     }
 
     /// Whether she has connected Apple Health (the app's own record of the Connect tap;
@@ -261,40 +271,58 @@ final class AppEnvironment {
         settings.disabledHealthItemIDs = []
     }
 
-    /// Whether to offer "Connect Apple Health?" when she opens the app. Only after
-    /// onboarding (which has its own Connect step), only when iOS would actually show the
-    /// permission sheet (she hasn't been asked on this install: a reinstall or a phone
-    /// restored from a backup), and never after she has said Not now. Pure, so it's
-    /// unit-tested.
-    nonisolated static func shouldOfferHealthConnect(status: HealthRequestStatus, hasOnboarded: Bool,
-                                                    declined: Bool) -> Bool {
-        hasOnboarded && !declined && status == .shouldRequest
+    /// What to offer about Apple Health when she opens the app.
+    enum HealthOffer: Equatable {
+        case none
+        /// Not connected, and iOS would show the permission sheet: "Connect Apple Health?"
+        case connect
+        /// Connected, but iOS would ask again (Keel reads something new, such as periods,
+        /// or the phone was restored): "Update Apple Health access?"
+        case reconnect
     }
 
-    /// The launch check. Returns whether to show the Connect offer. If her profile still
-    /// says connected but iOS would ask again (access lost), the flag is cleared so a
-    /// background sync can't raise the sheet out of context; the offer covers it instead.
-    func checkHealthAccessOnLaunch() async -> Bool {
+    /// Only after onboarding (which has its own Connect step) and only when iOS would
+    /// actually show the sheet. Each offer is made once: Connect until she answers it,
+    /// Update until she answers it for the current set of types. Pure, so it's tested.
+    nonisolated static func healthOffer(status: HealthRequestStatus, hasOnboarded: Bool, connected: Bool,
+                                        connectAnswered: Bool, reconnectAnswered: Bool) -> HealthOffer {
+        guard hasOnboarded, status == .shouldRequest else { return .none }
+        if connected { return reconnectAnswered ? .none : .reconnect }
+        return connectAnswered ? .none : .connect
+    }
+
+    /// The launch check. Connected stays connected: what she already shared keeps
+    /// syncing (the background sync never raises the sheet), and the offer asks, in
+    /// context, for the rest.
+    func checkHealthAccessOnLaunch() async -> HealthOffer {
         #if DEBUG
-        if DebugHarness.forceHealthOffer { return true }
+        if DebugHarness.forceHealthOffer { return .connect }
         #endif
-        guard hasCompletedOnboarding else { return false }
+        guard hasCompletedOnboarding else { return .none }
         let status = await health.requestStatus()
-        if status == .shouldRequest, users.currentProfile()?.healthKitAuthorized == true {
-            // She had Apple Health connected, but iOS would ask again: access was lost
-            // (a restored phone) or Keel now reads something new (periods). Clear the
-            // flag so a background sync can't raise the sheet out of context, and offer
-            // once, even past an earlier Not now, since she had chosen to connect. If she
-            // says Not now this time, the usual once-only rule applies from here.
-            users.setHealthKitAuthorized(false)
-            return true
+        // Answered everything Keel reads: a future new type should get its own offer.
+        if status == .unnecessary, settings.healthReconnectOfferAnswered {
+            settings.healthReconnectOfferAnswered = false
         }
-        return Self.shouldOfferHealthConnect(status: status, hasOnboarded: true,
-                                             declined: settings.healthConnectOfferDeclined)
+        return Self.healthOffer(status: status, hasOnboarded: true,
+                                connected: users.currentProfile()?.healthKitAuthorized == true,
+                                connectAnswered: settings.healthConnectOfferDeclined,
+                                reconnectAnswered: settings.healthReconnectOfferAnswered)
     }
 
-    /// She chose Not now (or Skip in onboarding): don't offer again on this install.
-    /// Apple Health in More stays available whenever she wants it.
+    /// She answered an offer, either way: it isn't made again on this install (Apple
+    /// Health in More stays available). Recorded for Connect too, so an offer whose
+    /// Connect can't complete (e.g. Health restricted on this phone) doesn't return
+    /// every launch.
+    func answerHealthOffer(_ offer: HealthOffer) {
+        switch offer {
+        case .connect: settings.healthConnectOfferDeclined = true
+        case .reconnect: settings.healthReconnectOfferAnswered = true
+        case .none: break
+        }
+    }
+
+    /// She chose Skip in onboarding's Apple Health step: don't offer Connect on launch.
     func declineHealthConnectOffer() {
         settings.healthConnectOfferDeclined = true
     }
@@ -366,17 +394,20 @@ final class AppEnvironment {
                     syncHealthData(force: true) // re-checks connected first
                 }
             }
-            // Access lost (reinstall, or data restored onto a new phone): iOS would show
-            // the permission sheet. Never raise it from a background sync; clear the stale
-            // flag and let the launch offer ask, in context.
-            if await health.requestStatus() == .shouldRequest {
-                users.setHealthKitAuthorized(false)
-                return
+            // Never raise the permission sheet from a background sync. Only re-confirm
+            // access when iOS says asking wouldn't show it; otherwise (a new read type
+            // such as periods, a restored phone, or an unknown answer) just read what she
+            // has already shared, and leave the asking to the launch offer, in context.
+            let status = await health.requestStatus()
+            if status == .unnecessary {
+                // A failed auth (e.g. HealthKit not effective in the build) must not
+                // consume the throttle, or a later retry would silently no-op for 30 min.
+                guard await health.requestAuthorization() else { return }
             }
-            // A failed auth (e.g. HealthKit not effective in the build) must not consume
-            // the throttle — otherwise a later retry would silently no-op for 30 min.
-            guard await health.requestAuthorization() else { return }
-            let snapshot = await health.snapshot(lastDays: Self.healthImportDays)
+            var snapshot = await health.snapshot(lastDays: Self.healthImportDays)
+            // Removing periods she deleted in Apple Health relies on an empty read meaning
+            // "none". Until she has answered for every type, it may mean "not shared yet".
+            if status != .unnecessary { snapshot.flowWindowStart = nil }
             // The year-long read can take a while. If she disconnected meanwhile, don't
             // import what it returned.
             guard isHealthConnected else { return }

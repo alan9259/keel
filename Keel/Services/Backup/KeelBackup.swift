@@ -72,16 +72,6 @@ struct DailySummaryDTO: Codable {
         ownerID = m.ownerID; createdAt = m.createdAt; updatedAt = m.updatedAt
         deletedAt = m.deletedAt; syncStatusRaw = m.syncStatusRaw
     }
-
-    func model() -> DailySummary {
-        let m = DailySummary(
-            id: id, day: day, text: text,
-            source: DailySummarySource(rawValue: sourceRaw) ?? .deterministic,
-            signalsJSON: signalsJSON, generatedAt: generatedAt,
-            ownerID: ownerID, createdAt: createdAt, updatedAt: updatedAt, deletedAt: deletedAt)
-        m.syncStatusRaw = syncStatusRaw
-        return m
-    }
 }
 
 // MARK: - DTOs
@@ -460,15 +450,5 @@ struct ChatMessageDTO: Codable {
         id = m.id; roleRaw = m.roleRaw; text = m.text; createdAt = m.createdAt
         ownerID = m.ownerID; updatedAt = m.updatedAt
         deletedAt = m.deletedAt; syncStatusRaw = m.syncStatusRaw
-    }
-
-    func model() -> ChatMessage {
-        let m = ChatMessage(
-            id: id, role: ChatRole(rawValue: roleRaw) ?? .assistant, text: text,
-            ownerID: ownerID ?? "", createdAt: createdAt,
-            updatedAt: updatedAt ?? createdAt, deletedAt: deletedAt
-        )
-        m.syncStatusRaw = syncStatusRaw ?? SyncStatus.pendingUpload.rawValue
-        return m
     }
 }

@@ -71,7 +71,9 @@ final class SettingsStore {
     /// She has asked to see the intimacy and bladder group. Off until she does,
     /// so nothing personal appears in the picker uninvited.
     var showsSensitiveSymptoms: Bool { didSet { defaults.set(showsSensitiveSymptoms, forKey: "keel.sensitiveSymptoms") } }
-    /// She has chosen to note alcohol in her check-in. Off until she turns it on.
+    /// The check-in offers an alcohol count. On by default (she can turn it off in
+    /// Settings); the field itself always starts empty, so nothing is recorded unless
+    /// she saves a number.
     var notesAlcohol: Bool { didSet { defaults.set(notesAlcohol, forKey: "keel.notesAlcohol") } }
     /// She has finished onboarding but hasn't yet seen the one-line reminders explanation
     /// that comes before the iOS permission prompt. Persisted so closing the app first
@@ -81,6 +83,10 @@ final class SettingsStore {
     /// onboarding). Kept in UserDefaults on purpose: a reinstall clears it, so a fresh
     /// install, where iOS has also dropped Keel's Health access, can offer once again.
     var healthConnectOfferDeclined: Bool { didSet { defaults.set(healthConnectOfferDeclined, forKey: "keel.healthOfferDeclined") } }
+    /// She has answered the "Update Apple Health access?" offer (shown to a connected
+    /// user when iOS would ask again). Cleared once iOS no longer needs to ask, so a
+    /// later new read type gets its own single offer.
+    var healthReconnectOfferAnswered: Bool { didSet { defaults.set(healthReconnectOfferAnswered, forKey: "keel.healthReconnectAnswered") } }
 
     init() {
         colourMode = ColourMode(rawValue: defaults.string(forKey: "keel.colourMode") ?? "") ?? .system
@@ -101,9 +107,10 @@ final class SettingsStore {
         reminderConfig = (defaults.data(forKey: "keel.reminderConfig")
             .flatMap { try? JSONDecoder().decode(ReminderConfig.self, from: $0) }) ?? ReminderConfig()
         showsSensitiveSymptoms = defaults.object(forKey: "keel.sensitiveSymptoms") as? Bool ?? false
-        notesAlcohol = defaults.object(forKey: "keel.notesAlcohol") as? Bool ?? false
+        notesAlcohol = defaults.object(forKey: "keel.notesAlcohol") as? Bool ?? true
         notificationExplainerPending = defaults.object(forKey: "keel.notificationExplainerPending") as? Bool ?? false
         healthConnectOfferDeclined = defaults.object(forKey: "keel.healthOfferDeclined") as? Bool ?? false
+        healthReconnectOfferAnswered = defaults.object(forKey: "keel.healthReconnectAnswered") as? Bool ?? false
 
         Haptics.userEnabled = haptics // all stored properties are set by here
     }
@@ -123,9 +130,10 @@ final class SettingsStore {
         disabledHealthItemIDs = []
         reminderConfig = ReminderConfig()
         showsSensitiveSymptoms = false
-        notesAlcohol = false
+        notesAlcohol = true
         notificationExplainerPending = false
         healthConnectOfferDeclined = false
+        healthReconnectOfferAnswered = false
     }
 
     // MARK: Derived

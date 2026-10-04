@@ -1,37 +1,31 @@
 import SwiftUI
 
-/// Settings > My background (submission pack 3C). Personal background she can add when
+/// Profile > My background (submission pack 3C). Personal background she can add when
 /// she chooses, not during onboarding: the hysterectomy question (with an optional
 /// year) and, when periods no longer apply, her note. Keel records these and changes
 /// nothing because of them. They reach the GP visit summary only as described there
 /// (the hysterectomy answer only if she turns it on).
-struct MyBackgroundView: View {
-    @Environment(AppEnvironment.self) private var env
+///
+/// Shown inside Profile, above "Save changes", and saved with her details by that
+/// button (`ProfileView.save`), so the fields only bind to the profile form's state.
+struct MyBackgroundFields: View {
     @Environment(\.keelTheme) private var theme
-    @Environment(\.dismiss) private var dismiss
 
-    @State private var answer: Hysterectomy?
-    @State private var yearText = ""
-    @State private var periodsNote = ""
-    @State private var loaded = false
+    @Binding var answer: Hysterectomy?
+    @Binding var yearText: String
+    @Binding var periodsNote: String
 
     var body: some View {
-        ScrollView {
-            VStack(alignment: .leading, spacing: 22) {
-                ScreenHeader(title: "My background", subtitle: "For your own record") { dismiss() }
-
+        VStack(alignment: .leading, spacing: 22) {
+            VStack(alignment: .leading, spacing: 6) {
+                Text("My background").font(KeelFont.serif(18, weight: .semibold)).foregroundStyle(theme.heading)
                 Text("Answer only if you'd like to. Keel keeps this for your record and changes nothing because of it.")
                     .font(KeelFont.body).foregroundStyle(theme.muted)
                     .fixedSize(horizontal: false, vertical: true)
-
-                hysterectomyCard
-                periodsCard
             }
-            .padding(.horizontal, 20).padding(.vertical, 12)
+            hysterectomyCard
+            periodsCard
         }
-        .background(theme.background.ignoresSafeArea())
-        .keelFeatureScreen()
-        .onAppear(perform: load)
     }
 
     // MARK: Hysterectomy
@@ -39,7 +33,8 @@ struct MyBackgroundView: View {
     private var hysterectomyCard: some View {
         VStack(alignment: .leading, spacing: 10) {
             Text(Hysterectomy.question)
-                .font(KeelFont.serif(18, weight: .semibold)).foregroundStyle(theme.heading)
+                .font(KeelFont.sans(15, weight: .medium)).foregroundStyle(theme.text)
+                .fixedSize(horizontal: false, vertical: true)
             VStack(spacing: 0) {
                 ForEach(Hysterectomy.allCases) { option in
                     optionRow(option)
@@ -53,7 +48,6 @@ struct MyBackgroundView: View {
             if answer?.allowsYear == true {
                 KeelTextField(label: "Year (if you know it)", placeholder: "e.g. 2019",
                               text: $yearText, keyboard: .numberPad)
-                    .onChange(of: yearText) { _, _ in saveAnswer() }
             }
             if answer == .yesNotSureAboutOvaries {
                 Text("Not being sure is common. It can be a useful question to take to your GP.")
@@ -74,7 +68,6 @@ struct MyBackgroundView: View {
             Haptics.selection()
             // Tapping her current answer again clears it (she can always leave it blank).
             answer = selected ? nil : option
-            saveAnswer()
         } label: {
             HStack(spacing: 12) {
                 Text(option.label).font(KeelFont.body).foregroundStyle(theme.text)
@@ -95,34 +88,14 @@ struct MyBackgroundView: View {
 
     private var periodsCard: some View {
         VStack(alignment: .leading, spacing: 10) {
-            Text("Periods").font(KeelFont.serif(18, weight: .semibold)).foregroundStyle(theme.heading)
+            Text("Periods").font(KeelFont.sans(15, weight: .medium)).foregroundStyle(theme.text)
             KeelTextField(label: "Periods no longer apply (optional)",
                           placeholder: "e.g. after menopause or a hysterectomy",
                           text: $periodsNote, autocapitalization: .sentences)
-                .onChange(of: periodsNote) { _, new in
-                    guard loaded else { return }
-                    env.users.setPeriodsNotApplicableReason(new)
-                }
             Text("If you fill this in, your GP visit summary notes it instead of period details.")
                 .font(KeelFont.caption).foregroundStyle(theme.muted)
                 .fixedSize(horizontal: false, vertical: true)
                 .padding(.horizontal, 4)
         }
-    }
-
-    // MARK: Store
-
-    private func load() {
-        guard !loaded else { return }
-        let profile = env.users.currentProfile()
-        answer = profile?.hysterectomy
-        yearText = profile?.hysterectomyYear.map(String.init) ?? ""
-        periodsNote = profile?.periodsNotApplicableReason ?? ""
-        loaded = true
-    }
-
-    private func saveAnswer() {
-        guard loaded else { return }
-        env.users.setHysterectomy(answer, year: Hysterectomy.validYear(yearText))
     }
 }

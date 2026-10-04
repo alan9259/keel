@@ -55,4 +55,22 @@ final class PatternEngineTests: XCTestCase {
         }
         _ = container
     }
+
+    /// Regression (review): a stray spotting day mid-cycle counted as a period start,
+    /// inventing a short "cycle" and so a cycle-length range she never had. Same rule as
+    /// the cycle stats now: spotting can't start a cycle.
+    @MainActor
+    func testSpottingDoesNotCreateAFalseCycleRange() {
+        let container = KeelSchema.makeContainer(inMemory: true)
+        let repo = CycleRepository(context: container.mainContext, ownerID: TestStore.ownerID)
+        let today = Date.now.startOfDay
+        for start in [-84, -56, -28] { repo.setFlow(.medium, on: today.adding(days: start)) }  // 28 and 28
+        repo.setFlow(.spotting, on: today.adding(days: -40))                                     // stray spotting
+        XCTAssertTrue(PatternEngine.build(context: container.mainContext).findings().isEmpty)
+    }
+
+    func testTimeframeCountsCyclesNotStarts() {
+        let finding = engine(periodStarts: [day(-90), day(-65), day(-30)]).findings().first
+        XCTAssertEqual(finding?.timeframe, "Across your last 2 logged cycles")
+    }
 }

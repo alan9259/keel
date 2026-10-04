@@ -20,9 +20,12 @@ struct UserRepository: UserRepositoring {
     let context: ModelContext
     let ownerID: OwnerIDProvider
 
+    /// Her profile. Normally the only one; if an archive ever brought in several, the
+    /// oldest is used, so the answer is the same on every read.
     func currentProfile() -> UserProfile? {
         var descriptor = FetchDescriptor<UserProfile>(
-            predicate: #Predicate { $0.deletedAt == nil }
+            predicate: #Predicate { $0.deletedAt == nil },
+            sortBy: [SortDescriptor(\.createdAt)]
         )
         descriptor.fetchLimit = 1
         return try? context.fetch(descriptor).first

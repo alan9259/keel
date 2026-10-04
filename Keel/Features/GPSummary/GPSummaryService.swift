@@ -37,9 +37,9 @@ struct GPSummaryService {
             .map { calendar.startOfDay(for: $0.date) }).count
         let sleepLine = GPSummaryBuilder.sleepLine(disruptedNights: disruptedNights, checkInNights: checkInDaysThis)
 
-        // Energy: her 0-100 level expressed out of 10 (a faithful rescale). Energy is
-        // part of every check-in, so the entry count is the check-in count.
-        let energies = thisCheckIns.map { Double($0.energy) / 10.0 }
+        // Energy: her 0-100 level expressed out of 10 (a faithful rescale), from the
+        // check-ins where she picked one (energy is optional).
+        let energies = thisCheckIns.filter { $0.energyLevel != nil }.map { Double($0.energy) / 10.0 }
         let energyMean = energies.isEmpty ? 0 : energies.reduce(0, +) / Double(energies.count)
         let energyLine = GPSummaryBuilder.energyLine(mean: energyMean, entryCount: energies.count)
 

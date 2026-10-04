@@ -3,7 +3,7 @@ import SwiftData
 
 /// A daily reflection stored by earlier builds (partly written by Apple Intelligence).
 /// V1 has no generated text: nothing writes these any more, and bootstrap deletes any
-/// that exist (`AppEnvironment.purgeStoredReflections`). The model stays in the schema
+/// that exist (`AppEnvironment.purgeGeneratedText`). The model stays in the schema
 /// only so existing stores open without a migration.
 @Model
 final class DailySummary: Syncable {

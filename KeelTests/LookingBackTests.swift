@@ -64,35 +64,105 @@ final class LookingBackTests: XCTestCase {
         XCTAssertEqual(summary.daysCheckedIn, 2)
     }
 
-    /// Regression: earlier builds stored AI-written daily reflections. On update they're
-    /// deleted, and none come back from a backup.
+    /// Regression (review): the month came from the phone's calendar, so on the Hebrew
+    /// calendar (Elul is month 13, as on 1 Sep 2026) the month-name lookup crashed. The
+    /// summary always means the Gregorian month, whatever calendar the phone uses.
+    func testOtherPhoneCalendarsStillMeanTheGregorianMonth() {
+        var hebrew = Calendar(identifier: .hebrew); hebrew.timeZone = TimeZone(identifier: "UTC")!
+        let firstSeptember = Date(timeIntervalSince1970: 1_788_220_800)   // 1 Sep 2026, UTC
+        XCTAssertEqual(hebrew.component(.month, from: firstSeptember), 13)
+
+        let summary = MonthSummary.build(entries: [
+            entry(at(2, month: 9)), entry(at(30, month: 9)), entry(at(1, month: 10)),
+        ], now: firstSeptember, calendar: hebrew)
+        XCTAssertEqual(summary.heading(calendar: hebrew), "September so far")
+        XCTAssertEqual(summary.daysCheckedIn, 2)                    // 2 and 30 Sep, not 1 Oct
+
+        for id in [Calendar.Identifier.coptic, .ethiopicAmeteMihret, .islamicUmmAlQura, .chinese] {
+            XCTAssertEqual(MonthSummary.build(entries: [], now: firstSeptember, calendar: Calendar(identifier: id))
+                .heading(calendar: Calendar(identifier: id)), "September so far", "\(id)")
+        }
+    }
+
+    /// The store path: only this month's live check-ins, with their symptoms and notes.
     @MainActor
-    func testStoredReflectionsAreDeletedAndNotRestored() throws {
+    func testCurrentReadsThisMonthFromTheStore() {
+        let env = AppEnvironment(container: KeelSchema.makeContainer(inMemory: true), provider: NoopSyncProvider())
+        _ = env.checkIns.create(mood: .okay, energy: 60, notes: "In the month", symptoms: [], date: at(3))
+        _ = env.checkIns.create(mood: .okay, energy: 60, notes: "Last month", symptoms: [], date: at(30, month: 9))
+        let deleted = env.checkIns.create(mood: .okay, energy: 60, notes: "Deleted", symptoms: [], date: at(4))
+        deleted.softDelete(); try? env.context.save()
+
+        let summary = MonthSummary.current(context: env.context, now: now, calendar: cal)
+        XCTAssertEqual(summary.daysCheckedIn, 1)
+        XCTAssertEqual(summary.notes.map(\.text), ["In the month"])
+    }
+
+    /// Regression: earlier builds stored AI-written daily reflections and companion chat.
+    /// On update both are deleted, and neither comes back from a backup.
+    @MainActor
+    func testGeneratedTextIsDeletedAndNotRestored() throws {
         let env = AppEnvironment(container: KeelSchema.makeContainer(inMemory: true), provider: NoopSyncProvider())
         env.context.insert(DailySummary(day: .now, text: "A reflection", source: .ai, ownerID: "o"))
         env.context.insert(DailySummary(day: .now.adding(days: -3), text: "Another", source: .deterministic, ownerID: "o"))
+        env.context.insert(ChatMessage(role: .assistant, text: "A companion reply", ownerID: "o"))
         try env.context.save()
         let archive = try BackupService.export(context: env.context)
         XCTAssertTrue(archive.dailySummaries.isEmpty)               // no longer exported
+        XCTAssertTrue(archive.chatMessages.isEmpty)
 
-        env.purgeStoredReflections()
+        env.purgeGeneratedText()
         XCTAssertEqual(try env.context.fetchCount(FetchDescriptor<DailySummary>()), 0)
+        XCTAssertEqual(try env.context.fetchCount(FetchDescriptor<ChatMessage>()), 0)
 
-        // An older archive that still carries reflections doesn't bring them back.
+        // An older archive that still carries them doesn't bring them back.
         var older = archive
         older.dailySummaries = [DailySummaryDTO(DailySummary(day: .now, text: "Old", source: .ai, ownerID: "o"))]
+        older.chatMessages = [ChatMessageDTO(ChatMessage(role: .assistant, text: "Old reply", ownerID: "o"))]
         try BackupService.restore(from: older, into: env.context)
         XCTAssertEqual(try env.context.fetchCount(FetchDescriptor<DailySummary>()), 0)
+        XCTAssertEqual(try env.context.fetchCount(FetchDescriptor<ChatMessage>()), 0)
     }
 }
 
-/// Home, Energy card: a word only from three entries in the week; fewer shows the count.
+/// Home, Energy card: her most-picked level from three entries in the week; fewer shows the count.
+/// Only check-ins where she picked an energy level count (it's optional).
 final class EnergyCardLabelTests: XCTestCase {
+    /// Regression (review): a check-in saved without an energy pick was stored as
+    /// "okay", so three such check-ins read as "mostly okay". It's now "not recorded".
+    @MainActor
+    func testAMissingEnergyPickIsNotRecordedAsOkay() {
+        let skipped = CheckIn(mood: .okay, energy: CheckIn.energyNotRecorded, ownerID: "o")
+        XCTAssertNil(skipped.energyLevel)
+        XCTAssertEqual(CheckIn(mood: .okay, energy: EnergyLevel.okay.percent, ownerID: "o").energyLevel, .okay)
+        XCTAssertEqual(CheckIn(mood: .low, energy: EnergyLevel.drained.percent, ownerID: "o").energyLevel, .drained)
+    }
+
+    private let base = Date(timeIntervalSince1970: 1_791_972_000)
+    private func e(_ hoursAgo: Double, _ level: EnergyLevel) -> (date: Date, level: EnergyLevel) {
+        (base.addingTimeInterval(-hoursAgo * 3600), level)
+    }
+
     func testLabelNeedsThreeEntries() {
-        XCTAssertEqual(DashboardView.energyTrailing(entryCount: 0, averagePercent: 0), "No data yet")
-        XCTAssertEqual(DashboardView.energyTrailing(entryCount: 1, averagePercent: 50), "1 entry this week")
-        XCTAssertEqual(DashboardView.energyTrailing(entryCount: 2, averagePercent: 50), "2 entries this week")
-        XCTAssertTrue(DashboardView.energyTrailing(entryCount: 3, averagePercent: 50).hasPrefix("mostly "))
-        XCTAssertTrue(DashboardView.energyTrailing(entryCount: 9, averagePercent: 50).hasPrefix("mostly "))
+        XCTAssertEqual(DashboardView.energyTrailing([]), "No data yet")
+        XCTAssertEqual(DashboardView.energyTrailing([e(1, .okay)]), "1 entry this week")
+        XCTAssertEqual(DashboardView.energyTrailing([e(1, .okay), e(2, .low)]), "2 entries this week")
+        XCTAssertEqual(DashboardView.energyTrailing([e(1, .okay), e(2, .low), e(3, .okay)]), "Okay")
+    }
+
+    /// Regression: the label was an average, so Drained, Drained, Charged showed "Low",
+    /// a level she never picked. It's now the level she picked most often.
+    func testMostlyIsTheMostFrequentLevelNotAnAverage() {
+        XCTAssertEqual(DashboardView.energyTrailing([e(1, .drained), e(30, .drained), e(60, .charged)]),
+                       "Drained")
+        XCTAssertEqual(DashboardView.energyTrailing([e(1, .good), e(2, .charged), e(3, .good), e(4, .low)]),
+                       "Good")
+    }
+
+    /// A tie goes to the tied level she picked most recently.
+    func testTieGoesToTheMostRecentlyPickedLevel() {
+        XCTAssertEqual(DashboardView.mostFrequentEnergy([e(5, .low), e(1, .good), e(10, .low), e(3, .good)]), .good)
+        XCTAssertEqual(DashboardView.mostFrequentEnergy([e(1, .low), e(5, .good), e(10, .low), e(3, .good)]), .low)
+        XCTAssertNil(DashboardView.mostFrequentEnergy([]))
     }
 }

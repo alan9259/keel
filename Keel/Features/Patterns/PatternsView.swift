@@ -149,10 +149,17 @@ struct NoteCard: View {
     let note: MonthSummary.Note
     var lineLimit: Int? = nil
 
+    /// The year shows only when it isn't this year (All notes covers every year).
+    private var dateText: String {
+        let sameYear = Calendar.current.isDate(note.date, equalTo: .now, toGranularity: .year)
+        let style = Date.FormatStyle.dateTime.weekday(.abbreviated).day().month(.abbreviated)
+        return note.date.formatted(sameYear ? style : style.year())
+    }
+
     var body: some View {
         StandardCard(padding: 16) {
             VStack(alignment: .leading, spacing: 6) {
-                Text(note.date.formatted(.dateTime.weekday(.abbreviated).day().month(.abbreviated)))
+                Text(dateText)
                     .font(KeelFont.caption).foregroundStyle(theme.muted)
                 Text(note.text)
                     .font(KeelFont.body).foregroundStyle(theme.text.opacity(0.85)).lineSpacing(2)
@@ -169,11 +176,11 @@ struct AllNotesView: View {
     @Environment(\.keelTheme) private var theme
     @Environment(\.dismiss) private var dismiss
     @Environment(AppEnvironment.self) private var env
-    @Query(filter: #Predicate<CheckIn> { $0.deletedAt == nil })
+    @Query(filter: #Predicate<CheckIn> { $0.deletedAt == nil && $0.notes != nil })
     private var checkIns: [CheckIn]
 
     var body: some View {
-        let notes = MonthSummary.notes(from: checkIns.map(MonthSummary.Entry.init))
+        let notes = MonthSummary.notes(fromCheckIns: checkIns)
         ScrollView {
             VStack(alignment: .leading, spacing: 16) {
                 ScreenHeader(title: "Your notes") { dismiss() }

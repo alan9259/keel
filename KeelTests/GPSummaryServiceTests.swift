@@ -178,6 +178,15 @@ final class GPSummaryServiceTests: XCTestCase {
         XCTAssertEqual(doc.cycle.notApplicable, "After a hysterectomy in 2019")   // trimmed, her words
     }
 
+    /// A check-in saved without an energy pick doesn't count toward the energy average.
+    func testEnergyAverageSkipsCheckInsWithoutAnEnergyPick() {
+        seedFullPicture()
+        _ = CheckInRepository(context: context, ownerID: TestStore.ownerID)
+            .create(mood: .okay, energy: CheckIn.energyNotRecorded, notes: nil, symptoms: [], date: d(-3))
+        let doc = service.makeDocument(inputs: GPSummaryInputs(), now: now)
+        XCTAssertEqual(doc.energyLine, "average 6.0 of 10, from 3 entries")  // unchanged by the skipped one
+    }
+
     /// Periods imported from Apple Health don't appear in the GP Visit Summary: its
     /// cycle block reads only the periods she logged in Keel.
     func testImportedAppleHealthPeriodsAreNotInTheSummary() {

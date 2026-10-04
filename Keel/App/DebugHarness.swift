@@ -16,6 +16,7 @@ import PDFKit
 ///   -uitSeedMed              add two sample medications
 ///   -uitPrintCounts          log current row counts to stdout
 ///   -uitSeedImportedFlow     Apple Health period days beside one of her own
+///   -uitSeedEnergyMix        Drained, Drained, Charged (Home Energy label check)
 ///   -uitRouteCycle|Meds|Patterns  push that screen on launch
 enum DebugHarness {
     private static var args: Set<String> { Set(ProcessInfo.processInfo.arguments) }
@@ -131,7 +132,7 @@ enum DebugHarness {
         if args.contains("-uitRouteSupport") { return .support }
         if args.contains("-uitRouteGPSummary") { return .gpSummary }
         if args.contains("-uitRoutePrivacy") { return .privacy }
-        if args.contains("-uitRouteBackground") { return .myBackground }
+        if args.contains("-uitRouteBackground") { return .profile }   // background lives in Profile
         return nil
     }
 
@@ -424,6 +425,15 @@ enum DebugHarness {
             cyclic.schedule.anchor = Calendar.current.date(byAdding: .day, value: -23,
                                                            to: Calendar.current.startOfDay(for: .now))
             _ = env.medications.add(cyclic)
+        }
+
+        if args.contains("-uitSeedEnergyMix") {
+            // Drained, Drained, Charged on three days: averages to Low, most often Drained.
+            for (off, level) in [(-2, EnergyLevel.drained), (-1, .drained), (0, .charged)] {
+                env.context.insert(CheckIn(date: Date().startOfDay.adding(days: off).addingTimeInterval(9 * 3600),
+                                           mood: .okay, energy: level.percent, ownerID: env.auth.ownerID))
+            }
+            try? env.context.save()
         }
 
         if args.contains("-uitSeedWeek") {
@@ -950,8 +960,10 @@ enum DebugHarness {
             let day = Date().startOfDay.adding(days: -i)
             let mood: Mood = [.okay, .good, .low, .difficult][i / 2 % 4]
             let chosen = picks.prefix((i / 2 % 5) + 1).map { (symptom: $0, severity: (i % 3) + 1) }
-            env.checkIns.create(mood: mood, energy: 20 + (i % 5) * 20, notes: nil,
-                                symptoms: Array(chosen), date: day)
+            let checkIn = env.checkIns.create(mood: mood, energy: 20 + (i % 5) * 20, notes: nil,
+                                              symptoms: Array(chosen), date: day)
+            // Alcohol on some days (zero included), through the same call the check-in uses.
+            if i % 6 == 0 { env.checkIns.setAlcohol(checkIn, count: (i / 6) % 3) }
         }
         // Cycle: two period runs and a standalone spotting day.
         for k in [70, 69, 68, 42, 41, 40] { env.cycle.togglePeriodDay(Date().startOfDay.adding(days: -k)) }
@@ -998,7 +1010,10 @@ enum DebugHarness {
             creator = (a[PDFDocumentAttribute.creatorAttribute] as? String) ?? ""
             producer = (a[PDFDocumentAttribute.producerAttribute] as? String) ?? ""
         }
+        let pdfText = PDFDocument(data: data)?.string ?? ""
+        let alcoholInPDF = pdfText.components(separatedBy: "\n").first { $0.contains("Alcohol") } ?? "none"
         print("KEEL_GPSUMMARY path=\(url.path) bytes=\(data.count) pageOneOverflow=\(renderer.pageOneOverflowed) author='\(author)' creator='\(creator)' producer='\(producer)'")
+        print("KEEL_GPSUMMARY alcoholLine='\(document.alcoholLine ?? "nil")' includeAlcohol=\(document.includeAlcohol) pdfAlcohol='\(alcoholInPDF)'")
         fflush(stdout)
     }
 

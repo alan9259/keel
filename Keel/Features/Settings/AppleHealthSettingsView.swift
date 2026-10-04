@@ -11,7 +11,8 @@ struct AppleHealthSettingsView: View {
     // loading a year of samples. Same rule as `AppEnvironment.hasImportedHealthData`.
     @Query(Self.anyImportedActivity) private var importedActivity: [HealthActivitySample]
     @Query(Self.anyImportedSample) private var samples: [HealthSample]
-    private var hasImportedData: Bool { !importedActivity.isEmpty || !samples.isEmpty }
+    @Query(Self.anyImportedPeriod) private var periods: [HealthFlowSample]
+    private var hasImportedData: Bool { !importedActivity.isEmpty || !samples.isEmpty || !periods.isEmpty }
 
     private static var anyImportedActivity: FetchDescriptor<HealthActivitySample> {
         var d = FetchDescriptor<HealthActivitySample>(predicate: #Predicate { $0.deletedAt == nil })
@@ -23,6 +24,11 @@ struct AppleHealthSettingsView: View {
         d.fetchLimit = 1
         return d
     }
+    private static var anyImportedPeriod: FetchDescriptor<HealthFlowSample> {
+        var d = FetchDescriptor<HealthFlowSample>(predicate: #Predicate { $0.deletedAt == nil })
+        d.fetchLimit = 1
+        return d
+    }
 
     @State private var connected = false
     @State private var connecting = false
@@ -31,7 +37,7 @@ struct AppleHealthSettingsView: View {
 
     private let why: [(String, String)] = [
         ("Less to log", "Sleep and activity flow in automatically."),
-        ("Richer patterns", "More signals means clearer connections over time."),
+        ("Alongside your record", "Sleep, heart readings and periods sit next to what you log, labelled as from Apple Health."),
         ("Read-only", "Keel reads from Health. It never writes anything back."),
         ("Private by design", "Data stays on your device and in your Apple account."),
     ]

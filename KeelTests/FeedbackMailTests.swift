@@ -22,6 +22,14 @@ final class FeedbackMailTests: XCTestCase {
     func testSubjectsDifferPerKind() {
         XCTAssertTrue(makeURL(.feedback).absoluteString.contains("subject=Keel%20feedback"))
         XCTAssertTrue(makeURL(.featureRequest).absoluteString.contains("subject=Keel%20feature%20request"))
+        XCTAssertTrue(makeURL(.support).absoluteString.contains("subject=Keel%20support"))
+    }
+
+    /// Support (Your privacy) goes to the same inbox the privacy summary names.
+    func testSupportGoesToTheAddressInThePrivacySummary() {
+        let url = makeURL(.support)
+        XCTAssertTrue(url.absoluteString.hasPrefix("mailto:keel@therecalibrationyears.com?"))
+        XCTAssertTrue((url.absoluteString.removingPercentEncoding ?? "").contains("Here's what I need help with:"))
     }
 
     func testBodyCarriesOpenerAndRealContext() {

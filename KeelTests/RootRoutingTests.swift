@@ -33,9 +33,16 @@ final class RootRoutingTests: XCTestCase {
             completedThisLaunch: true, hasOnboarded: true, forcedOnboarded: false, forceOnboarding: true))
     }
 
-    /// And completing it in a normal fresh session enters the app.
+    /// And completing it in a normal fresh session enters the app (finishing records it).
     func testCompletingOnboardingFreshEntersApp() {
         XCTAssertTrue(RootView.shouldShowMain(
+            completedThisLaunch: true, hasOnboarded: true, forcedOnboarded: false, forceOnboarding: false))
+    }
+
+    /// Regression (review): onboarding, then "Delete all my data" in the same launch, left
+    /// her in the app with no profile. With the record gone, she's back at onboarding.
+    func testDeleteAllMyDataAfterOnboardingThisLaunchReturnsToOnboarding() {
+        XCTAssertFalse(RootView.shouldShowMain(
             completedThisLaunch: true, hasOnboarded: false, forcedOnboarded: false, forceOnboarding: false))
     }
 }

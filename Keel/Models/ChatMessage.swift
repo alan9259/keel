@@ -6,7 +6,10 @@ enum ChatRole: String, Codable {
     case assistant
 }
 
-/// A single message in the AI companion conversation.
+/// A message from the AI companion conversation in earlier builds. V1 has no companion
+/// and no generated text: nothing writes these, and bootstrap deletes any that exist
+/// (`AppEnvironment.purgeGeneratedText`). Kept in the schema only so existing stores
+/// open without a migration.
 @Model
 final class ChatMessage: Syncable {
     var id: UUID = UUID()

@@ -77,7 +77,7 @@ struct ReportsView: View {
         let tiles: [(String, String, String)] = [
             ("Check-ins", "\(dayCounts.checkInDays)", "of \(period.days) days"),
             // Energy in her own words, not a percentage (R10). Dash when nothing logged.
-            ("Avg energy", windowCheckIns.isEmpty ? "—" : EnergyLevel.from(percent: avgEnergy).label, "across entries"),
+            ("Avg energy", energyEntries.isEmpty ? "None yet" : EnergyLevel.from(percent: avgEnergy).label, "across entries"),
             ("No symptoms logged", "\(dayCounts.noSymptomDays)", "of \(dayCounts.checkInDays) days logged"),
             ("Medicines", "\(daysWithAnyMedTaken)", "taken of \(period.days) days"),
         ]
@@ -307,8 +307,11 @@ struct ReportsView: View {
 
     private let barWidth: CGFloat = 320
 
+    /// Entries where she picked an energy level (it's optional in a check-in).
+    private var energyEntries: [CheckIn] { windowCheckIns.filter { $0.energyLevel != nil } }
+
     private var avgEnergy: Int {
-        let v = windowCheckIns.map(\.energy)
+        let v = energyEntries.map(\.energy)
         return v.isEmpty ? 0 : v.reduce(0, +) / v.count
     }
 

@@ -54,7 +54,7 @@ enum BackupService {
             medicationLogs: try all(MedicationLog.self).map(MedicationLogDTO.init),
             insights: try all(Insight.self).map(InsightDTO.init),
             activityLogs: try all(ActivityLog.self).map(ActivityLogDTO.init),
-            chatMessages: try all(ChatMessage.self).map(ChatMessageDTO.init),
+            chatMessages: [],     // companion chat (generated text) is no longer kept
             dailySummaries: [],   // reflections are no longer kept (V1 has no generated text)
             healthSamples: try all(HealthSample.self).map(HealthSampleDTO.init)
         )
@@ -121,8 +121,8 @@ enum BackupService {
         for dto in backup.cycleEntries { context.insert(dto.model()) }
         for dto in backup.insights { context.insert(dto.model()) }
         for dto in backup.activityLogs { context.insert(dto.model()) }
-        for dto in backup.chatMessages { context.insert(dto.model()) }
-        // Older archives may carry daily reflections; they're not restored (see above).
+        // Older archives may carry companion chat and daily reflections (generated text
+        // from earlier builds); neither is restored.
         for dto in backup.healthSamples { context.insert(dto.model()) }
 
         var checkInsByID: [UUID: CheckIn] = [:]
@@ -164,7 +164,7 @@ enum BackupService {
             medications: backup.medications.count,
             medicationLogs: backup.medicationLogs.count,
             activityLogs: backup.activityLogs.count,
-            chatMessages: backup.chatMessages.count
+            chatMessages: 0
         )
     }
 

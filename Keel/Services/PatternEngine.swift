@@ -65,7 +65,8 @@ struct PatternEngine {
             kind: .cycleVariability,
             title: "Your cycle length",
             detail: "Your recent cycles ranged from about \(lo) to \(hi) days apart. That's the kind of detail that can be useful to bring to your GP.",
-            timeframe: "Across your last \(sorted.count) logged cycles",
+            // The cycles measured are the gaps between starts, not the starts themselves.
+            timeframe: "Across your last \(intervals.count) logged cycles",
             icon: "arrow.left.and.right",
             accent: .sage)
     }
@@ -98,7 +99,11 @@ extension PatternEngine {
         let cycleDescriptor = FetchDescriptor<CycleEntry>(
             predicate: #Predicate { $0.deletedAt == nil && $0.date >= floor }
         )
-        let periodDays = Set(((try? context.fetch(cycleDescriptor)) ?? []).map { $0.date.startOfDay })
+        // Same rule as `CycleRepository.stats`: real menstruation only, so a stray
+        // spotting day (or a period-end marker) can't start a "cycle" and skew the range.
+        let periodDays = Set(((try? context.fetch(cycleDescriptor)) ?? [])
+            .filter { $0.type != .periodEnd && $0.flowLevel != .spotting }
+            .map { $0.date.startOfDay })
 
         return PatternEngine(
             checkIns: checkIns,

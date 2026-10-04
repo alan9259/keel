@@ -60,7 +60,6 @@ final class SyncEngine {
         out += fetchPending(MedicationLog.self)
         out += fetchPending(Insight.self)
         out += fetchPending(ActivityLog.self)
-        out += fetchPending(ChatMessage.self)
         return out
     }
 

@@ -15,6 +15,9 @@ final class AuthService {
     /// Where builds before 53 kept the onboarded flag. It survived deleting the app, so
     /// a reinstall skipped onboarding; it now lives on the profile and this is cleared.
     private let legacyOnboardedKey = "keel.hasOnboarded"
+    /// Whether that legacy flag was set when this launch started (read before clearing),
+    /// so `AppEnvironment` can carry an upgrading user's onboarding over to her profile.
+    let hadLegacyOnboardedFlag: Bool
 
     private(set) var ownerID: String
     private(set) var displayName: String?
@@ -30,6 +33,8 @@ final class AuthService {
         ownerID = Keychain.string(for: ownerKey) ?? defaults.string(forKey: ownerKey) ?? ""
         displayName = defaults.string(forKey: nameKey)
         appleUserID = Keychain.string(for: appleIDKey) ?? defaults.string(forKey: appleIDKey)
+        hadLegacyOnboardedFlag = Keychain.string(for: legacyOnboardedKey) == "1"
+            || defaults.bool(forKey: legacyOnboardedKey)
         defaults.removeObject(forKey: legacyOnboardedKey)
         Keychain.remove(legacyOnboardedKey)
     }

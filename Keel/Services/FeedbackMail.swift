@@ -16,11 +16,14 @@ enum FeedbackMail {
     enum Kind {
         case feedback
         case featureRequest
+        /// "Support" on the Your privacy screen.
+        case support
 
         var subject: String {
             switch self {
             case .feedback: "Keel feedback"
             case .featureRequest: "Keel feature request"
+            case .support: "Keel support"
             }
         }
 
@@ -30,6 +33,7 @@ enum FeedbackMail {
             switch self {
             case .feedback: "Here's what's on my mind:"
             case .featureRequest: "Here's something I'd love Keel to be able to do:"
+            case .support: "Here's what I need help with:"
             }
         }
     }

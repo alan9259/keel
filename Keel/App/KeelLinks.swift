@@ -1,11 +1,7 @@
 import Foundation
 
-/// Web links shown in Settings. Both are still to come (Mischa is sending the URLs), so
-/// they're nil rather than a guessed address: "Read the full privacy policy" opens the
-/// in-app policy until then, and Support appears once its URL is set.
+/// Web links shown in the app. Support is by email (`FeedbackMail.address`).
 enum KeelLinks {
-    /// The published production privacy policy.
-    static let privacyPolicy: URL? = nil
-    /// The support page.
-    static let support: URL? = nil
+    /// The published privacy policy ("Read the full privacy policy" on Your privacy).
+    static let privacyPolicy = URL(string: "https://therecalibrationyears.com/keel-privacy")!
 }

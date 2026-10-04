@@ -7,6 +7,9 @@ final class CheckIn: Syncable {
     var date: Date = Date.now
     var moodRaw: String = ""
     /// Energy 0–100.
+    /// Energy she picked, as a percentage (20…100), or `energyNotRecorded` (0) when she
+    /// didn't pick one. Energy is optional in a check-in; a missing pick is never stored
+    /// as a level she didn't choose.
     var energy: Int = 0
     var notes: String?
     /// Alcohol, as a simple count she entered. Nil means not recorded (untouched);
@@ -60,5 +63,13 @@ final class CheckIn: Syncable {
     /// Active (non-tombstoned) symptoms attached to this check-in.
     var symptoms: [Symptom] {
         (symptomLinks ?? []).compactMap { $0.isTombstoned ? nil : $0.symptom }
+    }
+
+    /// Stored when she saved a check-in without picking an energy level.
+    static let energyNotRecorded = 0
+
+    /// The energy level she picked, or nil if she didn't pick one.
+    var energyLevel: EnergyLevel? {
+        energy > Self.energyNotRecorded ? EnergyLevel.from(percent: energy) : nil
     }
 }

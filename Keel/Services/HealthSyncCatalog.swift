@@ -59,7 +59,7 @@ enum HealthSyncCatalog {
         if offActivityIDs.contains("sleep") { out.sleepByDay = [:] } // sleep lives in its own field
         for key in offActivityIDs { out.activityAmounts[key] = nil }
         out.vitals = out.vitals.filter { !offVitalIDs.contains($0.typeID) }
-        if off.contains(where: \.includesFlow) { out.menstrualFlow = [:] }
+        if off.contains(where: \.includesFlow) { out.menstrualFlow = [:]; out.flowWindowStart = nil }
         return out
     }
 }

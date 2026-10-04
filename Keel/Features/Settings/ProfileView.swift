@@ -13,6 +13,10 @@ struct ProfileView: View {
     @State private var age = ""
     @State private var mobile = ""
     @State private var email = ""
+    // My background (hysterectomy, periods), saved with her details by Save changes.
+    @State private var hysterectomy: Hysterectomy?
+    @State private var hysterectomyYear = ""
+    @State private var periodsNote = ""
     @State private var justSaved = false
 
     private var hasAppleIdentity: Bool { env.auth.hasAppleIdentity }
@@ -23,6 +27,9 @@ struct ProfileView: View {
                 ScreenHeader(title: "Profile", titleSize: 28,
                              subtitle: "Your details, stored on this phone") { dismiss() }
                 detailsSection
+                MyBackgroundFields(answer: $hysterectomy, yearText: $hysterectomyYear, periodsNote: $periodsNote)
+                    .padding(.top, Spacing.sm)
+                saveButton
             }
             .padding(.horizontal, Spacing.screenH).padding(.vertical, Spacing.md)
         }
@@ -52,7 +59,12 @@ struct ProfileView: View {
                     .font(KeelFont.caption).foregroundStyle(theme.muted)
                     .fixedSize(horizontal: false, vertical: true)
             }
+        }
+    }
 
+    /// Saves her details and her background together.
+    private var saveButton: some View {
+        VStack(spacing: 12) {
             KeelPrimaryButton("Save changes", action: save).padding(.top, Spacing.xs)
             if justSaved {
                 Label("Changes saved", systemImage: "checkmark.circle.fill")
@@ -90,6 +102,9 @@ struct ProfileView: View {
         age = profile.age.map(String.init) ?? ""
         mobile = profile.mobile ?? ""
         email = profile.email ?? ""
+        hysterectomy = profile.hysterectomy
+        hysterectomyYear = profile.hysterectomyYear.map(String.init) ?? ""
+        periodsNote = profile.periodsNotApplicableReason ?? ""
     }
 
     private func save() {
@@ -103,6 +118,8 @@ struct ProfileView: View {
             birthYear: birthYear,
             mobile: mobile.trimmingCharacters(in: .whitespaces).nilIfEmpty,
             email: email.trimmingCharacters(in: .whitespaces).nilIfEmpty)
+        env.users.setHysterectomy(hysterectomy, year: Hysterectomy.validYear(hysterectomyYear))
+        env.users.setPeriodsNotApplicableReason(periodsNote)
         if let name = fn.nilIfEmpty { env.auth.updateName(name) }
         Haptics.success()
         withAnimation { justSaved = true }
