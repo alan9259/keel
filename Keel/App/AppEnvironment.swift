@@ -469,11 +469,12 @@ final class AppEnvironment {
                                    autoLog: med.autoLogDoses, wholeDayLogged: wholeDay,
                                    loggedSlots: loggedSlots)
         }
+        let showName = settings.medicineNamesInReminders
         Task {
             for p in plans {
                 await notifications.rescheduleMedication(
                     id: p.id, name: p.name, schedule: p.schedule, autoLog: p.autoLog,
-                    cycleHorizon: horizon,
+                    showName: showName, cycleHorizon: horizon,
                     loggedTodayWholeDay: p.wholeDayLogged, loggedTodaySlots: p.loggedSlots)
             }
         }

@@ -25,6 +25,13 @@ struct SettingsView: View {
                     Divider().background(theme.border)
                     toggleRow("iphone.radiowaves.left.and.right", "Haptic feedback", "Vibration on interactions",
                               Binding(get: { env.settings.haptics }, set: { env.settings.haptics = $0 }))
+                    Divider().background(theme.border)
+                    // Reminders show on the lock screen, so names are hers to turn on.
+                    toggleRow("pills", "Medicine names in reminders", "Shown on your lock screen when on",
+                              Binding(get: { env.settings.medicineNamesInReminders },
+                                      set: { env.settings.medicineNamesInReminders = $0
+                                             Haptics.selection()
+                                             env.refreshMedicationReminders() }))
                 }
 
                 // Optional check-in items she can choose to note. Alcohol is on by default.

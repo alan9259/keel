@@ -165,7 +165,7 @@ final class NotificationService {
     ///     (the only day that can be, since the future isn't logged yet); their
     ///     reminder for today is skipped so she isn't nudged for something done.
     func rescheduleMedication(id: UUID, name: String, schedule: DoseSchedule,
-                              autoLog: Bool = false, cycleHorizon: Int = 24,
+                              autoLog: Bool = false, showName: Bool = false, cycleHorizon: Int = 24,
                               loggedTodayWholeDay: Bool = false,
                               loggedTodaySlots: Set<String> = []) async {
         await cancelMedicationReminders(medicationID: id)
@@ -185,23 +185,44 @@ final class NotificationService {
             when.month = Int(occ.dayKey.dropFirst(4).prefix(2))
             when.day = Int(occ.dayKey.suffix(2))
             add(id: "\(medPrefix)\(id.uuidString).\(key).d\(occ.dayKey)", name: name,
-                medicationID: id, slot: occ.slotID, autoLog: autoLog,
+                medicationID: id, slot: occ.slotID, autoLog: autoLog, showName: showName,
                 trigger: UNCalendarNotificationTrigger(dateMatching: when, repeats: false))
         }
     }
 
+    /// A medicine reminder's wording. Reminders show on the lock screen, so the name
+    /// appears only if she has chosen that in Settings; otherwise it's generic. An
+    /// auto-logged medicine says plainly that Keel will record it as taken (she chose
+    /// that, and can change it), so her record never claims a dose she didn't expect.
+    /// Fixed wording of the everyday reminders (no health claims: support and inform).
+    enum Copy {
+        static let checkInTitle = "How are you feeling today?"
+        static let checkInBody = "A quick check-in adds to your record."
+        static let hydrationTitle = "A glass of water?"
+        static let hydrationBody = "A small sip counts."
+        static let movementTitle = "A little movement?"
+        static let movementBody = "A short walk or a stretch. Whatever feels good today."
+        static let windDownTitle = "Time to wind down"
+        static let windDownBody = "A calmer evening, whatever that looks like for you."
+    }
+
+    nonisolated static func medicationReminderText(name: String, showName: Bool,
+                                                   autoLog: Bool) -> (title: String, body: String) {
+        let title = showName ? "Time for \(name)" : "Time for your medication"
+        let body = autoLog
+            ? "A gentle reminder. Keel will record it as taken unless you change it."
+            : "A gentle reminder. Tap to mark it taken."
+        return (title, body)
+    }
+
     private func add(id: String, name: String, medicationID: UUID, slot: String?,
-                     autoLog: Bool, trigger: UNNotificationTrigger) {
+                     autoLog: Bool, showName: Bool, trigger: UNNotificationTrigger) {
         let content = UNMutableNotificationContent()
-        content.title = "Time for \(name)"
-        if autoLog {
-            // Nothing to tap: the dose is logged for her next time she opens Keel.
-            content.body = "A gentle reminder to take it. Keel logs this one for you."
-            content.categoryIdentifier = Self.medAutoCategoryID
-        } else {
-            content.body = "A gentle reminder. Tap to mark it taken."
-            content.categoryIdentifier = Self.medCategoryID
-        }
+        let text = Self.medicationReminderText(name: name, showName: showName, autoLog: autoLog)
+        content.title = text.title
+        content.body = text.body
+        // Auto-logged: nothing to tap, the dose is recorded next time she opens Keel.
+        content.categoryIdentifier = autoLog ? Self.medAutoCategoryID : Self.medCategoryID
         content.sound = .default
         // Carried back to the tap handler so it knows which dose to log.
         content.userInfo = ["medicationID": medicationID.uuidString, "slot": slot ?? ""]
@@ -239,12 +260,12 @@ final class NotificationService {
     /// The wording is fixed (V1 has no generated text).
     func scheduleHydration(startHour: Int = 8, endHour: Int = 21, everyHours: Int = 2) {
         remove(hydrationIDs)
-        let body = "A small sip counts. Staying hydrated can help with energy and headaches."
+        let body = Copy.hydrationBody
         var hour = startHour
         while hour <= endHour {
             var when = DateComponents()
             when.hour = hour
-            add(id: "\(hydrationPrefix)\(hour)", title: "A glass of water?",
+            add(id: "\(hydrationPrefix)\(hour)", title: Copy.hydrationTitle,
                 body: body,
                 trigger: UNCalendarNotificationTrigger(dateMatching: when, repeats: true))
             hour += everyHours
@@ -254,8 +275,8 @@ final class NotificationService {
     /// A gentle daily movement nudge, weekdays by default.
     func scheduleMovement(hour: Int = 14, minute: Int = 0, weekdaysOnly: Bool = true) {
         remove(movementIDs)
-        let title = "A little movement?"
-        let body = "A short walk or a stretch. Whatever feels good today."
+        let title = Copy.movementTitle
+        let body = Copy.movementBody
         if weekdaysOnly {
             for weekday in 2...6 { // Monday…Friday (1 = Sunday)
                 var when = DateComponents()
@@ -280,8 +301,8 @@ final class NotificationService {
         var when = DateComponents()
         when.hour = hour
         when.minute = minute
-        add(id: windDownID, title: "Time to wind down",
-            body: "A calmer evening can make for a better night's sleep.",
+        add(id: windDownID, title: Copy.windDownTitle,
+            body: Copy.windDownBody,
             trigger: UNCalendarNotificationTrigger(dateMatching: when, repeats: true))
     }
 
@@ -337,8 +358,8 @@ final class NotificationService {
         components.hour = hour
         components.minute = minute
         let content = UNMutableNotificationContent()
-        content.title = "How are you feeling today?"
-        content.body = "A quick check-in sharpens your picture."
+        content.title = Copy.checkInTitle
+        content.body = Copy.checkInBody
         content.sound = .default
         let trigger = UNCalendarNotificationTrigger(dateMatching: components, repeats: true)
         center.add(UNNotificationRequest(identifier: checkInID, content: content, trigger: trigger))

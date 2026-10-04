@@ -75,6 +75,9 @@ final class SettingsStore {
     /// Settings); the field itself always starts empty, so nothing is recorded unless
     /// she saves a number.
     var notesAlcohol: Bool { didSet { defaults.set(notesAlcohol, forKey: "keel.notesAlcohol") } }
+    /// Medicine reminders name the medicine. Off by default: reminders show on the
+    /// lock screen, so the generic "Time for your medication" unless she chooses.
+    var medicineNamesInReminders: Bool { didSet { defaults.set(medicineNamesInReminders, forKey: "keel.medNamesInReminders") } }
     /// She has finished onboarding but hasn't yet seen the one-line reminders explanation
     /// that comes before the iOS permission prompt. Persisted so closing the app first
     /// doesn't skip it.
@@ -108,6 +111,7 @@ final class SettingsStore {
             .flatMap { try? JSONDecoder().decode(ReminderConfig.self, from: $0) }) ?? ReminderConfig()
         showsSensitiveSymptoms = defaults.object(forKey: "keel.sensitiveSymptoms") as? Bool ?? false
         notesAlcohol = defaults.object(forKey: "keel.notesAlcohol") as? Bool ?? true
+        medicineNamesInReminders = defaults.object(forKey: "keel.medNamesInReminders") as? Bool ?? false
         notificationExplainerPending = defaults.object(forKey: "keel.notificationExplainerPending") as? Bool ?? false
         healthConnectOfferDeclined = defaults.object(forKey: "keel.healthOfferDeclined") as? Bool ?? false
         healthReconnectOfferAnswered = defaults.object(forKey: "keel.healthReconnectAnswered") as? Bool ?? false
@@ -131,6 +135,7 @@ final class SettingsStore {
         reminderConfig = ReminderConfig()
         showsSensitiveSymptoms = false
         notesAlcohol = true
+        medicineNamesInReminders = false
         notificationExplainerPending = false
         healthConnectOfferDeclined = false
         healthReconnectOfferAnswered = false
