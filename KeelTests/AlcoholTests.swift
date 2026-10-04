@@ -144,3 +144,11 @@ final class AlcoholTests: XCTestCase {
         XCTAssertEqual(c.remoteFields()["alcoholCount"]?.asInt, 0)
     }
 }
+
+/// Copy for the intimacy and bladder group (owner wording, 4 Oct 2026).
+final class SensitiveGroupCopyTests: XCTestCase {
+    func testIntimacyIntroWording() {
+        XCTAssertEqual(SymptomCategory.intimacy.intro,
+                       "These can be harder to talk about. Note only what feels relevant to you. They stay on your phone unless you choose to share them.")
+    }
+}

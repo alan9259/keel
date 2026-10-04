@@ -41,6 +41,9 @@ struct SymptomPickerSheet: View {
                 }
                 .padding(.horizontal, 20).padding(.top, 16).padding(.bottom, 32)
             }
+            #if DEBUG
+            .defaultScrollAnchor(DebugHarness.scrollToBottom ? .bottom : nil)   // screenshots of the last group
+            #endif
         }
         .background(theme.background.ignoresSafeArea())
         .alert("Rename symptom", isPresented: Binding(get: { renaming != nil }, set: { if !$0 { renaming = nil } })) {

@@ -38,3 +38,34 @@ final class PrivacySummaryTests: XCTestCase {
         XCTAssertEqual(KeelLinks.privacyPolicy.absoluteString, "https://therecalibrationyears.com/keel-privacy")
     }
 }
+
+/// About Keel: the owner's wording (4 Oct 2026), checked against the copy rules.
+final class AboutCopyTests: XCTestCase {
+    private var allText: [String] {
+        AboutView.opening + AboutView.sections.flatMap { [$0.0] + $0.1 }
+            + [AboutView.closing, AboutView.versionLine, AboutView.emojiCredit]
+    }
+
+    func testNoDashes() {
+        for text in allText { XCTAssertFalse(text.contains("—") || text.contains("–"), text) }
+    }
+
+    func testOpensAndClosesWithTheOwnersLines() {
+        XCTAssertEqual(AboutView.opening.first, "You're not imagining it.")
+        XCTAssertEqual(AboutView.sections.map(\.0), ["What we do", "Why we do it", "Built from lived experience", "What Keel isn't"])
+        XCTAssertTrue(AboutView.closing.hasSuffix("whatever that means to you."))
+    }
+
+    /// No claim that Keel notices patterns or makes sense of things for her (V1 keeps
+    /// the record; it doesn't interpret).
+    func testNoInterpretationClaims() {
+        for text in allText {
+            XCTAssertFalse(text.contains("notices patterns"), text)
+            XCTAssertFalse(text.contains("make sense of"), text)
+        }
+    }
+
+    func testVersionLineUsesTheRealVersion() {
+        XCTAssertEqual(AboutView.versionLine, "Keel · Version \(DeviceContext.shortVersion) · © 2026 TRY Keel Pty Ltd")
+    }
+}

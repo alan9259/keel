@@ -80,7 +80,7 @@ enum SymptomCategory: String, CaseIterable, Codable, Identifiable {
     var intro: String? {
         switch self {
         case .intimacy:
-            "These ones are rarely talked about, and very common. Share only what feels relevant to you."
+            "These can be harder to talk about. Note only what feels relevant to you. They stay on your phone unless you choose to share them."
         default:
             nil
         }
