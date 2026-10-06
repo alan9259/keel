@@ -25,7 +25,7 @@ struct MoreView: View {
     private var sections: [(String, [Item])] {
         [
             // Her own things first: profile, app lock and settings.
-            ("Account", [
+            ("Profile/Settings", [
                 Item(title: "Profile", symbol: "person.crop.circle", tint: theme.accent, route: .profile),
                 Item(title: "App lock", symbol: "lock.fill", tint: theme.plum, route: .appLock),
                 Item(title: "Settings", symbol: "gearshape.fill", tint: theme.muted, route: .settings),
