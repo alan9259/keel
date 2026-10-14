@@ -59,6 +59,8 @@ final class AppEnvironment {
         let context = container.mainContext
 
         self.settings = SettingsStore()
+        // Before anything reads the Keychain: clear what a deleted install left there.
+        Self.clearKeychainLeftByAnEarlierInstall(context: context)
         let auth = AuthService()
         self.auth = auth
         let ownerID: OwnerIDProvider = { [weak auth] in auth?.ownerID ?? "" }
@@ -256,7 +258,33 @@ final class AppEnvironment {
         resetHealthSyncState()
         settings.resetToDefaults()
         auth.signOut()
+        // Everything else Keel kept in the Keychain too, including keys from earlier
+        // builds (the old Sign in with Apple ID, the old onboarded flag).
+        Keychain.removeAll()
         hasCompletedOnboarding = false     // her profile (which held it) is gone
+    }
+
+    /// Marks that this install has run, in UserDefaults (which, unlike the Keychain,
+    /// is deleted with the app).
+    private static let installSeenKey = "keel.installSeen"
+
+    /// iOS keeps an app's Keychain items when the app is deleted, so a reinstall would
+    /// inherit the earlier install's record ID, its old Sign in with Apple ID and its app
+    /// lock PIN. A reinstall is a launch with no install marker AND no profile (deleting
+    /// the app deleted both). An app update keeps its profile, so it's never cleared.
+    /// Pure, so it's tested.
+    nonisolated static func isReinstallWithLeftovers(installSeen: Bool, hasProfile: Bool) -> Bool {
+        !installSeen && !hasProfile
+    }
+
+    private static func clearKeychainLeftByAnEarlierInstall(context: ModelContext) {
+        let defaults = UserDefaults.standard
+        let installSeen = defaults.bool(forKey: installSeenKey)
+        let hasProfile = ((try? context.fetchCount(FetchDescriptor<UserProfile>())) ?? 0) > 0
+        if isReinstallWithLeftovers(installSeen: installSeen, hasProfile: hasProfile) {
+            Keychain.removeAll()
+        }
+        if !installSeen { defaults.set(true, forKey: installSeenKey) }
     }
 
     private func deleteAll<T: PersistentModel>(_ type: T.Type) {
@@ -320,11 +348,6 @@ final class AppEnvironment {
         case .reconnect: settings.healthReconnectOfferAnswered = true
         case .none: break
         }
-    }
-
-    /// She chose Skip in onboarding's Apple Health step: don't offer Connect on launch.
-    func declineHealthConnectOffer() {
-        settings.healthConnectOfferDeclined = true
     }
 
     /// Whether a background (foreground-triggered) sync is due. Gated on `connected`

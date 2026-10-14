@@ -23,8 +23,6 @@ final class AuthService {
     private(set) var displayName: String?
     private(set) var appleUserID: String?
     var isAuthenticated: Bool { !ownerID.isEmpty }
-    /// True once identity came from a real Apple credential (vs. local fallback).
-    var hasAppleIdentity: Bool { appleUserID != nil }
 
     init() {
         let defaults = UserDefaults.standard

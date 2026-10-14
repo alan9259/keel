@@ -152,8 +152,9 @@ struct MainView: View {
             .presentationDetents([.medium])
             .presentationDragIndicator(.visible)
         }
+        // Shown before the iOS notification prompt, so it has one way forward (App
+        // Review 5.1.1(iv)): she decides on Apple's own sheet, which has "Don't Allow".
         .alert("Gentle reminders", isPresented: $showReminderExplainer) {
-            Button("Not now", role: .cancel) { env.answerNotificationExplainer(allow: false) }
             Button("Continue") { env.answerNotificationExplainer(allow: true) }
         } message: {
             Text("Keel can remind you to check in and take your medicines. You can change this any time in Settings.")
@@ -161,9 +162,9 @@ struct MainView: View {
         .alert(healthOffer == .reconnect ? "Update Apple Health access?" : "Connect Apple Health?",
                isPresented: Binding(get: { healthOffer != .none },
                                     set: { if !$0 { healthOffer = .none } })) {
+            // Also shown before a system prompt: Continue only, the choice is on Apple's sheet.
             let offer = healthOffer
-            Button("Not now", role: .cancel) { env.answerHealthOffer(offer) }
-            Button(offer == .reconnect ? "Continue" : "Connect") {
+            Button("Continue") {
                 env.answerHealthOffer(offer)
                 Task { await env.connectAppleHealth() }
             }

@@ -82,9 +82,10 @@ final class SettingsStore {
     /// that comes before the iOS permission prompt. Persisted so closing the app first
     /// doesn't skip it.
     var notificationExplainerPending: Bool { didSet { defaults.set(notificationExplainerPending, forKey: "keel.notificationExplainerPending") } }
-    /// She said "Not now" to connecting Apple Health (the launch offer, or Skip in
-    /// onboarding). Kept in UserDefaults on purpose: a reinstall clears it, so a fresh
-    /// install, where iOS has also dropped Keel's Health access, can offer once again.
+    /// She has been offered "Connect Apple Health?" on launch and continued to Apple's
+    /// sheet, so it isn't offered again. Kept in UserDefaults on purpose: a reinstall
+    /// clears it, so a fresh install, where iOS has also dropped Keel's Health access,
+    /// can offer once again.
     var healthConnectOfferDeclined: Bool { didSet { defaults.set(healthConnectOfferDeclined, forKey: "keel.healthOfferDeclined") } }
     /// She has answered the "Update Apple Health access?" offer (shown to a connected
     /// user when iOS would ask again). Cleared once iOS no longer needs to ask, so a

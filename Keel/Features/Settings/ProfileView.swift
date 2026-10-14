@@ -19,7 +19,6 @@ struct ProfileView: View {
     @State private var periodsNote = ""
     @State private var justSaved = false
 
-    private var hasAppleIdentity: Bool { env.auth.hasAppleIdentity }
 
     var body: some View {
         ScrollView {
@@ -52,13 +51,8 @@ struct ProfileView: View {
                           text: $age, keyboard: .numberPad)
             KeelTextField(label: "Mobile (optional)", placeholder: "For your records",
                           text: $mobile, keyboard: .phonePad, textContentType: .telephoneNumber)
-            KeelTextField(label: emailLabel, placeholder: "you@example.com",
+            KeelTextField(label: "Email (optional)", placeholder: "you@example.com",
                           text: $email, keyboard: .emailAddress, textContentType: .emailAddress)
-            if hasAppleIdentity {
-                Text("Apple shares this email with Keel. You can replace it with another contact email.")
-                    .font(KeelFont.caption).foregroundStyle(theme.muted)
-                    .fixedSize(horizontal: false, vertical: true)
-            }
         }
     }
 
@@ -75,7 +69,6 @@ struct ProfileView: View {
         }
     }
 
-    private var emailLabel: String { hasAppleIdentity ? "Contact email" : "Email (optional)" }
 
     // MARK: Card chrome
 

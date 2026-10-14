@@ -81,7 +81,7 @@ final class HealthAccessOfferTests: XCTestCase {
         XCTAssertEqual(offer, .connect)
     }
 
-    /// Not now is final for this install: no offer on any later launch.
+    /// Answering is final for this install: no offer on any later launch.
     func testNotNowIsNotAskedAgain() async {
         source.status = .shouldRequest
         env.answerHealthOffer(.connect)
@@ -91,23 +91,15 @@ final class HealthAccessOfferTests: XCTestCase {
         }
     }
 
-    /// Regression (review): tapping Connect also counts as her answer, so if Connect can't
+    /// Regression (review): continuing counts as her answer, so if the request can't
     /// complete (Health restricted on the phone) the offer doesn't return every launch.
     func testConnectCountsAsAnAnswerToo() async {
         source.status = .shouldRequest
         let offer1 = await env.checkHealthAccessOnLaunch()
         XCTAssertEqual(offer1, .connect)
-        env.answerHealthOffer(.connect)                       // what the Connect button does first
+        env.answerHealthOffer(.connect)                       // what Continue does first
         let offer2 = await env.checkHealthAccessOnLaunch()
         XCTAssertEqual(offer2, .none)
-    }
-
-    /// Skip in onboarding's Health step means no Connect offer on launch.
-    func testSkippedInOnboardingIsNotOffered() async {
-        source.status = .shouldRequest
-        env.declineHealthConnectOffer()
-        let offer3 = await env.checkHealthAccessOnLaunch()
-        XCTAssertEqual(offer3, .none)
     }
 
     /// She answered the iOS sheet (allowed or refused): iOS won't show it again, and
@@ -132,9 +124,9 @@ final class HealthAccessOfferTests: XCTestCase {
     // MARK: Connected, and Keel now reads something new
 
     /// Keel now reads periods, so iOS would ask a connected user again. She's offered
-    /// Update once, even past an earlier Not now on the Connect offer, and stays connected.
+    /// Update once, even past an earlier answer to the Connect offer, and stays connected.
     func testConnectedUserIsOfferedUpdateOnceAndStaysConnected() async {
-        env.declineHealthConnectOffer()                       // an old Not now, before she connected
+        env.answerHealthOffer(.connect)                       // an old answer, before she connected
         env.users.setHealthKitAuthorized(true)
         source.status = .shouldRequest
 
@@ -143,7 +135,7 @@ final class HealthAccessOfferTests: XCTestCase {
         XCTAssertEqual(offer6, .reconnect)
         XCTAssertEqual(env.users.currentProfile()?.healthKitAuthorized, true)
 
-        env.answerHealthOffer(.reconnect)                     // Not now
+        env.answerHealthOffer(.reconnect)                     // she continued (or not)
         let offer7 = await env.checkHealthAccessOnLaunch()
         XCTAssertEqual(offer7, .none)
         XCTAssertEqual(env.users.currentProfile()?.healthKitAuthorized, true)

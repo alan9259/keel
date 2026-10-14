@@ -40,6 +40,17 @@ enum Keychain {
         SecItemDelete(baseQuery(key) as CFDictionary)
     }
 
+    /// Delete every item Keel has stored (all keys under Keel's service), including
+    /// any left by earlier builds. Used by "Delete all my data" and on the first launch
+    /// after a reinstall (iOS keeps an app's Keychain items when the app is deleted).
+    static func removeAll() {
+        let query: [String: Any] = [
+            kSecClass as String: kSecClassGenericPassword,
+            kSecAttrService as String: service,
+        ]
+        SecItemDelete(query as CFDictionary)
+    }
+
     #if DEBUG
     /// Returns the raw OSStatus of a write/read round-trip, to distinguish a code
     /// bug from the unsigned-Simulator "missing entitlement" case (-34018).

@@ -38,11 +38,11 @@ struct AppleHealthView: View {
             Spacer()
 
             VStack(spacing: Spacing.md) {
-                KeelPrimaryButton("Connect Apple Health", isEnabled: !connecting) {
+                // One way forward (App Review 5.1.1(iv)): no "Skip" before the system
+                // prompt. She chooses on Apple's own sheet, which has "Don't Allow".
+                KeelPrimaryButton("Continue", isEnabled: !connecting) {
                     connect()
                 }
-                // Skipping is a choice: don't follow it with a Connect offer on next launch.
-                KeelTextLink("Skip for now") { env.declineHealthConnectOffer(); onContinue() }
                 Text("We never sell your data. Ever.")
                     .font(KeelFont.caption)
                     .foregroundStyle(theme.muted)

@@ -170,12 +170,6 @@ struct SettingsView: View {
                             .font(KeelFont.caption).foregroundStyle(theme.muted).fixedSize(horizontal: false, vertical: true)
                     }
                 }
-                if env.auth.hasAppleIdentity {
-                    // She signed in with Apple. Deleting here clears everything on Keel's
-                    // side; only she can remove Keel from her Apple ID, in iOS Settings.
-                    Text("You signed in with Apple. Closing your account deletes everything from Keel. To also stop Keel using your Apple ID, remove it under your Apple Account in the Settings app.")
-                        .font(KeelFont.caption).foregroundStyle(theme.muted).fixedSize(horizontal: false, vertical: true)
-                }
                 VStack(alignment: .leading, spacing: 6) {
                     Text("\(Text("Type "))\(Text("DELETE").font(.system(.footnote, design: .monospaced).weight(.semibold)))\(Text(" to confirm"))")
                         .font(KeelFont.caption).foregroundStyle(theme.muted)
