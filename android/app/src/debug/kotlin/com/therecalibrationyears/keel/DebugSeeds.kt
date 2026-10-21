@@ -100,7 +100,9 @@ internal class DebugSeeds(private val container: AppContainer) {
             db.checkIns().upsert(CheckInEntity(id(), at, moods[i].raw, energies[i], ownerID = owner, createdAt = at, updatedAt = at))
             val midnight = day.atStartOfDay(zone).toInstant()
             if (sleep[i] > 0) {
-                db.activityLogs().upsert(ActivityLogEntity(id(), midnight, "sleep", sleep[i], ownerID = owner, createdAt = midnight, updatedAt = midnight))
+                // Seeding again on a later day replaces that night rather than adding a second row.
+                val existing = db.activityLogs().liveOn("sleep", midnight)
+                db.activityLogs().upsert(ActivityLogEntity(existing?.id ?: id(), midnight, "sleep", sleep[i], ownerID = owner, createdAt = midnight, updatedAt = midnight))
             }
             if (i % 2 == 0) meds.firstOrNull()?.let {
                 db.medications().upsertLog(MedicationLogEntity(id(), midnight, null, true, it.id, ownerID = owner, createdAt = midnight, updatedAt = midnight))

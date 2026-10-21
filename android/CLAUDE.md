@@ -148,7 +148,8 @@ create_account, pathway, health, ready). For a truly fresh start:
 - **Debug seeds:** `--ez uitSeedMed true --ez uitSeedWeek true --ez uitSeedCheckIn true`
   (and `uitReset`, `uitSeedEnergyMix`) fill Home for screenshots; `uitSeedCycle` seeds cycles
   and a current period, `uitCycleSheet` opens the Cycle log sheet, `--es uitActivitiesPeriod
-  week` opens Activities on a week (or month); `--es uitRoute more` opens a
+  week` opens Activities on a week (or month); `--es uitRoute` also takes `activities`,
+  `stats`, `notes`, `profile` and `health` (the last two are stand-ins until M6/M7); `--es uitRoute more` opens a
   screen. They live in `app/src/debug` and never ship.
 - **Copy for new wording:** a user-facing string with no iOS original (e.g. a TalkBack label
   iOS lacks) goes in `core/copy/src/test/resources/android-additions.json` for owner sign-off.

@@ -12,9 +12,9 @@
 > under §5. **Home is built** on the check-in, symptom, medicine and activity tables (see
 > "Home slice"). **The check-in flow is built** (see "Check-in slice"). **M3 medications are
 > built** (see "M3 medications") **and so are reminders** (see "M3 reminders"), with
-> "Reminders on time" for exact alarms (D25). Open: the daily top-up (D11). **M4 is under
-> way:** Cycle, Looking back and Activities are built (see "M4 Cycle", "M4 Looking back",
-> "M4 Activities") and Stats (unit-tested, emulator check still to do).
+> "Reminders on time" for exact alarms (D25). Open: the daily top-up (D11). **M4 is done:**
+> Cycle, Looking back, Activities and Stats (see the "M4" sections); imported health data
+> fills them in M7, and Activities and Stats are reached from More in M6. Next: M5.
 
 ## Context
 
@@ -592,6 +592,28 @@ check-in and sleep, water and eating written as her rows on her local day (read 
 device database), clearing an answer deletes its row, the week counts; the chart in the debug
 gallery with sample points (no real readings before M7); API 28 dark month view. Not verified:
 the vitals rows and arrows on real imported data (M7), TalkBack.
+
+### M4 Stats (22 Oct 2026)
+Built: `SymptomTally`, `StatsDayCounts`, `StatsPeriod` (`core/domain`); `StatsScreen` and its
+pure `StatsModel` (`feature/insights`): the "You checked in on X of the last N days" line and
+the four tiles (all counted in days), the mood distribution, symptoms by days with the
+vasomotor rate (paged after ten), medicines "recorded as taken", tappable sleep bars, and Body
+(vitals averages and ranges, empty until M7). Reached by debug route until More (M6). Copy:
+three Health Connect substitutions; iOS's "58–70" range becomes "58 to 70" (no en dashes on
+Android). Tests: domain +8, insights +9. Verified on the API 36 emulator against the device
+database (8 check-in days from 16 entries, 6 with no symptoms, 4 medicine days, mood shares,
+a tapped night's hours), on API 28 in dark mode (3 months), and the release build starts.
+The debug week seed now replaces a night instead of adding a second row when run on a later
+day (a seed artefact found here; the app's own save already updated the night).
+
+### M4 summary
+All four screens are ported on her own records with the iOS wording, rules and tests. Waiting
+on later milestones: imported period days, activity amounts and vitals (M7, the screens
+already show and label them); the More screen that leads to Activities and Stats, and Profile
+and Health Connect behind title-only stand-ins (M6); the GP Visit Summary behind Looking back
+(M5). For the owner: 13 Health Connect wordings and the range wording ("12 Oct to 18 Oct",
+"58 to 70") to sign off; the dark-mode accent contrast on tinted chips (about 1.9:1, iOS
+identical) for M8.
 
 ## 6. Decisions (recommendation; "owner" = needs Mischa's sign-off before release)
 | # | Topic | Recommendation |
