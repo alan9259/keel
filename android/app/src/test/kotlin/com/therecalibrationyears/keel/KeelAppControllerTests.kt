@@ -5,6 +5,7 @@ import androidx.datastore.preferences.core.PreferenceDataStoreFactory
 import com.therecalibrationyears.keel.data.ActivityRepository
 import com.therecalibrationyears.keel.data.CheckInRepository
 import com.therecalibrationyears.keel.data.CycleRepository
+import com.therecalibrationyears.keel.data.InsightRepository
 import com.therecalibrationyears.keel.data.DeviceContext
 import com.therecalibrationyears.keel.data.LocalIdentity
 import com.therecalibrationyears.keel.data.MedicationRepository
@@ -105,6 +106,7 @@ class KeelAppControllerTests {
             medications,
             ActivityRepository(db.activityLogs(), clock, identity::ownerId),
             CycleRepository(db.cycle(), identity::ownerId, clock),
+            InsightRepository(db.insights(), db.checkIns(), db.cycle(), identity::ownerId, clock),
             com.therecalibrationyears.keel.platform.SpeechRecognitionService(RuntimeEnvironment.getApplication()),
             TreatmentCatalogStore(RuntimeEnvironment.getApplication()),
             KeelReminders(settings, medications, scheduler, clock, exactAlarmsAllowed = { exactAllowed }) { true }, clock, scope,
@@ -376,5 +378,52 @@ class KeelAppControllerTests {
         exactAllowed = true
         app.medicationsActions.add(TreatmentDraft(name = "Prometrium", kind = TreatmentKind.TREATMENT, schedule = DoseSchedule(slots = listOf(DoseSlot(hour = 20)))))
         assertFalse(app.exactTimingOfferPending.value)
+    }
+
+    // M4: Cycle and Looking back.
+
+    /** Port of testCurrentReadsThisMonthFromTheStore (KeelTests/LookingBackTests.swift). */
+    @Test fun lookingBackReadsThisMonthsLiveCheckIns() = runBlocking {
+        val app = launch()
+        val repo = CheckInRepository(db.checkIns(), { "o" }, clock)
+        val zone = clock.zone()
+        fun on(day: Int, month: Int = 10) = LocalDate.of(2026, month, day).atTime(9, 0).atZone(zone).toInstant()
+        val symptom = SymptomRepository(db.symptoms(), db.checkIns(), SettingsStore(prefs), { "o" }, clock).findOrCreateCustom("Hot flushes", "vasomotor")
+        repo.create(Mood.OKAY, 60, "In the month", listOf(com.therecalibrationyears.keel.data.SymptomPick(symptom.id, 2)), on(3))
+        repo.create(Mood.OKAY, 60, "Last month", emptyList(), on(30, month = 9))
+        val deleted = repo.create(Mood.OKAY, 60, "Deleted", emptyList(), on(4))
+        repo.delete(deleted.id)
+
+        val data = app.lookingBackActions.data.first()
+        assertEquals(1, data.summary.daysCheckedIn)
+        assertEquals(listOf("In the month"), data.summary.notes.map { it.text })
+        assertEquals(listOf(com.therecalibrationyears.keel.domain.MonthSummary.SymptomCount("Hot flushes", 1)), data.summary.topSymptoms)
+        assertEquals("October so far", data.summary.heading)
+        assertTrue(data.hasAnyNotes)
+        // "See all notes" covers every month, newest first.
+        assertEquals(listOf("In the month", "Last month"), app.lookingBackActions.allNotes.first().map { it.text })
+    }
+
+    @Test fun launchDerivesTheCycleLengthCardForLookingBackAndCycle() = runBlocking {
+        val app = launch()
+        val cycle = CycleRepository(db.cycle(), { "o" }, clock)
+        val today = LocalDate.of(2026, 10, 21)
+        listOf(95L, 70L, 35L).forEach { cycle.setFlow(com.therecalibrationyears.keel.domain.FlowLevel.MEDIUM, today.minusDays(it)) }
+        val repo = CheckInRepository(db.checkIns(), { "o" }, clock)
+        (0L until 5L).forEach { repo.create(Mood.OKAY, 60, null, emptyList(), today.minusDays(it).atTime(9, 0).atZone(clock.zone()).toInstant()) }
+
+        assertEquals("Your cycle length", app.cycleActions.data.first().finding?.title) // live on the Cycle screen
+        app.bootstrap()
+        val cards = withTimeout(5_000) { app.lookingBackActions.data.first { it.insights.isNotEmpty() }.insights }
+        assertEquals("Your recent cycles ranged from about 25 to 35 days apart. That's the kind of detail that can be useful to bring to your GP.", cards.single().detail)
+    }
+
+    @Test fun loggingFromTheCycleScreenUpdatesItLive() = runBlocking {
+        val app = launch()
+        val today = LocalDate.of(2026, 10, 21)
+        app.cycleActions.setFlow(com.therecalibrationyears.keel.domain.FlowLevel.HEAVY, today)
+        val days = app.cycleActions.data.first { it.days.isNotEmpty() }.days
+        assertEquals(listOf(today to com.therecalibrationyears.keel.domain.FlowLevel.HEAVY), days.map { it.first to it.second.level })
+        assertTrue(app.cycleActions.data.first().imported.isEmpty()) // nothing imported before Health Connect
     }
 }

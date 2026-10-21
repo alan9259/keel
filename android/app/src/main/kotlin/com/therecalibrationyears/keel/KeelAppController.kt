@@ -3,6 +3,10 @@ package com.therecalibrationyears.keel
 import com.therecalibrationyears.keel.data.ActivityRepository
 import com.therecalibrationyears.keel.data.CheckInRepository
 import com.therecalibrationyears.keel.data.CycleRepository
+import com.therecalibrationyears.keel.data.InsightRepository
+import com.therecalibrationyears.keel.domain.MonthSummary
+import com.therecalibrationyears.keel.insights.LookingBackActions
+import com.therecalibrationyears.keel.insights.LookingBackData
 import com.therecalibrationyears.keel.cycle.CycleActions
 import com.therecalibrationyears.keel.cycle.CycleData
 import com.therecalibrationyears.keel.domain.FlowLevel
@@ -68,6 +72,7 @@ class KeelAppController(
     private val medications: MedicationRepository,
     private val activities: ActivityRepository,
     private val cycle: CycleRepository,
+    private val insights: InsightRepository,
     private val speech: SpeechRecognitionService,
     private val treatments: TreatmentCatalogStore,
     val reminders: KeelReminders,
@@ -77,13 +82,14 @@ class KeelAppController(
 
     /**
      * Launch work (iOS `bootstrap`, in its order; later milestones add their steps): bring
-     * the built-in symptom catalog up to date, carry older medicine entries onto schedules,
-     * tidy brand examples out of their names, then the everyday reminders, today's
-     * auto-logged doses and the medication reminders.
+     * the built-in symptom catalog up to date, re-derive Looking back's pattern cards, carry
+     * older medicine entries onto schedules, tidy brand examples out of their names, then the
+     * everyday reminders, today's auto-logged doses and the medication reminders.
      */
     fun bootstrap() {
         scope.launch {
             symptoms.syncBuiltIns()
+            insights.refreshDerived()
             medications.migrateLegacySchedules()
             medications.stripExampleBrandsFromNames()
             reminders.refreshAll(::autoLogTodaysDoses)
@@ -308,6 +314,26 @@ class KeelAppController(
         override val zone: ZoneId get() = clock.zone()
         override fun now(): Instant = clock.now()
         override suspend fun setFlow(level: FlowLevel?, day: LocalDate) = cycle.setFlow(level, day)
+    }
+
+    /**
+     * Looking back's view of the app (iOS `PatternsView`): this month's summary from her live
+     * check-ins and their symptoms, whether she has written anything, and the pattern cards.
+     */
+    val lookingBackActions: LookingBackActions = object : LookingBackActions {
+        override val data: Flow<LookingBackData> =
+            combine(checkIns.observeLive(), checkIns.observeLoggedSymptoms(), insights.observeAll()) { entries, logged, cards ->
+                val names = logged.groupBy({ it.checkInID }, { it.name })
+                val summary = MonthSummary.build(
+                    entries.map { MonthSummary.Entry(it.id, it.date, names[it.id].orEmpty(), it.notes) }, clock.now(), clock.zone(),
+                )
+                LookingBackData(summary, hasAnyNotes = entries.any { !it.notes.isNullOrBlank() }, insights = cards)
+            }
+        override val allNotes: Flow<List<MonthSummary.Note>> = checkIns.observeLive().map { entries ->
+            MonthSummary.notes(entries.map { MonthSummary.Entry(it.id, it.date, emptyList(), it.notes) })
+        }
+        override val zone: ZoneId get() = clock.zone()
+        override fun now(): Instant = clock.now()
     }
 
     /** The Reminders screen's view of the app. */

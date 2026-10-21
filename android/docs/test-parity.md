@@ -19,7 +19,10 @@ test classes keep the iOS name. Suites not listed yet are ported with their mile
 | ProfileTests: ageAndBirthYearAreInverse, derivedAgeUsesStoredBirthYear | | with the Profile screen (M6) |
 | ProfileTests: reassignOwnership* | | N/A: no account upgrade on Android (plan D21) |
 | LookingBackTests: labelNeedsThreeEntries, mostlyIsTheMostFrequentLevelNotAnAverage, tieGoesToTheMostRecentlyPickedLevel | core/domain `EnergySummaryTests` | ported |
-| LookingBackTests: the rest (MonthSummary) | | with Looking back (M4) |
+| LookingBackTests: countsDaysSymptomsAndNotesForThisMonthOnly, emptyMonthHasHonestWording, oneDayIsSingular, topSymptomsCappedAtFive, monthBoundaryFirstAndLastDay | core/domain `LookingBackTests` | ported (+ the month follows her zone) |
+| LookingBackTests: otherPhoneCalendarsStillMeanTheGregorianMonth | `LookingBackTests.theHeadingIsTheEnglishGregorianMonth` | adapted: `java.time` is always Gregorian; checks the heading stays English under a Hebrew-calendar locale |
+| LookingBackTests: currentReadsThisMonthFromTheStore | app `KeelAppControllerTests.lookingBackReadsThisMonthsLiveCheckIns` | ported (+ symptoms by name, "See all notes" covers every month) |
+| LookingBackTests: generatedTextIsDeletedAndNotRestored | | N/A: Android never stored generated text; the backup half comes with backup (M1 backup) |
 | MedicationHomeLogTests: appearsWhenTrackedOrAutoLogged | core/data `HomeDataTests.appearsInHomeLogWhenTrackedOrAutoLogged` | ported |
 | CheckInRepositoryTests: createWithSymptoms, createTrimsBlankNotesToNil, updateReconcilesSymptoms_addKeepRemove, deleteSoftDeletesAndTombstonesLinks | core/data `CheckInDataTests` | ported |
 | CheckInRepositoryTests: recentIsNewestFirstAndLimited, trackingDayCountCountsDistinctDays | | with the screens that use them (M4) |
@@ -54,3 +57,5 @@ test classes keep the iOS name. Suites not listed yet are ported with their mile
 | AppleHealthPeriodsTests: the rest | | with Health Connect (M7) |
 | PatternEngineTests (4) | core/domain `PatternEngineTests` | ported on the pure engine (the store-building tests feed it cycle days directly) (+ 120-day window) |
 | (Android) Cycle screen | feature/cycle `CycleModelTests`, `CycleScreenTests` | new: the iOS view's derived values are untested there |
+| (Android) Looking back cards | core/data `InsightRepositoryTests` | new: iOS has no `InsightRepository` test (five-day minimum, rewritten each launch, spotting store path) |
+| (Android) Looking back and Your notes | feature/insights `LookingBackScreenTests` | new |

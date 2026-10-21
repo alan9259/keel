@@ -45,6 +45,7 @@ dependencies {
     implementation(project(":feature:checkin"))
     implementation(project(":feature:medications"))
     implementation(project(":feature:cycle"))
+    implementation(project(":feature:insights"))
     implementation(project(":feature:settings"))
     implementation(libs.navigation3.runtime)
     implementation(libs.navigation3.ui)

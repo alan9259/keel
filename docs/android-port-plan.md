@@ -13,7 +13,8 @@
 > "Home slice"). **The check-in flow is built** (see "Check-in slice"). **M3 medications are
 > built** (see "M3 medications") **and so are reminders** (see "M3 reminders"), with
 > "Reminders on time" for exact alarms (D25). Open: the daily top-up (D11). **M4 is under
-> way:** Cycle is built (see "M4 Cycle"); next Looking back, Activities, Stats.
+> way:** Cycle and Looking back are built (see "M4 Cycle", "M4 Looking back"); next
+> Activities, then Stats.
 
 ## Context
 
@@ -562,6 +563,16 @@ sheet wrote a `manual` row at the start of her local day and the screen updated 
 start, history, and the insight once the gaps varied by 7+ days). API 28: dark mode and the
 sheet. Finding for M8: in dark mode the default theme keeps rosewood as the accent, so accent
 text on tinted chips is about 1.9:1 (iOS identical). Not verified: TalkBack reading order.
+
+### M4 Looking back (21 Oct 2026)
+Built: `MonthSummary` and `Insight` (`core/domain`); the `insight` table and
+`InsightRepository.refreshDerived` (five-day minimum, rewritten in one transaction), run at
+launch right after the symptom catalog, as iOS; `feature/insights` with Looking back (this
+month's heading, days checked in, top five symptoms by days, three newest notes, "See all
+notes", pattern cards, the GP Visit Summary link, a stand-in until M5) and Your notes. All copy
+is iOS-verbatim. Tests: domain +7, data +3, app +3, insights +4. Verified on the API 36
+emulator with seeded entries (and "See all notes" opening Your notes), on API 28 in dark
+mode, and in the release (R8) build on API 36. Not verified: TalkBack.
 
 ## 6. Decisions (recommendation; "owner" = needs Mischa's sign-off before release)
 | # | Topic | Recommendation |

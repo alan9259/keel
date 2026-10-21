@@ -135,3 +135,73 @@ class CycleRepositoryTests {
         assertEquals(1, local.stats().starts.size) // "today" is the 21st there
     }
 }
+
+/**
+ * Looking back's pattern cards (iOS `InsightRepository.refreshDerived`), on an in-memory
+ * store: only real findings, none before five days of check-ins, rewritten each launch.
+ * The store-path halves of KeelTests/PatternEngineTests.swift run here too.
+ */
+@RunWith(RobolectricTestRunner::class)
+@Config(sdk = [34])
+class InsightRepositoryTests {
+    private lateinit var db: MainDatabase
+    private lateinit var cycle: CycleRepository
+    private lateinit var checkIns: CheckInRepository
+    private lateinit var insights: InsightRepository
+    private val clock = TestClock(Instant.parse("2026-10-21T09:00:00Z"))
+    private val today = LocalDate.of(2026, 10, 21)
+
+    @Before fun setUp() {
+        db = inMemoryDatabase()
+        cycle = CycleRepository(db.cycle(), { "o" }, clock)
+        checkIns = CheckInRepository(db.checkIns(), { "o" }, clock)
+        insights = InsightRepository(db.insights(), db.checkIns(), db.cycle(), { "o" }, clock)
+    }
+
+    @After fun tearDown() = db.close()
+
+    private suspend fun checkInOn(daysAgo: Int) = checkIns.create(
+        com.therecalibrationyears.keel.domain.Mood.OKAY, 60, null, emptyList(),
+        today.minusDays(daysAgo.toLong()).atTime(9, 0).toInstant(java.time.ZoneOffset.UTC),
+    )
+
+    /** Starts 25 then 35 days apart: a real 10-day swing. */
+    private suspend fun variableCycles() = listOf(95, 70, 35).forEach { cycle.setFlow(FlowLevel.MEDIUM, today.minusDays(it.toLong())) }
+
+    @Test fun aFindingBecomesACardOnceSheHasCheckedInOnFiveDays() = runBlocking {
+        variableCycles()
+        (0 until 4).forEach { checkInOn(it) }
+        insights.refreshDerived()
+        assertTrue(insights.observeAll().first().isEmpty()) // four days: still learning
+        checkInOn(4)
+        checkInOn(4) // a second entry the same day doesn't count twice
+        insights.refreshDerived()
+        val card = insights.observeAll().first().single()
+        assertEquals("Your cycle length", card.title)
+        assertEquals("Your recent cycles ranged from about 25 to 35 days apart. That's the kind of detail that can be useful to bring to your GP.", card.detail)
+        assertEquals("arrow.left.and.right", card.iconKey)
+        assertEquals(com.therecalibrationyears.keel.domain.InsightAccent.SAGE, card.accent)
+    }
+
+    @Test fun refreshingRewritesTheSetRatherThanAddingToIt() = runBlocking {
+        variableCycles()
+        (0 until 5).forEach { checkInOn(it) }
+        insights.refreshDerived()
+        insights.refreshDerived()
+        assertEquals(1, db.insights().all().size)
+        // Her cycles settle (she corrects the outlier): the card goes.
+        cycle.setFlow(null, today.minusDays(35))
+        cycle.setFlow(FlowLevel.MEDIUM, today.minusDays(45))
+        insights.refreshDerived()
+        assertEquals(0, db.insights().all().size)
+    }
+
+    /** Port of testSpottingDoesNotCreateAFalseCycleRange (KeelTests/PatternEngineTests.swift), store path. */
+    @Test fun spottingDoesNotCreateAFalseCycleRange() = runBlocking {
+        listOf(84, 56, 28).forEach { cycle.setFlow(FlowLevel.MEDIUM, today.minusDays(it.toLong())) } // 28 and 28
+        cycle.setFlow(FlowLevel.SPOTTING, today.minusDays(40)) // stray spotting
+        (0 until 5).forEach { checkInOn(it) }
+        insights.refreshDerived()
+        assertTrue(insights.observeAll().first().isEmpty())
+    }
+}

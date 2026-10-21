@@ -19,6 +19,10 @@ interface CheckInDao {
     )
     fun observeLoggedSymptoms(): Flow<List<LoggedSymptom>>
 
+    /** When each live check-in was made, from [since] on (the pattern engine's window). */
+    @Query("SELECT date FROM check_in WHERE deletedAt IS NULL AND date >= :since")
+    suspend fun liveDatesSince(since: Instant): List<Instant>
+
     @Upsert suspend fun upsert(checkIn: CheckInEntity)
     @Upsert suspend fun upsertLink(link: CheckInSymptomEntity)
 

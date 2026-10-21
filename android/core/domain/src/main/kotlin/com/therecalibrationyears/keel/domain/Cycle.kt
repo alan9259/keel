@@ -200,7 +200,14 @@ object CycleTimeline {
 }
 
 /** Port of iOS `InsightAccent` (raw values kept for backups). */
-enum class InsightAccent(val raw: String) { TERRACOTTA("terracotta"), SAGE("sage"), WARM_GREY("warmGrey") }
+enum class InsightAccent(val raw: String) {
+    TERRACOTTA("terracotta"), SAGE("sage"), WARM_GREY("warmGrey");
+
+    companion object {
+        /** An unknown raw value reads as terracotta, as on iOS. */
+        fun fromRaw(raw: String?): InsightAccent = entries.firstOrNull { it.raw == raw } ?: TERRACOTTA
+    }
+}
 
 /**
  * One grounded observation about her own data (port of iOS `PatternFinding`). Each finding

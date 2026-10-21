@@ -311,7 +311,7 @@ private fun InsightCard(finding: PatternFinding) {
                 Modifier.size(44.dp).clip(RoundedCornerShape(12.dp)).background(theme.accent.copy(alpha = 0.1f)),
                 contentAlignment = Alignment.Center,
             ) {
-                Icon(findingIcon(finding.icon), null, tint = theme.accent, modifier = Modifier.size(22.dp))
+                Icon(KeelIcons.forSymbolName(finding.icon), null, tint = theme.accent, modifier = Modifier.size(22.dp))
             }
             Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(6.dp)) {
                 Text(finding.title, style = KeelFont.serif(17.sp), color = theme.heading)
@@ -320,12 +320,6 @@ private fun InsightCard(finding: PatternFinding) {
             }
         }
     }
-}
-
-/** A finding's SF Symbol name, drawn with Keel's icons. */
-private fun findingIcon(key: String): ImageVector = when (key) {
-    "arrow.left.and.right" -> KeelIcons.leftRight
-    else -> KeelIcons.leaf
 }
 
 /** "Log past days": the month grid. */

@@ -80,6 +80,8 @@ adb exec-out screencap -p > shot.png
   pure rules (`TreatmentForm`, `TreatmentPicker`), behind `MedicationsActions`.
 - `feature/cycle`: the Cycle screen (timeline, history, phase, insight, month grid, log sheet)
   and its pure rules (`CycleModel`), behind `CycleActions`.
+- `feature/insights`: Looking back and Your notes (`LookingBackScreen`, `AllNotesScreen`),
+  behind `LookingBackActions`; Activities and Stats join them in M4.
 - `feature/settings`: settings screens (so far Reminders) and `rememberNotificationAccess`,
   the notification permission gate shared with Home's "Gentle reminders".
 - `core/platform`: device services: `SpeechRecognitionService` (on-device only),
