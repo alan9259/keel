@@ -36,8 +36,10 @@ import com.therecalibrationyears.keel.onboarding.OnboardingActions
 import java.time.LocalDate
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
@@ -132,6 +134,24 @@ class KeelAppController(
         reminders.recordNotificationExplainerAnswer(allow = true)
         reminders.refreshLifestyleReminders()
         reminders.refreshMedicationReminders()
+    }
+
+    private val exactTimingOffer = MutableStateFlow(false)
+
+    /**
+     * "Reminders on time" is owed (Android only, D25): she just saved a medicine whose
+     * reminders Android would deliver late. Shown once, never during onboarding.
+     */
+    val exactTimingOfferPending: StateFlow<Boolean> = exactTimingOffer.asStateFlow()
+
+    private suspend fun offerExactTimingIfLate(medicationId: String) {
+        if (reminders.shouldOfferExactTiming(medicationId)) exactTimingOffer.value = true
+    }
+
+    /** "Continue" on "Reminders on time" (which then opens Android's page): told once. */
+    suspend fun answerExactTimingOffer() {
+        reminders.recordExactTimingOffered()
+        exactTimingOffer.value = false
     }
 
     /** Keel asked Android for notification permission (it can't say "never asked" itself). */
@@ -245,15 +265,17 @@ class KeelAppController(
         override fun now(): Instant = clock.now()
 
         override suspend fun add(draft: TreatmentDraft) {
-            medications.add(draft)
+            val med = medications.add(draft)
             autoLogTodaysDoses() // added with auto-log on: tick today now
             reminders.refreshMedicationReminders()
+            offerExactTimingIfLate(med.id)
         }
 
         override suspend fun update(id: String, draft: TreatmentDraft) {
             medications.update(id, draft)
             autoLogTodaysDoses() // turning auto-log on ticks today's log straight away
             reminders.refreshMedicationReminders()
+            offerExactTimingIfLate(id)
         }
 
         override suspend fun remove(id: String) {

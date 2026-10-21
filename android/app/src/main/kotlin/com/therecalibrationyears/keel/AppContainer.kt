@@ -16,6 +16,7 @@ import com.therecalibrationyears.keel.data.UserRepository
 import com.therecalibrationyears.keel.data.db.MainDatabase
 import com.therecalibrationyears.keel.domain.KeelClock
 import com.therecalibrationyears.keel.platform.AlarmReminderScheduler
+import com.therecalibrationyears.keel.platform.ExactAlarms
 import com.therecalibrationyears.keel.platform.ReminderChannels
 import com.therecalibrationyears.keel.platform.SpeechRecognitionService
 import kotlinx.coroutines.CoroutineScope
@@ -62,7 +63,11 @@ class AppContainer(context: Context) {
         produceFile = { context.preferencesDataStoreFile("keel-reminders") },
     )
     val scheduler = AlarmReminderScheduler(context, reminderRegistry, ReminderAlarmReceiver::class.java)
-    private val reminders = KeelReminders(settings, medications, scheduler, clock) { ReminderChannels.enabled(context) }
+    private val reminders = KeelReminders(
+        settings, medications, scheduler, clock,
+        exactAlarmsAllowed = { ExactAlarms.allowed(context) },
+        notificationsAllowed = { ReminderChannels.enabled(context) },
+    )
 
     init {
         ReminderChannels.ensure(context)

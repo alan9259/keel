@@ -53,6 +53,7 @@ import com.therecalibrationyears.keel.designsystem.components.KeelScreen
 import com.therecalibrationyears.keel.designsystem.components.KeelSegmented
 import com.therecalibrationyears.keel.designsystem.components.KeelTimeDialog
 import com.therecalibrationyears.keel.domain.DoseSlot
+import com.therecalibrationyears.keel.domain.ExactTiming
 import com.therecalibrationyears.keel.domain.ReminderCatalog
 import com.therecalibrationyears.keel.domain.ReminderConfig
 import com.therecalibrationyears.keel.domain.ReminderDef
@@ -85,6 +86,7 @@ fun RemindersScreen(actions: RemindersActions, onBack: () -> Unit) {
     val enabled by actions.enabledIds.collectAsStateWithLifecycle(emptySet())
     val config by actions.config.collectAsStateWithLifecycle(ReminderConfig())
     val asked by actions.notificationPermissionAsked.collectAsStateWithLifecycle(false)
+    val delivery = rememberReminderDelivery()
     var showBlocked by remember { mutableStateOf(false) }
     val access = rememberNotificationAccess(onAsked = actions::markNotificationPermissionAsked, onBlocked = { showBlocked = true })
 
@@ -101,6 +103,9 @@ fun RemindersScreen(actions: RemindersActions, onBack: () -> Unit) {
 
     KeelScreen(title = "Reminders", subtitle = "Gentle nudges, on your terms", onBack = onBack) {
         Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+            if (ExactTiming.showsNote(delivery.onTime, delivery.notificationsAllowed, anyReminderOn = enabled.isNotEmpty())) {
+                ExactTimingNote()
+            }
             ReminderCatalog.all.forEach { def ->
                 ReminderCard(def, icon(def.id), def.id in enabled, onToggle = { setEnabled(def, it) }) {
                     Editor(def.id, config, formats, ::update)

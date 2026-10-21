@@ -81,7 +81,7 @@ adb exec-out screencap -p > shot.png
   the notification permission gate shared with Home's "Gentle reminders".
 - `core/platform`: device services: `SpeechRecognitionService` (on-device only),
   `AlarmReminderScheduler` (alarms plus a device-only registry of armed ids, since Android
-  can't list pending alarms), `ReminderChannels`, the reminder status icon.
+  can't list pending alarms), `ExactAlarms`, `ReminderChannels`, the reminder status icon.
 - `app`: `AppContainer` (manual DI, built once in `KeelApplication`), `KeelAppController`
   (port of iOS `AppEnvironment`, same method names), `KeelRoot` (onboarding vs app),
   `MainActivity` (splash held until her saved state loads), `src/debug` harness and gallery,
@@ -151,9 +151,14 @@ create_account, pathway, health, ready). For a truly fresh start:
   posted ones with `dumpsys notification --noredact`. Doze: `dumpsys battery unplug` +
   `dumpsys deviceidle force-idle` (undo with `unforce` and `battery reset`). After `adb reboot`
   the boot broadcast can take a minute or more to reach `RescheduleReceiver`.
-- **Exact alarms:** Android 13+ doesn't grant them by default, and Keel never asks (plan
-  §1.7), so reminders are inexact there: Android may deliver one up to an hour after its time
-  (`window=+1h` in `dumpsys alarm`). Android 9 to 12 deliver on time. Owner decision pending.
+- **Exact alarms:** Android 14+ starts new installs with them off (12 and 13 grant them), and
+  then Android may deliver a reminder up to an hour late (`window=+1h` in `dumpsys alarm`;
+  `window=0` is exact). Keel offers them (plan D25): "Reminders on time" once after she saves a
+  medicine with reminders, and a note on the Reminders screen. To show the offer again:
+  `--ez uitExactTimingAgain true`. To turn them off on an emulator:
+  `adb shell appops set --uid com.therecalibrationyears.keel SCHEDULE_EXACT_ALARM default`
+  (per uid, as Android's switch sets it; this also stops Keel and drops its alarms, as a real
+  revoke does).
 - **Dates on screen** use `HomeFormats`-style skeletons (`DateFormat.getBestDateTimePattern`)
   so they follow her locale like iOS `.dateTime` formats; one-decimal numbers use
   `formatOneDecimal` (iOS `%.1f` rounds ties to even).

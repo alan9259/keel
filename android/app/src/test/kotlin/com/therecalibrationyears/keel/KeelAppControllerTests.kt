@@ -90,6 +90,7 @@ class KeelAppControllerTests {
 
     /** Reminders armed by the app under test (no alarm service needed). */
     private val scheduler = FakeScheduler()
+    private var exactAllowed = true
 
     private fun launch(): KeelAppController {
         val identity = LocalIdentity(prefs)
@@ -104,7 +105,7 @@ class KeelAppControllerTests {
             ActivityRepository(db.activityLogs(), clock, identity::ownerId),
             com.therecalibrationyears.keel.platform.SpeechRecognitionService(RuntimeEnvironment.getApplication()),
             TreatmentCatalogStore(RuntimeEnvironment.getApplication()),
-            KeelReminders(settings, medications, scheduler, clock) { true }, clock, scope,
+            KeelReminders(settings, medications, scheduler, clock, exactAlarmsAllowed = { exactAllowed }) { true }, clock, scope,
         )
     }
 
@@ -348,5 +349,30 @@ class KeelAppControllerTests {
         assertEquals(22, scheduler.armed["keel.winddown"]!!.second.hour)
         app.remindersActions.setEnabled("winddown", false)
         assertFalse("keel.winddown" in scheduler.armed)
+    }
+
+    /** Android only (plan D25): saving a timed medicine explains, once, how to get it on time. */
+    @Test fun savingATimedMedicineOffersExactTimingOnce() = runBlocking {
+        exactAllowed = false
+        val app = launch()
+        assertFalse(app.exactTimingOfferPending.value)
+        app.medicationsActions.add(TreatmentDraft(name = "Prometrium", kind = TreatmentKind.TREATMENT, schedule = DoseSchedule(slots = listOf(DoseSlot(hour = 20)))))
+        assertTrue(app.exactTimingOfferPending.value)
+        app.answerExactTimingOffer()
+        assertFalse(app.exactTimingOfferPending.value)
+        val id = app.medicationsActions.active.first().single().id
+        app.medicationsActions.update(id, TreatmentDraft(name = "Prometrium", kind = TreatmentKind.TREATMENT, schedule = DoseSchedule(slots = listOf(DoseSlot(hour = 21)))))
+        assertFalse(app.exactTimingOfferPending.value)
+        assertFalse(launch().exactTimingOfferPending.value) // nor after a relaunch
+    }
+
+    @Test fun exactTimingIsNotOfferedWhenRemindersAreAlreadyOnTimeOrUntimed() = runBlocking {
+        exactAllowed = false
+        val app = launch()
+        app.medicationsActions.add(TreatmentDraft(name = "Magnesium", kind = TreatmentKind.SUPPLEMENT, schedule = DoseSchedule()))
+        assertFalse(app.exactTimingOfferPending.value) // "Any time": no reminders to deliver
+        exactAllowed = true
+        app.medicationsActions.add(TreatmentDraft(name = "Prometrium", kind = TreatmentKind.TREATMENT, schedule = DoseSchedule(slots = listOf(DoseSlot(hour = 20)))))
+        assertFalse(app.exactTimingOfferPending.value)
     }
 }

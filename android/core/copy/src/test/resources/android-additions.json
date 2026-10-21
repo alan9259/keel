@@ -18,5 +18,25 @@
     "android": "Next month",
     "approvedByOwner": false,
     "note": "Home calendar arrow. TalkBack label; iOS gives this icon button no explicit label."
+  },
+  {
+    "android": "Reminders on time",
+    "approvedByOwner": false,
+    "note": "Android only (plan D25): one-time dialog after she saves a medicine whose reminders Android 14+ would deliver late. Continue (iOS wording) then opens Android's Alarms & reminders page. Dialog title."
+  },
+  {
+    "android": "Android can hold reminders back by up to an hour to save battery. To get yours on time, allow Keel to set alarms and reminders on the next screen.",
+    "approvedByOwner": false,
+    "note": "Android only (plan D25): one-time dialog after she saves a medicine whose reminders Android 14+ would deliver late. Continue (iOS wording) then opens Android's Alarms & reminders page. Dialog message."
+  },
+  {
+    "android": "Reminders may arrive late",
+    "approvedByOwner": false,
+    "note": "Android only (plan D25): note at the top of the Reminders screen while exact alarms are off and a reminder is on. Tapping it (\"Open Settings\", iOS wording) opens Android's Alarms & reminders page. Heading."
+  },
+  {
+    "android": "Android can hold them back by up to an hour to save battery. To get them on time, allow Keel to set alarms and reminders.",
+    "approvedByOwner": false,
+    "note": "Android only (plan D25): note at the top of the Reminders screen while exact alarms are off and a reminder is on. Tapping it (\"Open Settings\", iOS wording) opens Android's Alarms & reminders page. Message."
   }
 ]

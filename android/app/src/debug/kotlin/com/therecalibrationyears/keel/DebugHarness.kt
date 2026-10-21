@@ -57,7 +57,7 @@ object DebugHarness {
             OnboardingStep.entries.firstOrNull { it.name.equals(raw, ignoreCase = true) }
         }
         initialRoute = MainRoute.fromDebugName(intent.getStringExtra("uitRoute"))
-        seeds = listOf("uitReset", "uitSeedMed", "uitSeedCheckIn", "uitSeedEnergyMix", "uitSeedWeek", "uitReminderExplainer", "uitRemindSoon")
+        seeds = listOf("uitReset", "uitSeedMed", "uitSeedCheckIn", "uitSeedEnergyMix", "uitSeedWeek", "uitReminderExplainer", "uitExactTimingAgain", "uitRemindSoon")
             .filter { intent.getBooleanExtra(it, false) }
     }
 
@@ -72,6 +72,7 @@ object DebugHarness {
                 "uitSeedEnergyMix" -> s.energyMix()
                 "uitSeedWeek" -> s.week()
                 "uitReminderExplainer" -> container.settings.setNotificationExplainerPending(true)
+                "uitExactTimingAgain" -> container.settings.setExactTimingOffered(false) // "Reminders on time" can show again
                 "uitRemindSoon" -> s.remindSoon()
             }
         }

@@ -6,7 +6,6 @@ import android.content.BroadcastReceiver
 import android.content.Context
 import android.content.Intent
 import android.net.Uri
-import android.os.Build
 import androidx.datastore.core.DataStore
 import androidx.datastore.preferences.core.Preferences
 import androidx.datastore.preferences.core.edit
@@ -117,7 +116,7 @@ interface ReminderScheduling {
  * Reminders on Android's alarm service (plan §1.7). Android can't list pending alarms, so the
  * ids armed are kept in a small device-only registry, which is how a prefix, day or dose can
  * be cancelled the way iOS cancels pending requests. Exact alarms when Android allows them
- * (never asked for); otherwise Android delivers close to the time, also in Doze.
+ * ([ExactAlarms]); otherwise Android delivers within an hour of the time, also in Doze.
  */
 class AlarmReminderScheduler(
     private val context: Context,
@@ -132,7 +131,7 @@ class AlarmReminderScheduler(
     override suspend fun schedule(payload: ReminderPayload, at: ZonedDateTime) = lock.withLock {
         val pending = pendingIntent(payload.id, payload, PendingIntent.FLAG_UPDATE_CURRENT) ?: return@withLock
         val millis = at.toInstant().toEpochMilli()
-        if (canScheduleExact()) {
+        if (ExactAlarms.allowed(context)) {
             alarms.setExactAndAllowWhileIdle(AlarmManager.RTC_WAKEUP, millis, pending)
         } else {
             alarms.setAndAllowWhileIdle(AlarmManager.RTC_WAKEUP, millis, pending)
@@ -157,9 +156,6 @@ class AlarmReminderScheduler(
         registry.edit { it[IDS] = (it[IDS] ?: emptySet()) - id }
         Unit
     }
-
-    private fun canScheduleExact(): Boolean =
-        Build.VERSION.SDK_INT < Build.VERSION_CODES.S || alarms.canScheduleExactAlarms()
 
     /** One alarm per id: the id is the intent's data, so two reminders never replace each other. */
     private fun pendingIntent(id: String, payload: ReminderPayload?, flag: Int): PendingIntent? {

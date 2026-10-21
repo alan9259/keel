@@ -11,8 +11,8 @@
 > (UserProfile table, UserRepository, SettingsStore, LocalIdentity). See "Onboarding slice"
 > under §5. **Home is built** on the check-in, symptom, medicine and activity tables (see
 > "Home slice"). **The check-in flow is built** (see "Check-in slice"). **M3 medications are
-> built** (see "M3 medications") **and so are reminders** (see "M3 reminders"); open: the
-> exact-alarm decision and the daily top-up (D11). Next: M4.
+> built** (see "M3 medications") **and so are reminders** (see "M3 reminders"), with
+> "Reminders on time" for exact alarms (D25). Open: the daily top-up (D11). Next: M4.
 
 ## Context
 
@@ -176,7 +176,10 @@ fixtures/             (repo root) shared golden files read by both iOS and Andro
   port prefix/suffix cancels as registry queries, then `AlarmManager.cancel` (request code = stable
   hash of id).
 - Declare `SCHEDULE_EXACT_ALARM` (not `USE_EXACT_ALARM`); `canScheduleExactAlarms()` →
-  `setExactAndAllowWhileIdle`, else `setAndAllowWhileIdle`; never prompt for exact alarms.
+  `setExactAndAllowWhileIdle`, else `setAndAllowWhileIdle`. Android 14+ starts new installs
+  with exact alarms off, so Keel offers them (D25): "Reminders on time", once, after she saves a
+  medicine with reminders (Continue only, then Android's Alarms & reminders page), and a note
+  on the Reminders screen while they're off. Never during onboarding.
   Repeating lifestyle reminders schedule the next occurrence and re-arm on fire.
 - Receivers: `ReminderAlarmReceiver` posts; `MedicationActionReceiver` ("Mark taken" / "Always
   mark taken", `goAsync()`, day = occurrence `dayKey`, D10); body tap = `PendingIntent.getActivity`
@@ -516,12 +519,31 @@ Reminders screen 3 (312 in all). Verified on the API 36 emulator: explanation �
 "Always mark taken" and a body tap each logged the dose (read back from the device database)
 and cleared the notification; 25 alarms re-armed after a reboot; a reminder delivered in forced
 deep Doze; Hydration turned on lays 7 alarms. API 28: the explanation with no prompt, exact
-alarms. **Finding for the owner:** on Android 13+ exact alarms aren't granted by default and
-Keel never asks, so Android may deliver a reminder up to an hour late (`window=+1h`); options
-in the M3 report. Not done: the daily top-up (D11; reminders are topped up whenever Keel
-opens, as iOS); the Settings master switch and "Medicine names in reminders" (with Settings,
-M6; the logic is in place and tested). Not verified: a real phone (OEM battery savers can delay
+alarms. **Finding for the owner:** on Android 14+ exact alarms aren't granted by default (Android
+12 and 13 grant them), so without them Android may deliver a reminder up to an hour late
+(`window=+1h`). The owner chose to offer them (D25, below). Not done: the daily top-up (D11;
+reminders are topped up whenever Keel opens, as iOS); the Settings master switch and
+"Medicine names in reminders" (with Settings, M6; the logic is in place and tested). Not verified: a real phone (OEM battery savers can delay
 or drop alarms), the lock-screen look with names hidden, TalkBack.
+
+### Reminders on time (21 Oct 2026, D25)
+Built: `ExactTiming` rules (`core/domain`); `ExactAlarms` (`core/platform`: whether Android
+allows them, and its "Alarms & reminders" page for Keel, falling back to app info);
+`keel.exactTimingOffered` (Android-only setting); `KeelReminders.shouldOfferExactTiming` after a
+medicine is added or edited; the dialog (Continue only, not dismissible) hosted in `MainShell`;
+the Reminders screen note (tap opens the same page), re-checked when she comes back. Granting
+sends `SCHEDULE_EXACT_ALARM_PERMISSION_STATE_CHANGED`, which `RescheduleReceiver` already
+handled. Copy is Android-only (four strings in `android-additions.json`, owner sign-off).
+Tests: domain +2, app +4, settings +4 (322 in all). Verified on the API 36 emulator: saving a timed medicine
+(through the form, and through the debug seed) shows the dialog after the form closes; Back
+doesn't dismiss it; Continue opens Keel's "Alarms & reminders" page; allowing it re-armed all
+32 reminders exact (`window=0`) while that page was still open, so through the receiver; a
+reminder then posted at 21:31:00.04 for 21:31; turning it off stopped Keel and Android dropped
+its alarms, and the next launch re-armed all 32 inexact; the note shows then, opens the page,
+and is gone on return once allowed; a second medicine after being told once shows nothing.
+API 28: no dialog, no note, all exact. Release (R8) build on API 36: onboarding's "Gentle
+reminders" came alone; editing a timed medicine showed the dialog and Continue opened the page.
+Not verified: real phones, whose "Alarms & reminders" pages can differ from Pixel's; TalkBack.
 
 ## 6. Decisions (recommendation; "owner" = needs Mischa's sign-off before release)
 | # | Topic | Recommendation |
@@ -550,10 +572,11 @@ or drop alarms), the lock-screen look with names hidden, TalkBack.
 | D22 | Auto-log only when the app is foregrounded | Keep parity ("unless you change it") |
 | D23 | Themes/packs have prices but all owned | Port as-is, no billing |
 | D24 | Share link | Play URL for the applicationId, `// FAKE:` until the listing is live |
+| D25 | Exact alarms on Android 14+ (off by default; reminders up to an hour late) | **Owner chose (21 Oct 2026):** offer them. "Reminders on time" once after she saves a medicine with reminders (Continue only, opens Alarms & reminders), plus a note on the Reminders screen while off. Not `USE_EXACT_ALARM` (Play reserves it for alarm and calendar apps). Copy: owner sign-off |
 
 **Android-only UX:** system/predictive back pops routes (CheckInModal back = close without
 saving, GP flow back = previous step); notification permission only on API 33+, after "Gentle
-reminders" Continue; exact alarms declared, never prompted; edge-to-edge insets; M3 time picker
+reminders" Continue; exact alarms offered once after a medicine with reminders is saved, never during onboarding (D25); edge-to-edge insets; M3 time picker
 honouring 24 h; +/− steppers; tap outside clears focus.
 
 ---

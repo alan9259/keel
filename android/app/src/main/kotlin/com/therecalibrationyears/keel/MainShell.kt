@@ -43,6 +43,7 @@ import com.therecalibrationyears.keel.designsystem.LocalGoHome
 import com.therecalibrationyears.keel.designsystem.LocalKeelTheme
 import com.therecalibrationyears.keel.designsystem.components.KeelScreen
 import com.therecalibrationyears.keel.medications.MedicationsScreen
+import com.therecalibrationyears.keel.settings.ExactTimingDialog
 import com.therecalibrationyears.keel.settings.RemindersScreen
 import com.therecalibrationyears.keel.settings.rememberNotificationAccess
 import androidx.compose.material3.AlertDialog
@@ -162,6 +163,7 @@ fun MainShell(controller: KeelAppController) {
             }
 
             ReminderExplainer(controller)
+            ExactTimingOffer(controller)
 
             toast?.let {
                 Box(
@@ -275,5 +277,24 @@ private fun ReminderExplainer(controller: KeelAppController) {
                 }
             },
         )
+    }
+}
+
+/**
+ * "Reminders on time" (Android only, plan D25): after she saves a medicine whose reminders
+ * Android would deliver late, once. It waits for the form to close, so it doesn't land on top
+ * of it.
+ */
+@Composable
+private fun ExactTimingOffer(controller: KeelAppController) {
+    val scope = rememberCoroutineScope()
+    val pending by controller.exactTimingOfferPending.collectAsStateWithLifecycle()
+    var showing by remember { mutableStateOf(false) }
+    LaunchedEffect(pending) {
+        showing = false
+        if (pending) { delay(500); showing = true }
+    }
+    if (showing && pending) {
+        ExactTimingDialog(onContinue = { showing = false; scope.launch { controller.answerExactTimingOffer() } })
     }
 }

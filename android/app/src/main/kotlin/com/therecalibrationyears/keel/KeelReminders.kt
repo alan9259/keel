@@ -4,6 +4,7 @@ import com.therecalibrationyears.keel.data.LoggedDose
 import com.therecalibrationyears.keel.data.MedicationRepository
 import com.therecalibrationyears.keel.data.SettingsStore
 import com.therecalibrationyears.keel.data.schedule
+import com.therecalibrationyears.keel.domain.ExactTiming
 import com.therecalibrationyears.keel.domain.KeelClock
 import com.therecalibrationyears.keel.domain.LifestyleReminders
 import com.therecalibrationyears.keel.domain.MedicationReminders
@@ -29,6 +30,8 @@ class KeelReminders(
     private val medications: MedicationRepository,
     private val scheduler: ReminderScheduling,
     private val clock: KeelClock,
+    /** Whether Android delivers reminders on time (exact alarms); see [shouldOfferExactTiming]. */
+    private val exactAlarmsAllowed: () -> Boolean = { true },
     /** Whether Android will show Keel's notifications (permission and app switch). */
     private val notificationsAllowed: () -> Boolean,
 ) {
@@ -144,6 +147,21 @@ class KeelReminders(
         payload.repeating()?.let { scheduler.scheduleRepeating(it, now()) }
         return true
     }
+
+    /**
+     * She has just saved [medicationId] (Android only, D25): explain, once, how to get its
+     * reminders on time, if Android would otherwise deliver them late. Not for a medicine with
+     * nothing armed (as needed, no time, stopped, or medication reminders off).
+     */
+    suspend fun shouldOfferExactTiming(medicationId: String): Boolean = ExactTiming.shouldOffer(
+        exactAllowed = exactAlarmsAllowed(),
+        alreadyOffered = settings.exactTimingOffered.first(),
+        notificationsAllowed = notificationsAllowed(),
+        medicineHasReminders = scheduler.scheduledIds().any { ReminderIds.matchesMedication(it, medicationId) },
+    )
+
+    /** She has read the explanation (its Continue opens Android's page); it isn't shown again. */
+    suspend fun recordExactTimingOffered() = settings.setExactTimingOffered(true)
 
     /** The day a medication reminder's dose belongs to (the occurrence, not when she tapped: D10). */
     fun doseDay(payload: ReminderPayload): LocalDate = payload.dayKey?.let(MedicationReminders::dayOf) ?: today()

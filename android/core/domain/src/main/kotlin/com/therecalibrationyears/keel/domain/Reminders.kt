@@ -95,6 +95,25 @@ object NotificationGates {
 }
 
 /**
+ * Reminders on time (Android only, plan D25). Unless she allows alarms and reminders for Keel,
+ * Android 12+ may deliver a reminder up to an hour after its time, and Android 14+ starts with
+ * that off. Keel explains it once, when it first matters, and the Reminders screen keeps a
+ * note while it's off. Never during onboarding, and never before notifications can show.
+ */
+object ExactTiming {
+    /**
+     * Explain it now: she has just set up a medicine that has reminders armed, alarms are
+     * inexact, notifications can show, and she hasn't been told before.
+     */
+    fun shouldOffer(exactAllowed: Boolean, alreadyOffered: Boolean, notificationsAllowed: Boolean, medicineHasReminders: Boolean): Boolean =
+        !exactAllowed && !alreadyOffered && notificationsAllowed && medicineHasReminders
+
+    /** The note on the Reminders screen: alarms are inexact and some reminder is on. */
+    fun showsNote(exactAllowed: Boolean, notificationsAllowed: Boolean, anyReminderOn: Boolean): Boolean =
+        !exactAllowed && notificationsAllowed && anyReminderOn
+}
+
+/**
  * Timing for the lifestyle reminders (port of iOS `ReminderConfig`, same field names, stored
  * as JSON under `keel.reminderConfig`). Medication reminders are set per medicine.
  */

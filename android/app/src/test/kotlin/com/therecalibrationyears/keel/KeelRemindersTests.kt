@@ -50,6 +50,7 @@ class KeelRemindersTests {
     private lateinit var reminders: KeelReminders
     private val scheduler = FakeScheduler()
     private var allowed = true
+    private var onTime = false // Android 14+ out of the box: no exact alarms
     private val sydney = ZoneId.of("Australia/Sydney")
     private val clock = object : KeelClock {
         override fun now(): Instant = Instant.parse("2026-10-21T01:00:00Z")
@@ -61,7 +62,7 @@ class KeelRemindersTests {
         db = MainDatabase.inMemory(RuntimeEnvironment.getApplication())
         settings = SettingsStore(PreferenceDataStoreFactory.create(scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)) { File(tmp.root, "k.preferences_pb") })
         meds = MedicationRepository(db.medications(), { "o" }, clock)
-        reminders = KeelReminders(settings, meds, scheduler, clock) { allowed }
+        reminders = KeelReminders(settings, meds, scheduler, clock, exactAlarmsAllowed = { onTime }) { allowed }
     }
 
     @After fun tearDown() = db.close()
@@ -200,5 +201,31 @@ class KeelRemindersTests {
         assertFalse(settings.notificationExplainerPending.first())
         assertFalse(settings.pushNotifications.first())
         assertTrue(scheduler.armed.isEmpty())
+    }
+
+    // Android only (plan D25): "Reminders on time", once, for a medicine Android would nudge late.
+
+    @Test fun exactTimingIsOfferedForAMedicineWithRemindersArmed() = runBlocking {
+        val m = med()
+        reminders.refreshMedicationReminders()
+        assertTrue(reminders.shouldOfferExactTiming(m.id))
+        reminders.recordExactTimingOffered()
+        assertFalse(reminders.shouldOfferExactTiming(m.id)) // told once: never again
+    }
+
+    @Test fun exactTimingIsNotOfferedWhenNothingWouldBeLate() = runBlocking {
+        val timed = med()
+        val asDirected = meds.add(TreatmentDraft(name = "Ibuprofen", kind = TreatmentKind.SUPPLEMENT, schedule = DoseSchedule(kind = DoseSchedule.Kind.AS_NEEDED)))
+        reminders.refreshMedicationReminders()
+        assertFalse(reminders.shouldOfferExactTiming(asDirected.id)) // no reminders of its own
+        onTime = true
+        assertFalse(reminders.shouldOfferExactTiming(timed.id)) // already on time
+        onTime = false
+        allowed = false
+        assertFalse(reminders.shouldOfferExactTiming(timed.id)) // notifications can't show yet
+        allowed = true
+        settings.setReminderEnabled(ReminderKinds.MEDICATION, false)
+        reminders.refreshMedicationReminders()
+        assertFalse(reminders.shouldOfferExactTiming(timed.id)) // medication reminders off
     }
 }

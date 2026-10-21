@@ -106,4 +106,24 @@ class ReminderRulesTests {
         assertEquals(LocalDate.of(2026, 8, 12), MedicationReminders.dayOf("20260812"))
         assertNull(MedicationReminders.dayOf("bad"))
     }
+
+    /** Android only (D25): explained once, right after she sets up a medicine with reminders. */
+    @Test fun exactTimingIsOfferedOnceWhenAMedicineReminderWouldBeLate() {
+        assertTrue(ExactTiming.shouldOffer(exactAllowed = false, alreadyOffered = false, notificationsAllowed = true, medicineHasReminders = true))
+        // Already on time (Android 9 to 13 by default, or she allowed it).
+        assertFalse(ExactTiming.shouldOffer(exactAllowed = true, alreadyOffered = false, notificationsAllowed = true, medicineHasReminders = true))
+        // Told once already: no nagging.
+        assertFalse(ExactTiming.shouldOffer(exactAllowed = false, alreadyOffered = true, notificationsAllowed = true, medicineHasReminders = true))
+        // Notifications can't show, so timing doesn't matter yet.
+        assertFalse(ExactTiming.shouldOffer(exactAllowed = false, alreadyOffered = false, notificationsAllowed = false, medicineHasReminders = true))
+        // As needed, no time, or medication reminders off: nothing to deliver late.
+        assertFalse(ExactTiming.shouldOffer(exactAllowed = false, alreadyOffered = false, notificationsAllowed = true, medicineHasReminders = false))
+    }
+
+    @Test fun theRemindersScreenNotesLateDeliveryOnlyWhileItApplies() {
+        assertTrue(ExactTiming.showsNote(exactAllowed = false, notificationsAllowed = true, anyReminderOn = true))
+        assertFalse(ExactTiming.showsNote(exactAllowed = true, notificationsAllowed = true, anyReminderOn = true))
+        assertFalse(ExactTiming.showsNote(exactAllowed = false, notificationsAllowed = false, anyReminderOn = true))
+        assertFalse(ExactTiming.showsNote(exactAllowed = false, notificationsAllowed = true, anyReminderOn = false))
+    }
 }
