@@ -16,6 +16,8 @@ import com.therecalibrationyears.keel.checkin.CheckInRequest
 import com.therecalibrationyears.keel.checkin.CheckInScreen
 import com.therecalibrationyears.keel.cycle.CycleScreen
 import com.therecalibrationyears.keel.domain.ActivityPeriod
+import com.therecalibrationyears.keel.gpsummary.GPSummaryScreen
+import com.therecalibrationyears.keel.gpsummary.GPSummaryStep
 import com.therecalibrationyears.keel.insights.ActivitiesScreen
 import com.therecalibrationyears.keel.insights.AllNotesScreen
 import com.therecalibrationyears.keel.insights.LookingBackScreen
@@ -177,7 +179,9 @@ fun MainShell(controller: KeelAppController) {
                     entry<MainRoute.HealthConnect> { StandInScreen("Health Connect", back) }
                     entry<MainRoute.Stats> { StatsScreen(controller.statsActions, back) }
                     entry<MainRoute.More> { StandInScreen("More", back) }
-                    entry<MainRoute.GpSummary> { StandInScreen("GP Visit Summary", back) }
+                    entry<MainRoute.GpSummary> {
+                        GPSummaryScreen(controller.gpSummaryActions, back, initialStep = DebugHarness.gpInitialStep ?: GPSummaryStep.PERIOD)
+                    }
                     entry<MainRoute.Reminders> { RemindersScreen(controller.remindersActions, back) }
                     entry<MainRoute.Profile> { StandInScreen("Profile", back) }
                 },
@@ -276,7 +280,7 @@ private fun HomeRoute(controller: KeelAppController, flow: EntryFlow, push: (Mai
     }
 }
 
-// FAKE: stands in for a feature screen not ported yet — shows only its iOS title, never sample data; remove as each screen is built (M3 to M6)
+// FAKE: stands in for a feature screen not ported yet — shows only its iOS title, never sample data; remove as each screen is built (M6, M7)
 @Composable
 private fun StandInScreen(title: String, onBack: () -> Unit) {
     KeelScreen(title = title, onBack = onBack) {}

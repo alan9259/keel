@@ -6,6 +6,8 @@ import com.therecalibrationyears.keel.data.ActivityRepository
 import com.therecalibrationyears.keel.data.CheckInRepository
 import com.therecalibrationyears.keel.data.CycleRepository
 import com.therecalibrationyears.keel.data.InsightRepository
+import com.therecalibrationyears.keel.data.GPSummaryService
+import com.therecalibrationyears.keel.designsystem.KeelDateFormats
 import com.therecalibrationyears.keel.data.DeviceContext
 import com.therecalibrationyears.keel.data.LocalIdentity
 import com.therecalibrationyears.keel.data.MedicationRepository
@@ -100,13 +102,16 @@ class KeelAppControllerTests {
         val scope = CoroutineScope(SupervisorJob() + Dispatchers.Default).also { scopes += it }
         val settings = SettingsStore(prefs)
         val medications = MedicationRepository(db.medications(), identity::ownerId, clock)
+        val checkIns = CheckInRepository(db.checkIns(), identity::ownerId, clock)
+        val cycle = CycleRepository(db.cycle(), identity::ownerId, clock)
         return KeelAppController(
-            users, identity, settings, CheckInRepository(db.checkIns(), identity::ownerId, clock),
+            users, identity, settings, checkIns,
             SymptomRepository(db.symptoms(), db.checkIns(), settings, identity::ownerId, clock),
             medications,
             ActivityRepository(db.activityLogs(), clock, identity::ownerId),
-            CycleRepository(db.cycle(), identity::ownerId, clock),
+            cycle,
             InsightRepository(db.insights(), db.checkIns(), db.cycle(), identity::ownerId, clock),
+            GPSummaryService(checkIns, medications, cycle, users, clock) { KeelDateFormats(RuntimeEnvironment.getApplication(), zone = clock.zone()) },
             com.therecalibrationyears.keel.platform.SpeechRecognitionService(RuntimeEnvironment.getApplication()),
             TreatmentCatalogStore(RuntimeEnvironment.getApplication()),
             KeelReminders(settings, medications, scheduler, clock, exactAlarmsAllowed = { exactAllowed }) { true }, clock, scope,

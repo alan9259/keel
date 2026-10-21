@@ -29,7 +29,9 @@ test classes keep the iOS name. Suites not listed yet are ported with their mile
 | SymptomRepositoryTests (6) | core/data `CheckInDataTests` | ported (+ rename/archive reconcile, archive/rename/move) |
 | QuickChipRankingTests (5 pure + 2 repository) | core/domain `QuickChipRankingTests`, core/data `CheckInDataTests` | ported |
 | AlcoholTests: newEntryHasNoAlcoholRecorded, zeroIsARealAnswer…, editingTheRestOfAnEntryKeepsItsAlcohol, theSettingIsOnByDefault… | core/data `CheckInDataTests` | ported |
-| AlcoholTests: GP summary line and backup tests | | with GP summary (M5) and backup (M1 backup) |
+| AlcoholTests: lineFormatMatchesTheSymptomRows | core/domain `GPAlcoholLineTests` | ported (M5) |
+| AlcoholTests: onlyDaysWithASavedNumberCountAndBlankIsNeverZero, noLineWhenSheNeverRecordedAlcohol, sheCanLeaveTheAlcoholRowOff | core/data `AlcoholSummaryTests` | ported (M5) |
+| AlcoholTests: backupRoundTripsAlcoholAndOldBackupsStillLoad | | with backup (M6) |
 | SensitiveGroupCopyTests: intimacyIntroWording | core/domain `SymptomCatalogTests` | ported |
 | SpeechOnDeviceTests (3) | core/platform `SpeechOnDeviceTests` | ported (+ Android 12/13 rules, language match) |
 | DoseScheduleTests (8) | core/domain `DoseScheduleTests` | ported (+ no-active-days, no-anchor, nextDue edges) |
@@ -67,3 +69,15 @@ test classes keep the iOS name. Suites not listed yet are ported with their mile
 | SymptomTallyTests (4) | core/domain `SymptomTallyTests` | ported (+ blank names ignored) |
 | StatsDayCountsTests (3) | core/domain `StatsDayCountsTests` | ported |
 | (Android) Stats screen | feature/insights `StatsModelTests`, `StatsScreenTests` | new: the iOS view's numbers and sentences are untested there |
+| GPSummaryTests (18) | core/domain `GPSummaryTests` | ported on `LocalDate`s and `Instant`s |
+| (Android) GP period windows | core/domain `GPPeriodTests` | new: the preset and custom windows iOS covers only through the service |
+| GPSummaryServiceTests: resolvesCountsSymptomsCycleAndMeds, autoSectionsIncludedByDefaultAndRemovable, stoppedTreatmentsShowInMHTAndChangesButNotOtherTables, periodsNotApplicableReasonFlowsIntoCycleBlock, energyAverageSkipsCheckInsWithoutAnEnergyPick, stopOutsideWindowIsNotShown, nameAndAgeOffByDefaultAndPrioritiesDropSymptomRow, emptyStoreGivesHonestEmptyStates | core/data `GPSummaryServiceTests` | ported (+ the exact last period start and period label, which iOS left loose because its cycle repository used the machine calendar) |
+| GPSummaryServiceTests: pdfFileNameIsDateBasedNotHex | feature/gpsummary `GPSummaryMetadataTests.fileNameIsTheDateSheMadeIt`, androidTest `GPSummaryPdfRendererTests.fileNameIsTheDateSheMadeIt` | ported (exact name) |
+| GPSummaryServiceTests: importedAppleHealthPeriodsAreNotInTheSummary | | with Health Connect (M7): Android has no imported periods yet |
+| (Android) GP summary service | core/data `GPSummaryServiceTests`: ageAndOptInsComeFromHerProfile, thePlaceholderNameIsNeverOfferedOrPrinted (D26), thePreviousColumnCountsTheWindowJustBefore, aScheduledMedicineReadsAsItsScheduleInHerWords | new |
+| HysterectomyTests: theSixOptionsMatchTheSpec, summaryLineMatchesHerAnswer, yearMustBePlausible | core/domain `HysterectomyTests` (+ raw values match iOS) | ported |
+| HysterectomyTests: recordsTheAnswerAndKeepsAYearOnlyForYes, offByDefaultOnTheSummary, includedOnlyWhenSheTurnsItOn, ratherNotSayIsNeverOfferedOrPrinted | core/data `HysterectomyTests` | ported |
+| HysterectomyTests: backupKeepsHerBackgroundAndDetails, olderBackupsWithoutTheseFieldsStillLoad | | with backup (M6) |
+| GPSummaryLeaveTests (HealthSyncBehaviourTests.swift) | feature/gpsummary `GPSummaryDraftTests.homeConfirmsBeforeDiscardingADraftPastTheFirstStep` | ported |
+| GPSummaryPDFRendererTests (4) | feature/gpsummary androidTest `GPSummaryPdfRendererTests` | ported on a device (PdfDocument is native) (+ text drawn to the foot of the page off the main thread, the Android 9 regression) |
+| (Android) GP summary flow | feature/gpsummary `GPSummaryDraftTests`, `GPSummaryScreenTests`, `GPSummaryMetadataTests` | new: the flow's rules, saved state, the review list (D26), each step starting at its top, metadata blanking on bytes |

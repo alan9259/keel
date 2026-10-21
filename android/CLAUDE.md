@@ -3,7 +3,7 @@
 Native Kotlin + Jetpack Compose port of the iOS app, with feature parity and Health
 Connect in place of Apple Health. **Read first, every session:** the repo-root
 `CLAUDE.md`, `DESIGN_PRINCIPLES.md`, and the port plan `docs/android-port-plan.md`
-(milestones M0 to M8, decisions D1 to D24). The iOS app is the reference
+(milestones M0 to M8, decisions D1 to D26). The iOS app is the reference
 implementation: port behaviour, copy and tests from the iOS file the plan cites.
 
 ## Binding rules (same as iOS)
@@ -52,6 +52,7 @@ export ANDROID_HOME=~/Library/Android/sdk
 ./gradlew testDebugUnitTest     # unit tests only
 ./gradlew assembleDebug         # app/build/outputs/apk/debug/app-debug.apk
 ./gradlew :app:assembleRelease  # R8 + resource shrinking, debug-signed locally
+./gradlew :feature:gpsummary:connectedDebugAndroidTest  # the PDF renderer, on every running emulator
 adb install -r app/build/outputs/apk/debug/app-debug.apk
 adb exec-out screencap -p > shot.png
 ```
@@ -83,7 +84,12 @@ adb exec-out screencap -p > shot.png
 - `feature/insights`: Looking back and Your notes (`LookingBackScreen`, `AllNotesScreen`,
   behind `LookingBackActions`) and Activities (`ActivitiesScreen` and its pure
   `ActivitiesModel`, behind `ActivitiesActions`; reached by debug route until More in M6);
-  Stats joins them in M4.
+  and Stats (`StatsScreen`, `StatsModel`).
+- `feature/gpsummary`: the GP Visit Summary flow (`GPSummaryScreen`, its saved state and rules in
+  `GPSummaryDraft`), the PDF (`GPSummaryPdfRenderer`, checked on a device by
+  `connectedDebugAndroidTest`), and the preview and share (`GPSummaryFiles`, a `FileProvider`
+  over `cache/gp-summary/`). Reads her records through `GPSummaryActions`; the service that
+  builds the document is `core/data` `GPSummaryService`.
 - `feature/settings`: settings screens (so far Reminders) and `rememberNotificationAccess`,
   the notification permission gate shared with Home's "Gentle reminders".
 - `core/platform`: device services: `SpeechRecognitionService` (on-device only),
@@ -136,7 +142,8 @@ create_account, pathway, health, ready). For a truly fresh start:
   "Try out your stylus" sheet that swallows typed text. Turn it off once per emulator:
   `adb shell settings put secure stylus_handwriting_enabled 0`.
 - **Stand-ins:** `grep -rn "// FAKE:" android/` lists them (currently: the title-only feature
-  screens in `MainShell.kt`, and the Health Connect request in `KeelAppController.kt`).
+  screens in `MainShell.kt` (More, Profile, Health Connect), and the Health Connect request in
+  `KeelAppController.kt`).
 - **Drag and drop from a bottom sheet:** start it (`View.startDragAndDrop`) with the view from
   *inside* the sheet's content (the sheet is its own window; the activity's view fails with
   "from window is not being touched"), and from the chip's own long press (Compose's default
@@ -151,6 +158,15 @@ create_account, pathway, health, ready). For a truly fresh start:
   week` opens Activities on a week (or month); `--es uitRoute` also takes `activities`,
   `stats`, `notes`, `profile` and `health` (the last two are stand-ins until M6/M7); `--es uitRoute more` opens a
   screen. They live in `app/src/debug` and never ship.
+- **GP summary on an emulator:** `--es uitRoute gp_summary` opens the flow, `--es uitGPStep
+  review` (or details, preview) at a step; `--ez uitGPSummary true` seeds the same 12-week
+  picture as the iOS `-uitGPSummary` probe (replacing her records) and writes the PDF to
+  `files/keel-gp-summary.pdf` (`adb exec-out run-as <package> cat files/keel-gp-summary.pdf`).
+  Run the iOS probe on the simulator with the same seed to compare the two PDFs' text.
+- **Drawing text into a PDF:** never `Layout.draw` (Android 9's PDF canvas reports a broken clip
+  and `Layout.draw` skips every line outside it: rules and grids, no text); draw each line with
+  `drawText` (`GPSummaryPdfRenderer.drawLayout`). Use linear, subpixel text (canvas units are
+  points) and no ligatures (Android's PDF writer gives a ligature glyph no text).
 - **Copy for new wording:** a user-facing string with no iOS original (e.g. a TalkBack label
   iOS lacks) goes in `core/copy/src/test/resources/android-additions.json` for owner sign-off.
 - **`MainActivity` is `singleTop`** (so a reminder tap reaches the open screen). A debug

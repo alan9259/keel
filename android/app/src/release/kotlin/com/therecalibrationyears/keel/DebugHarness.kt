@@ -1,6 +1,7 @@
 package com.therecalibrationyears.keel
 
 import android.content.Intent
+import com.therecalibrationyears.keel.gpsummary.GPSummaryStep
 import com.therecalibrationyears.keel.domain.ActivityPeriod
 import com.therecalibrationyears.keel.domain.KeelClock
 import java.time.LocalDate
@@ -17,6 +18,7 @@ object DebugHarness {
     val onboardingStartStep: OnboardingStep? = null
     val initialRoute: MainRoute? = null
     val activitiesPeriod: ActivityPeriod? = null
+    val gpInitialStep: GPSummaryStep? = null
 
     @Suppress("UNUSED_PARAMETER")
     fun cycleSheetDay(clock: KeelClock): LocalDate? = null

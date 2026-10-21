@@ -81,3 +81,6 @@ data class CheckInSymptomEntity(
 
 /** A symptom she logged on a check-in, with its catalog name, for display. */
 data class LoggedSymptom(val linkId: String, val checkInID: String, val name: String, val severity: Int)
+
+/** A symptom she logged on a check-in, with what the GP summary needs to count and rank it. */
+data class SymptomLog(val checkInID: String, val name: String, val isCustom: Boolean, val severity: Int)

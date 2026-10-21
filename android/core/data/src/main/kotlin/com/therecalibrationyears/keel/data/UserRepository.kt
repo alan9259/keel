@@ -2,6 +2,7 @@ package com.therecalibrationyears.keel.data
 
 import com.therecalibrationyears.keel.data.db.UserProfileDao
 import com.therecalibrationyears.keel.data.db.UserProfileEntity
+import com.therecalibrationyears.keel.domain.Hysterectomy
 import com.therecalibrationyears.keel.domain.KeelClock
 import com.therecalibrationyears.keel.domain.Pathway
 import java.time.Instant
@@ -60,6 +61,21 @@ class UserRepository(
     suspend fun setPathway(pathway: Pathway) = writes.withLock {
         val profile = dao.current() ?: return@withLock
         dao.upsert(profile.copy(pathwayRaw = pathway.raw).touched(clock.now()))
+    }
+
+    /** Her own note for when periods no longer apply (trimmed; blank clears it). */
+    suspend fun setPeriodsNotApplicableReason(reason: String?) = writes.withLock {
+        val profile = dao.current() ?: return@withLock
+        dao.upsert(profile.copy(periodsNotApplicableReason = reason?.trim()?.ifEmpty { null }).touched(clock.now()))
+    }
+
+    /** Her hysterectomy answer (null clears it). The year is kept only for a "yes" answer. */
+    suspend fun setHysterectomy(answer: Hysterectomy?, year: Int?) = writes.withLock {
+        val profile = dao.current() ?: return@withLock
+        dao.upsert(
+            profile.copy(hysterectomyRaw = answer?.raw, hysterectomyYear = if (answer?.allowsYear == true) year else null)
+                .touched(clock.now()),
+        )
     }
 
     /**

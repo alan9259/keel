@@ -2,9 +2,11 @@ package com.therecalibrationyears.keel.data.db
 
 import androidx.room.Entity
 import androidx.room.PrimaryKey
+import com.therecalibrationyears.keel.domain.Hysterectomy
 import com.therecalibrationyears.keel.domain.Pathway
 import com.therecalibrationyears.keel.domain.SyncStatus
 import java.time.Instant
+import java.time.LocalDate
 
 /**
  * Her profile (port of iOS `UserProfile`, Keel/Models/UserProfile.swift). Same fields and
@@ -50,6 +52,10 @@ data class UserProfileEntity(
     val syncStatusRaw: String = SyncStatus.PENDING_UPLOAD.raw,
 ) {
     val pathway: Pathway? get() = Pathway.fromRaw(pathwayRaw)
+    val hysterectomy: Hysterectomy? get() = Hysterectomy.fromRaw(hysterectomyRaw)
+
+    /** Her age this year, from the year of birth she gave (iOS `age`). */
+    fun age(today: LocalDate): Int? = birthYear?.let { today.year - it }
 
     /** Marks the record changed so the next sync pass uploads it (iOS `touch`). */
     fun touched(now: Instant) = copy(updatedAt = now, syncStatusRaw = SyncStatus.PENDING_UPLOAD.raw)

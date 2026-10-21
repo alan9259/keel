@@ -1,6 +1,7 @@
 package com.therecalibrationyears.keel
 
 import android.content.Intent
+import com.therecalibrationyears.keel.gpsummary.GPSummaryStep
 import com.therecalibrationyears.keel.domain.ActivityPeriod
 import com.therecalibrationyears.keel.domain.KeelClock
 import java.time.LocalDate
@@ -24,6 +25,9 @@ import com.therecalibrationyears.keel.onboarding.OnboardingStep
  *   uitSeedCheckIn / uitSeedMed / uitSeedEnergyMix / uitSeedWeek true   sample records
  *   uitReminderExplainer true  queue the "Gentle reminders" explanation (iOS -uitReminderExplainer)
  *   uitRemindSoon true       a medicine due in 2 minutes and the check-in in 3, to watch them fire
+ *   uitGPStep <step>         the GP Visit Summary opens at review, details or preview (iOS -uitGPReview etc.)
+ *   uitGPSummary true        seed a 12-week picture and write its GP summary PDF to files/keel-gp-summary.pdf,
+ *                            logging KEEL_GPSUMMARY lines (iOS -uitGPSummary)
  *
  * Never compiled into release builds (see src/release).
  */
@@ -49,6 +53,10 @@ object DebugHarness {
     var activitiesPeriod: ActivityPeriod? = null
         private set
 
+    /** `--es uitGPStep review` (or details, preview): the GP Visit Summary opens at that step. */
+    var gpInitialStep: GPSummaryStep? = null
+        private set
+
     /** `--ez uitCycleSheet true`: the Cycle screen opens the log sheet for two days ago. */
     private var cycleSheet = false
 
@@ -70,8 +78,9 @@ object DebugHarness {
         }
         initialRoute = MainRoute.fromDebugName(intent.getStringExtra("uitRoute"))
         cycleSheet = intent.getBooleanExtra("uitCycleSheet", false)
+        gpInitialStep = intent.getStringExtra("uitGPStep")?.let { raw -> GPSummaryStep.entries.firstOrNull { it.name.equals(raw, ignoreCase = true) } }
         activitiesPeriod = intent.getStringExtra("uitActivitiesPeriod")?.let { raw -> ActivityPeriod.entries.firstOrNull { it.name.equals(raw, ignoreCase = true) } }
-        seeds = listOf("uitReset", "uitSeedMed", "uitSeedCheckIn", "uitSeedEnergyMix", "uitSeedWeek", "uitReminderExplainer", "uitExactTimingAgain", "uitRemindSoon", "uitSeedCycle")
+        seeds = listOf("uitReset", "uitSeedMed", "uitSeedCheckIn", "uitSeedEnergyMix", "uitSeedWeek", "uitReminderExplainer", "uitExactTimingAgain", "uitRemindSoon", "uitSeedCycle", "uitGPSummary")
             .filter { intent.getBooleanExtra(it, false) }
     }
 
@@ -89,6 +98,7 @@ object DebugHarness {
                 "uitExactTimingAgain" -> container.settings.setExactTimingOffered(false) // "Reminders on time" can show again
                 "uitRemindSoon" -> s.remindSoon()
                 "uitSeedCycle" -> s.cycle()
+                "uitGPSummary" -> s.gpSummaryProbe()
             }
         }
         seeds = emptyList() // once per launch, not again on recreation

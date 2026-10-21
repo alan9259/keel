@@ -6,6 +6,7 @@ import com.therecalibrationyears.keel.data.db.CheckInDao
 import com.therecalibrationyears.keel.data.db.CheckInEntity
 import com.therecalibrationyears.keel.data.db.CheckInSymptomEntity
 import com.therecalibrationyears.keel.data.db.LoggedSymptom
+import com.therecalibrationyears.keel.data.db.SymptomLog
 import com.therecalibrationyears.keel.domain.DayAmount
 import com.therecalibrationyears.keel.domain.KeelClock
 import com.therecalibrationyears.keel.domain.Mood
@@ -35,6 +36,12 @@ class CheckInRepository(
     fun observeLoggedSymptoms(): Flow<List<LoggedSymptom>> = dao.observeLoggedSymptoms()
 
     suspend fun entry(id: String): CheckInEntity? = dao.byId(id)
+
+    /** Every live check-in, oldest first (iOS `all`). */
+    suspend fun all(): List<CheckInEntity> = dao.live()
+
+    /** Every symptom on a live check-in, with its name (iOS `CheckIn.symptomLinks`). */
+    suspend fun symptomLogs(): List<SymptomLog> = dao.liveSymptomLogs()
 
     /** The symptoms on an entry and their severity (for editing). */
     suspend fun picks(checkInId: String): List<SymptomPick> =

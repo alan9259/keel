@@ -14,7 +14,8 @@
 > built** (see "M3 medications") **and so are reminders** (see "M3 reminders"), with
 > "Reminders on time" for exact alarms (D25). Open: the daily top-up (D11). **M4 is done:**
 > Cycle, Looking back, Activities and Stats (see the "M4" sections); imported health data
-> fills them in M7, and Activities and Stats are reached from More in M6. Next: M5.
+> fills them in M7, and Activities and Stats are reached from More in M6. **M5 is done:** the
+> GP Visit Summary (see "M5 GP Visit Summary"). Next: M6.
 
 ## Context
 
@@ -615,6 +616,48 @@ and Health Connect behind title-only stand-ins (M6); the GP Visit Summary behind
 "58 to 70") to sign off; the dark-mode accent contrast on tinted chips (about 1.9:1, iOS
 identical) for M8.
 
+### M5 GP Visit Summary (22 Oct 2026)
+Built: `GPSummaryBuilder`, `GPSummaryCopy`, `GPPeriod`/`GPDateWindow`, the document types and
+`Hysterectomy` (`core/domain`); `GPSummaryService` and the profile's hysterectomy and
+"periods not applicable" setters (`core/data`); `feature/gpsummary`: the four-step flow
+(presets and custom range with date pickers that stop at today; review with removable
+symptoms, treatments and sections; details with the spec's limits and the About me opt-ins
+offered only for what she recorded; preview), Back steps back and leaves from the first step,
+Home asks first once she has made a choice, everything she chose survives the screen being
+recreated, and each step starts at its top. `GPSummaryPdfRenderer` is a line-for-line port of
+the iOS renderer (A4, page 1 fit 6 → 5 → 4 rows, page 2 spills rather than clips, footer on
+every page) on `PdfDocument`; the preview draws the very bytes that are shared
+(`PdfRenderer`), and sharing goes through a `FileProvider` folder in the private cache
+(cleared when she makes the next one). Debug: `uitGPStep`, and `uitGPSummary`, the iOS probe's
+12-week seed rendered to `files/keel-gp-summary.pdf`.
+
+Checked against iOS: the same seed on the iOS simulator (`-uitGPSummary`) and on Android
+gives the same text, line for line (only the order PDFKit extracts table cells in differs),
+and the same layout once Android counts the font's line gap on the last line as iOS does.
+Found and fixed on the way: (1) Android snaps text to whole canvas units, which are PDF
+points here, squashing word spacing in 9.5 and 12.5 pt text: the PDF uses linear, subpixel
+text. (2) Android's PDF writer gives a ligature glyph no text, so "affecting" copied and read
+aloud as "a ecting": ligatures are off in the PDF. (3) **Android 9's PDF canvas reports a
+broken clip** (empty off the main thread, 116 points tall on it), and `Layout.draw` skips
+lines outside it, so on Android 9 the PDF had rules and grids but no text: lines are now drawn
+with `drawText` (regression test on a device, fails on API 28 before the fix). (4) Each step
+reused the previous step's scroll position (Details opened below its priority fields).
+Remaining quirk: PDFKit extracts "What" as "W" + "hat" from Android's PDF (it positions each
+glyph); every letter is there.
+
+Metadata: Android stamps its PDF library as Producer ("Skia/PDF m66" on Android 9); it's blanked to
+spaces of the same length (as iOS), with Creator, Author, Title, Subject, Keywords and the
+dates if present. Tests: domain +26, data +19, feature +18, device (androidTest) 6, all green
+on API 28 and 36; mapping in `android/docs/test-parity.md`. Verified on emulators: the whole
+flow on API 36 (custom range, removals, typing, chips, toggles, preview, share sheet with
+`GP-Visit-Summary-2026-10-22.pdf`, and Print opening the shared PDF through the grant), API 28
+in dark mode (review, preview, leave dialog, Leave → Home), and the R8 release build from
+Home's "Prepare for a GP visit" to the share sheet. Not verified: real devices, TalkBack,
+sharing into a real mail or messaging app, Health Connect data (none in the summary by design).
+
+Not done: `fixtures/gpsummary` (§4.2) needs the iOS test-only `SharedFixtureTests`, which
+waits on the owner; the simulator comparison above stands in for it. Owner decision: D26.
+
 ## 6. Decisions (recommendation; "owner" = needs Mischa's sign-off before release)
 | # | Topic | Recommendation |
 |---|---|---|
@@ -643,6 +686,7 @@ identical) for M8.
 | D23 | Themes/packs have prices but all owned | Port as-is, no billing |
 | D24 | Share link | Play URL for the applicationId, `// FAKE:` until the listing is live |
 | D25 | Exact alarms on Android 14+ (off by default; reminders up to an hour late) | **Owner chose (21 Oct 2026):** offer them. "Reminders on time" once after she saves a medicine with reminders (Continue only, opens Alarms & reminders), plus a note on the Reminders screen while off. Not `USE_EXACT_ALARM` (Play reserves it for alarm and calendar apps). Copy: owner sign-off |
+| D26 | Two iOS GP summary quirks, read from the iOS code (not run): a blank first name is stored as "there", which iOS offers ("Include my name") and prints as "Name: there"; and the review step lists symptoms logged only in the window before the period, at "0 of N check-in days", which never print | Android treats "there" as no name (as iOS's own Profile screen does) and lists only symptoms recorded in the period. Suggest the same iOS fixes (owner) |
 
 **Android-only UX:** system/predictive back pops routes (CheckInModal back = close without
 saving, GP flow back = previous step); notification permission only on API 33+, after "Gentle

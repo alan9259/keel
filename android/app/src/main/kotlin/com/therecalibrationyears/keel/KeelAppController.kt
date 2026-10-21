@@ -4,6 +4,12 @@ import com.therecalibrationyears.keel.data.ActivityRepository
 import com.therecalibrationyears.keel.data.CheckInRepository
 import com.therecalibrationyears.keel.data.CycleRepository
 import com.therecalibrationyears.keel.data.InsightRepository
+import com.therecalibrationyears.keel.data.GPSummaryService
+import com.therecalibrationyears.keel.domain.GPAboutMe
+import com.therecalibrationyears.keel.domain.GPReviewMed
+import com.therecalibrationyears.keel.domain.GPSummaryDocument
+import com.therecalibrationyears.keel.domain.GPSummaryInputs
+import com.therecalibrationyears.keel.gpsummary.GPSummaryActions
 import com.therecalibrationyears.keel.domain.MonthSummary
 import com.therecalibrationyears.keel.insights.ActivitiesActions
 import com.therecalibrationyears.keel.insights.ActivitiesData
@@ -79,6 +85,7 @@ class KeelAppController(
     private val activities: ActivityRepository,
     private val cycle: CycleRepository,
     private val insights: InsightRepository,
+    private val gpSummary: GPSummaryService,
     private val speech: SpeechRecognitionService,
     private val treatments: TreatmentCatalogStore,
     val reminders: KeelReminders,
@@ -388,6 +395,15 @@ class KeelAppController(
         }
         override val zone: ZoneId get() = clock.zone()
         override fun now(): Instant = clock.now()
+    }
+
+    /** The GP Visit Summary flow's view of the app: it reads her records, never writes. */
+    val gpSummaryActions: GPSummaryActions = object : GPSummaryActions {
+        override val zone: ZoneId get() = clock.zone()
+        override fun now(): Instant = clock.now()
+        override suspend fun document(inputs: GPSummaryInputs): GPSummaryDocument = gpSummary.makeDocument(inputs)
+        override suspend fun reviewMeds(): List<GPReviewMed> = gpSummary.reviewMeds()
+        override suspend fun aboutMe(): GPAboutMe = gpSummary.aboutMe()
     }
 
     /** The Reminders screen's view of the app. */

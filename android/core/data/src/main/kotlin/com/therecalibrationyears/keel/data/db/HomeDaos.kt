@@ -20,6 +20,17 @@ interface CheckInDao {
     )
     fun observeLoggedSymptoms(): Flow<List<LoggedSymptom>>
 
+    /** Every live check-in, oldest first (the GP summary reads her whole record). */
+    @Query("SELECT * FROM check_in WHERE deletedAt IS NULL ORDER BY date")
+    suspend fun live(): List<CheckInEntity>
+
+    /** Live links with their catalog symptom's name and whether it's her own (GP summary). */
+    @Query(
+        "SELECT l.checkInID AS checkInID, s.name AS name, s.isCustom AS isCustom, l.severity AS severity " +
+            "FROM check_in_symptom l JOIN symptom s ON s.id = l.symptomID WHERE l.deletedAt IS NULL",
+    )
+    suspend fun liveSymptomLogs(): List<SymptomLog>
+
     /** When each live check-in was made, from [since] on (the pattern engine's window). */
     @Query("SELECT date FROM check_in WHERE deletedAt IS NULL AND date >= :since")
     suspend fun liveDatesSince(since: Instant): List<Instant>

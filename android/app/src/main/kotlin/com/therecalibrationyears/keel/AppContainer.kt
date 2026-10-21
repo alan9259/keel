@@ -7,6 +7,7 @@ import com.therecalibrationyears.keel.data.ActivityRepository
 import com.therecalibrationyears.keel.data.CheckInRepository
 import com.therecalibrationyears.keel.data.CycleRepository
 import com.therecalibrationyears.keel.data.DeviceContext
+import com.therecalibrationyears.keel.data.GPSummaryService
 import com.therecalibrationyears.keel.data.InsightRepository
 import com.therecalibrationyears.keel.data.MedicationRepository
 import com.therecalibrationyears.keel.data.LocalIdentity
@@ -41,7 +42,8 @@ class AppContainer(context: Context) {
 
     val settings = SettingsStore(preferences)
     internal val identity = LocalIdentity(preferences)
-    private val users = UserRepository(
+    /** Internal so debug probes (src/debug) can write a profile; features go through the controller. */
+    internal val users = UserRepository(
         database.userProfiles(), ownerId = identity::ownerId, clock = clock,
         device = DeviceContext.Android(context),
     )
@@ -55,6 +57,10 @@ class AppContainer(context: Context) {
     private val activities = ActivityRepository(database.activityLogs(), clock, identity::ownerId)
     private val cycle = CycleRepository(database.cycle(), identity::ownerId, clock)
     private val insights = InsightRepository(database.insights(), database.checkIns(), database.cycle(), identity::ownerId, clock)
+    private val gpSummary = GPSummaryService(checkIns, medications, cycle, users, clock) { KeelDateFormats(context, zone = clock.zone()) }
+
+    /** For debug probes (src/debug) that need resources, such as the GP summary's fonts. */
+    internal val appContext: Context = context.applicationContext
 
     private val speech = SpeechRecognitionService(context)
 
@@ -78,6 +84,6 @@ class AppContainer(context: Context) {
     }
 
     val controller = KeelAppController(
-        users, identity, settings, checkIns, symptoms, medications, activities, cycle, insights, speech, treatments, reminders, clock, appScope,
+        users, identity, settings, checkIns, symptoms, medications, activities, cycle, insights, gpSummary, speech, treatments, reminders, clock, appScope,
     )
 }
