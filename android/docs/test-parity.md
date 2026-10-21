@@ -64,3 +64,6 @@ test classes keep the iOS name. Suites not listed yet are ported with their mile
 | VitalLineChartTests (3) | core/designsystem `VitalLineChartTests` | ported on the pure curve builder (`VitalChartPath`) |
 | EatingLogTests (2) | core/data `EatingLogTests` (+ core/domain `EatingStateTests`) | ported on the activity repository (+ water counting, the Health Connect items setting) |
 | (Android) Activities screen | feature/insights `ActivitiesModelTests`, `ActivitiesScreenTests`, app `KeelAppControllerTests.activitiesWritesComeBackLiveAndNothingIsImportedYet` | new: the iOS view's rules (shown tiles, trend arrow, counts, labels, number format) are untested there |
+| SymptomTallyTests (4) | core/domain `SymptomTallyTests` | ported (+ blank names ignored) |
+| StatsDayCountsTests (3) | core/domain `StatsDayCountsTests` | ported |
+| (Android) Stats screen | feature/insights `StatsModelTests`, `StatsScreenTests` | new: the iOS view's numbers and sentences are untested there |

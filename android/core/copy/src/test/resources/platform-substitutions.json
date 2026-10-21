@@ -70,5 +70,23 @@
     "android": "Recent readings from Health Connect, shown as they were recorded.",
     "approvedByOwner": false,
     "note": "Activities (iOS ActivitiesView). Plan §3.8 / D12: Apple Health -> Health Connect, otherwise verbatim. Your body lately, under the readings."
+  },
+  {
+    "ios": "No sleep logged yet. Add it in a check-in, or connect Apple Health.",
+    "android": "No sleep logged yet. Add it in a check-in, or connect to Health Connect.",
+    "approvedByOwner": false,
+    "note": "Stats (iOS ReportsView). Plan §3.8 / D12: Apple Health -> Health Connect, otherwise verbatim. Sleep, empty; 'to' as in 'Connect to Health Connect'."
+  },
+  {
+    "ios": "Averages and ranges over the {}, from Apple Health. Keel shows these as they were recorded.",
+    "android": "Averages and ranges over the {}, from Health Connect. Keel shows these as they were recorded.",
+    "approvedByOwner": false,
+    "note": "Stats (iOS ReportsView). Plan §3.8 / D12: Apple Health -> Health Connect, otherwise verbatim. Body section footer."
+  },
+  {
+    "ios": "No vitals from Apple Health in this {} yet. Resting heart rate, heart rate variability, weight and blood pressure appear here once there's data.",
+    "android": "No vitals from Health Connect in this {} yet. Resting heart rate, heart rate variability, weight and blood pressure appear here once there's data.",
+    "approvedByOwner": false,
+    "note": "Stats (iOS ReportsView). Plan §3.8 / D12: Apple Health -> Health Connect, otherwise verbatim. Body section, empty."
   }
 ]

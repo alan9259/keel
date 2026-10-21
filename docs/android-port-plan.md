@@ -14,7 +14,7 @@
 > built** (see "M3 medications") **and so are reminders** (see "M3 reminders"), with
 > "Reminders on time" for exact alarms (D25). Open: the daily top-up (D11). **M4 is under
 > way:** Cycle, Looking back and Activities are built (see "M4 Cycle", "M4 Looking back",
-> "M4 Activities"); next Stats.
+> "M4 Activities") and Stats (unit-tested, emulator check still to do).
 
 ## Context
 

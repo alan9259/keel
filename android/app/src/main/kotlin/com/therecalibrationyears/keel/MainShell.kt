@@ -19,6 +19,7 @@ import com.therecalibrationyears.keel.domain.ActivityPeriod
 import com.therecalibrationyears.keel.insights.ActivitiesScreen
 import com.therecalibrationyears.keel.insights.AllNotesScreen
 import com.therecalibrationyears.keel.insights.LookingBackScreen
+import com.therecalibrationyears.keel.insights.StatsScreen
 import com.therecalibrationyears.keel.checkin.EntrySheetContent
 import com.therecalibrationyears.keel.designsystem.components.KeelToast
 import com.therecalibrationyears.keel.designsystem.components.ToastData
@@ -83,6 +84,8 @@ sealed interface MainRoute : NavKey {
     @Serializable data object Notes : MainRoute
     /** Reached from More on iOS; More is ported in M6, so for now only by debug route. */
     @Serializable data object Activities : MainRoute
+    /** Stats (iOS `reports`): reached from More, so for now only by debug route. */
+    @Serializable data object Stats : MainRoute
     /** The Health Connect screen (iOS `appleHealth`, M6/M7). */
     @Serializable data object HealthConnect : MainRoute
 
@@ -99,6 +102,7 @@ sealed interface MainRoute : NavKey {
             "notes" -> Notes
             "activities" -> Activities
             "health" -> HealthConnect
+            "stats" -> Stats
             else -> null
         }
     }
@@ -171,6 +175,7 @@ fun MainShell(controller: KeelAppController) {
                         )
                     }
                     entry<MainRoute.HealthConnect> { StandInScreen("Health Connect", back) }
+                    entry<MainRoute.Stats> { StatsScreen(controller.statsActions, back) }
                     entry<MainRoute.More> { StandInScreen("More", back) }
                     entry<MainRoute.GpSummary> { StandInScreen("GP Visit Summary", back) }
                     entry<MainRoute.Reminders> { RemindersScreen(controller.remindersActions, back) }

@@ -9,6 +9,9 @@ import com.therecalibrationyears.keel.insights.ActivitiesActions
 import com.therecalibrationyears.keel.insights.ActivitiesData
 import com.therecalibrationyears.keel.insights.DayFeeling
 import com.therecalibrationyears.keel.insights.LookingBackActions
+import com.therecalibrationyears.keel.insights.StatsActions
+import com.therecalibrationyears.keel.insights.StatsData
+import com.therecalibrationyears.keel.insights.StatsEntry
 import com.therecalibrationyears.keel.insights.LookingBackData
 import com.therecalibrationyears.keel.cycle.CycleActions
 import com.therecalibrationyears.keel.cycle.CycleData
@@ -361,6 +364,30 @@ class KeelAppController(
         override fun now(): Instant = clock.now()
         override suspend fun setAmount(activityId: String, day: LocalDate, amount: Double) = activities.setAmount(activityId, day, amount)
         override suspend fun setEating(itemId: String, day: LocalDate, answer: Boolean?) = activities.setEating(itemId, day, answer)
+    }
+
+    /**
+     * The Stats screen's view of the app (iOS `ReportsView`): her check-ins with their
+     * symptoms, her medicines and the days one was recorded as taken, and her sleep.
+     * Imported nights and readings are empty until Health Connect is integrated (M7).
+     */
+    val statsActions: StatsActions = object : StatsActions {
+        override val data: Flow<StatsData> = combine(
+            checkIns.observeLive(), checkIns.observeLoggedSymptoms(), medications.observeActive(), medications.observeLogs(),
+            activities.observeAmounts("sleep"),
+        ) { entries, logged, meds, logs, sleep ->
+            val zone = clock.zone()
+            val names = logged.groupBy({ it.checkInID }, { it.name })
+            StatsData(
+                entries = entries.map { StatsEntry(it.date.atZone(zone).toLocalDate(), it.mood, it.energyLevel, it.energy, names[it.id].orEmpty()) },
+                activeMedicineCount = meds.size,
+                anyAutoLogged = meds.any { it.autoLogDoses },
+                takenDays = logs.filter { it.taken }.map { it.date.atZone(zone).toLocalDate() },
+                manualSleep = sleep, importedSleep = emptyList(), readings = emptyList(),
+            )
+        }
+        override val zone: ZoneId get() = clock.zone()
+        override fun now(): Instant = clock.now()
     }
 
     /** The Reminders screen's view of the app. */
