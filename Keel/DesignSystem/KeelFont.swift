@@ -70,14 +70,9 @@ extension View {
     /// small screens so a longer title never clips. Centred on illustration
     /// "moment" screens, `.leading` on content/form screens so it aligns with the
     /// body beneath it.
+    /// Colour comes from the theme, so the title reads in dark mode too.
     func onboardingTitle(_ alignment: TextAlignment = .center) -> some View {
-        self.font(KeelFont.serif(28, weight: .semibold))
-            .foregroundStyle(KeelColor.heading)
-            .multilineTextAlignment(alignment)
-            .frame(maxWidth: .infinity, alignment: alignment == .leading ? Alignment.leading : .center)
-            .lineLimit(3)
-            .minimumScaleFactor(0.8)
-            .fixedSize(horizontal: false, vertical: true)
+        modifier(OnboardingTitleStyle(alignment: alignment))
     }
 
     /// Consistent onboarding lead/subtitle, comfortable line height. Colour is
@@ -92,9 +87,37 @@ extension View {
 
     /// Uppercase eyebrow label styling (letter-spaced, muted).
     func keelEyebrow() -> some View {
-        self.font(KeelFont.eyebrow)
+        modifier(EyebrowStyle())
+    }
+}
+
+/// `onboardingTitle()`. Reads the theme's heading colour: the fixed brand charcoal it used
+/// before was nearly invisible on the dark background.
+private struct OnboardingTitleStyle: ViewModifier {
+    @Environment(\.keelTheme) private var theme
+    let alignment: TextAlignment
+
+    func body(content: Content) -> some View {
+        content
+            .font(KeelFont.serif(28, weight: .semibold))
+            .foregroundStyle(theme.heading)
+            .multilineTextAlignment(alignment)
+            .frame(maxWidth: .infinity, alignment: alignment == .leading ? Alignment.leading : .center)
+            .lineLimit(3)
+            .minimumScaleFactor(0.8)
+            .fixedSize(horizontal: false, vertical: true)
+    }
+}
+
+/// `keelEyebrow()`. Reads the theme's muted colour, so it adapts to dark mode and themes.
+private struct EyebrowStyle: ViewModifier {
+    @Environment(\.keelTheme) private var theme
+
+    func body(content: Content) -> some View {
+        content
+            .font(KeelFont.eyebrow)
             .textCase(.uppercase)
             .tracking(1.5)
-            .foregroundStyle(KeelColor.mutedForeground)
+            .foregroundStyle(theme.muted)
     }
 }

@@ -35,6 +35,31 @@ final class ThemeColourTests: XCTestCase {
         XCTAssertNotEqual(EnergyLevel.low.color(in: dark), EnergyLevel.low.color(in: earthy))
     }
 
+    /// Regression (dark mode): `onboardingTitle()` and `keelEyebrow()` used the fixed brand
+    /// palette (`KeelColor.heading` charcoal), so onboarding titles were nearly invisible on the
+    /// dark background. Shared styles must read the injected theme: only the palette files
+    /// themselves may name `KeelColor`.
+    func testDesignSystemStylesReadTheThemeNotTheFixedPalette() throws {
+        let appDir = URL(fileURLWithPath: #filePath)
+            .deletingLastPathComponent().deletingLastPathComponent()
+            .appendingPathComponent("Keel")
+        let palette: Set<String> = ["KeelColor.swift", "KeelTheme.swift"]
+        var offenders: [String] = []
+        let files = FileManager.default.enumerator(at: appDir, includingPropertiesForKeys: nil)
+        while let url = files?.nextObject() as? URL {
+            guard url.pathExtension == "swift", !palette.contains(url.lastPathComponent),
+                  url.lastPathComponent != "DebugHarness.swift" else { continue }
+            let lines = try String(contentsOf: url, encoding: .utf8).components(separatedBy: "\n")
+            for (i, line) in lines.enumerated() {
+                let code = line.components(separatedBy: "//").first ?? line
+                if code.contains("KeelColor.") {
+                    offenders.append("\(url.lastPathComponent):\(i + 1): \(line.trimmingCharacters(in: .whitespaces))")
+                }
+            }
+        }
+        XCTAssertEqual(offenders, [], "Read colours from \\.keelTheme instead:\n" + offenders.joined(separator: "\n"))
+    }
+
     /// Guard: hard-coded colours belong only in `Keel/DesignSystem/` (the tokens). Any
     /// `Color(hex:)`, RGB, or named system colour elsewhere in shipping code fails here.
     /// `DebugHarness` is debug-only and exempt; Sign in with Apple's `.black` button style
