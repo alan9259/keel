@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Brand colours for the launcher icon and launch screen only (the mark keeps its own
+         colours whatever theme is chosen, as on iOS). In-app colours come from KeelTheme. -->
+    <color name="keel_rosewood">#FF8C4A45</color>
+    <!-- KeelTheme.Light.background (off-white). -->
+    <color name="keel_launch_background">#FFF7F5F0</color>
+</resources>

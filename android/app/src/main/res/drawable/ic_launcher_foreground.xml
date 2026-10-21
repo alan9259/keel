@@ -1,0 +1,26 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- The Keel v2 mark: off-white disc, mist water settled level, upright K in rosewood.
+     Same paths as Keel/DesignSystem/KeelMark.swift (100-unit space), centred in the
+     108dp adaptive-icon canvas. The launcher shows the middle 72dp, so the disc is scaled
+     to the share of the tile it has in the brand art (diameter 0.6048 of the tile:
+     radius 36 x 0.84 per 100 units): 0.6048 x 72 / 72 = scale 0.6048. -->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="108dp"
+    android:height="108dp"
+    android:viewportWidth="108"
+    android:viewportHeight="108">
+    <group android:translateX="4" android:translateY="4">
+        <group android:pivotX="50" android:pivotY="50" android:scaleX="0.6048" android:scaleY="0.6048">
+            <path android:fillColor="#F7F5F0"
+                android:pathData="M14,50 a36,36 0 1,0 72,0 a36,36 0 1,0 -72,0 Z" />
+            <group>
+                <clip-path android:pathData="M14,50 a36,36 0 1,0 72,0 a36,36 0 1,0 -72,0 Z" />
+                <path android:fillColor="#CFD4D4"
+                    android:pathData="M6,62 C22,55 32,68 50,63 C66,58.5 78,63 96,59 L96,96 L6,96 Z" />
+            </group>
+            <path android:strokeColor="#8C4A45" android:strokeWidth="11"
+                android:strokeLineCap="round" android:strokeLineJoin="round"
+                android:pathData="M38,30 L38,70 M64,30 C58,36 53,41 47,47 M47,47 C55,53 61,60 64,70" />
+        </group>
+    </group>
+</vector>

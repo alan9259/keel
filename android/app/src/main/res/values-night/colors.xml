@@ -1,0 +1,5 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- KeelTheme.Dark.background, so a dark-mode launch isn't a white flash. -->
+    <color name="keel_launch_background">#FF24211E</color>
+</resources>

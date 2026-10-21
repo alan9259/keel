@@ -1,0 +1,158 @@
+{
+  "formatVersion": 1,
+  "database": {
+    "version": 1,
+    "identityHash": "7d78e012fcdd40cc44aae3691eb40f18",
+    "entities": [
+      {
+        "tableName": "user_profile",
+        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`id` TEXT NOT NULL, `firstName` TEXT NOT NULL, `lastName` TEXT, `birthYear` INTEGER, `mobile` TEXT, `email` TEXT, `periodsNotApplicableReason` TEXT, `hysterectomyRaw` TEXT, `hysterectomyYear` INTEGER, `appleUserID` TEXT, `pathwayRaw` TEXT, `healthConnected` INTEGER NOT NULL, `onboardingCompletedAt` INTEGER, `trackingStartDate` INTEGER NOT NULL, `region` TEXT, `localeID` TEXT, `timeZoneID` TEXT, `appVersion` TEXT, `deviceModel` TEXT, `osVersion` TEXT, `ownerID` TEXT NOT NULL, `createdAt` INTEGER NOT NULL, `updatedAt` INTEGER NOT NULL, `deletedAt` INTEGER, `syncStatusRaw` TEXT NOT NULL, PRIMARY KEY(`id`))",
+        "fields": [
+          {
+            "fieldPath": "id",
+            "columnName": "id",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "firstName",
+            "columnName": "firstName",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "lastName",
+            "columnName": "lastName",
+            "affinity": "TEXT"
+          },
+          {
+            "fieldPath": "birthYear",
+            "columnName": "birthYear",
+            "affinity": "INTEGER"
+          },
+          {
+            "fieldPath": "mobile",
+            "columnName": "mobile",
+            "affinity": "TEXT"
+          },
+          {
+            "fieldPath": "email",
+            "columnName": "email",
+            "affinity": "TEXT"
+          },
+          {
+            "fieldPath": "periodsNotApplicableReason",
+            "columnName": "periodsNotApplicableReason",
+            "affinity": "TEXT"
+          },
+          {
+            "fieldPath": "hysterectomyRaw",
+            "columnName": "hysterectomyRaw",
+            "affinity": "TEXT"
+          },
+          {
+            "fieldPath": "hysterectomyYear",
+            "columnName": "hysterectomyYear",
+            "affinity": "INTEGER"
+          },
+          {
+            "fieldPath": "appleUserID",
+            "columnName": "appleUserID",
+            "affinity": "TEXT"
+          },
+          {
+            "fieldPath": "pathwayRaw",
+            "columnName": "pathwayRaw",
+            "affinity": "TEXT"
+          },
+          {
+            "fieldPath": "healthConnected",
+            "columnName": "healthConnected",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "onboardingCompletedAt",
+            "columnName": "onboardingCompletedAt",
+            "affinity": "INTEGER"
+          },
+          {
+            "fieldPath": "trackingStartDate",
+            "columnName": "trackingStartDate",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "region",
+            "columnName": "region",
+            "affinity": "TEXT"
+          },
+          {
+            "fieldPath": "localeID",
+            "columnName": "localeID",
+            "affinity": "TEXT"
+          },
+          {
+            "fieldPath": "timeZoneID",
+            "columnName": "timeZoneID",
+            "affinity": "TEXT"
+          },
+          {
+            "fieldPath": "appVersion",
+            "columnName": "appVersion",
+            "affinity": "TEXT"
+          },
+          {
+            "fieldPath": "deviceModel",
+            "columnName": "deviceModel",
+            "affinity": "TEXT"
+          },
+          {
+            "fieldPath": "osVersion",
+            "columnName": "osVersion",
+            "affinity": "TEXT"
+          },
+          {
+            "fieldPath": "ownerID",
+            "columnName": "ownerID",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "createdAt",
+            "columnName": "createdAt",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "updatedAt",
+            "columnName": "updatedAt",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "deletedAt",
+            "columnName": "deletedAt",
+            "affinity": "INTEGER"
+          },
+          {
+            "fieldPath": "syncStatusRaw",
+            "columnName": "syncStatusRaw",
+            "affinity": "TEXT",
+            "notNull": true
+          }
+        ],
+        "primaryKey": {
+          "autoGenerate": false,
+          "columnNames": [
+            "id"
+          ]
+        }
+      }
+    ],
+    "setupQueries": [
+      "CREATE TABLE IF NOT EXISTS room_master_table (id INTEGER PRIMARY KEY,identity_hash TEXT)",
+      "INSERT OR REPLACE INTO room_master_table (id,identity_hash) VALUES(42, '7d78e012fcdd40cc44aae3691eb40f18')"
+    ]
+  }
+}

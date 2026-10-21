@@ -1,0 +1,2 @@
+# Exact strings exempt from CopyLintTest, each with a reason on the line above it.
+# One per line; \n is a newline.

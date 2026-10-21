@@ -1,0 +1,3 @@
+# Android-only strings that look like copy but have no iOS original and need no owner
+# sign-off (not user-facing wording). One per line; \n is a newline. Anything a person
+# reads belongs in platform-substitutions.json instead.

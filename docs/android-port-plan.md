@@ -5,6 +5,11 @@
 > starts by reading `CLAUDE.md`, `DESIGN_PRINCIPLES.md`, `android/CLAUDE.md` (created in M0) and
 > this plan. Library versions were checked against official release pages on 20 Oct 2026
 > (sources at the end); re-verify at scaffold time.
+>
+> **Status (21 Oct 2026): M0 done** (see "M0 outcome" under §5). At the owner's request the
+> first real screens came next: **onboarding is built** (M2 slice) on the parts of M1 it needs
+> (UserProfile table, UserRepository, SettingsStore, LocalIdentity). See "Onboarding slice"
+> under §5. Next: Home (the rest of M1's models + M2 Dashboard).
 
 ## Context
 
@@ -64,18 +69,18 @@ fixtures/             (repo root) shared golden files read by both iOS and Andro
 ### 1.2 Libraries (pin in `libs.versions.toml`; verified 20 Oct 2026)
 | Area | Choice |
 |---|---|
-| Build | AGP 9.4.0, Gradle 9.6.0, JDK 17, Kotlin 2.4.21 + matching KSP2, Compose compiler plugin |
-| SDK | compileSdk 36, targetSdk 36 (Play requirement from 31 Aug 2026; edge-to-edge enforced), minSdk 28 |
+| Build | AGP 9.4.1 (built-in Kotlin, no `kotlin-android` plugin), Gradle 9.8.2, JDK 17, Kotlin 2.4.21, KSP 2.3.12, Compose compiler plugin |
+| SDK | compileSdk 37 (Compose BOM 2026.09.00's AARs require it), targetSdk 36 (Play requirement from 31 Aug 2026; edge-to-edge enforced), minSdk 28 |
 | UI | Compose BOM 2026.09.00 (ui 1.12.1, material3 1.4.0 as a base, re-skinned from KeelTheme) |
 | Navigation | Navigation 3 `navigation3-runtime/ui` 1.2.0 (back stack is a state list; maps to `goHome`; predictive back built in) |
-| Lifecycle | lifecycle 2.10.x (`ProcessLifecycleOwner` replaces `scenePhase`) |
+| Lifecycle | lifecycle 2.11.0, activity 1.13.0, core-ktx 1.19.1 (`ProcessLifecycleOwner` replaces `scenePhase`) |
 | Data | Room 2.8.5 + KSP (`exportSchema = true`), DataStore Preferences 1.2.1, kotlinx.serialization 1.12.x |
-| DI | Hilt (Dagger 2.60.x, androidx.hilt 1.3.0); fall back to a manual `AppContainer` if Hilt + AGP 9 KSP2 misbehaves |
+| DI | Hilt (Dagger 2.60.1, androidx.hilt 1.3.0) introduced in M1 with the first injected types; fall back to a manual `AppContainer` if Hilt + AGP 9 KSP2 misbehaves. M0 has nothing to inject. |
 | Health | `androidx.health.connect:connect-client:1.1.0` (stable, not 1.2 alpha) + `connect-testing` (FakeHealthConnectClient) |
 | Reminders | AlarmManager for dated one-shots; WorkManager 2.12.0 only for a daily top-up (D11) |
 | Security | `androidx.biometric:biometric:1.1.0`; Android Keystore AES-256-GCM directly (security-crypto / EncryptedSharedPreferences is deprecated, don't use) |
 | Other | platform `SpeechRecognizer`, `PdfDocument` + `StaticLayout`, `PdfRenderer` (preview), `core-splashscreen` |
-| Tests | JUnit 4, coroutines-test, Turbine, Robolectric (SDK 36 support), Compose ui-test, Roborazzi (screenshots), pdfbox-android (androidTest PDF text) |
+| Tests | JUnit 4, coroutines-test, Turbine, Robolectric 4.17 (`@Config(sdk = [34])`: its SDK 35+ sandboxes need Java 21), Compose ui-test, Roborazzi (screenshots), pdfbox-android (androidTest PDF text) |
 
 ### 1.3 iOS → Android concept map
 | iOS | Android |
@@ -203,7 +208,7 @@ fixtures/             (repo root) shared golden files read by both iOS and Andro
   OKLab mix (SwiftUI default) asserted against iOS values; M3 colour scheme mapped from tokens
   (error = attention); 5 themes incl. Midnight `forcesDark`; light/dark/system; edge-to-edge with
   themed system bars; `sp` text; 48 dp targets. Fonts copied from `Keel/Resources/Fonts`.
-  Emoji: D14 spike.
+  Emoji: Twemoji vector drawables (D14, resolved in M0).
 
 ---
 
@@ -377,14 +382,20 @@ The only iOS change is **test-only**: `KeelTests/SharedFixtureTests.swift` readi
 - `core/copy` Kotlin objects mirror iOS (`GPSummaryCopy`, `PrivacySummary`, `AboutCopy`,
   `NotificationCopy`, `OnboardingCopy`, ...); interpolated strings are functions. No strings.xml
   (English-only; verbatim comparison is simpler).
-- `tools/extract_ios_copy.py` (read-only over `Keel/**/*.swift`, excluding DebugHarness/comments)
-  writes `core/copy/src/test/resources/ios-copy-inventory.txt` (reviewed, committed).
-- `CopyParityTest`: each inventory line exists verbatim in `core/copy` or is in
-  `platform-substitutions.json` with `approvedByOwner`; the release task fails while any is
-  unapproved.
-- `CopyLintTest`: no U+2014/U+2013; GP banned verbs; wince list ("honestly", "to be honest",
-  "midlife", "hot flash"); US spellings (color, favorite, -ize, estrogen, center); no "Apple",
-  "iPhone", "iCloud", "Face ID", "Touch ID", "App Store" (allowlist the Twemoji credit).
+- *As built in M0:* no committed inventory. The tests extract string literals straight from
+  `Keel/**/*.swift` (skipping comments, `#if DEBUG` branches, `#Preview`, DebugHarness) and from
+  every shipping Android Kotlin file (`src/main`, `src/release`), so they can't go stale; both
+  trees are Gradle inputs. Interpolations compare as `{}` on both sides.
+- `CopyParityTest`: every Android literal that looks like copy (has a space or starts with a
+  capitalised word) exists verbatim on iOS, or is the `android` side of an entry in
+  `platform-substitutions.json`, or is listed in `android-only-literals.txt`; lines marked
+  `// not-copy: <reason>` are skipped. It also writes
+  `core/copy/build/reports/copy/ios-not-yet-on-android.txt` (coverage, a gate only at M8, when
+  the release check also fails on any unapproved substitution).
+- `CopyLintTest`: no U+2014/U+2013; wince list ("honestly", "to be honest", "midlife",
+  "hot flash", ...); US spellings (color, favorite, -ize, estrogen, center, ...); no "Apple",
+  "iPhone", "iCloud", "Face ID", "Touch ID", "App Store", "HealthKit", "iOS" (`lint-allowlist.txt`
+  for exceptions). The GP banned-verb guard stays with `GPSummaryCopy` (M5), as on iOS.
 
 ---
 
@@ -406,6 +417,36 @@ dark) and a short "not verified" note.
 
 ---
 
+### M0 outcome (21 Oct 2026)
+Built: Gradle scaffold (`app`, `core/domain`, `core/copy`, `core/designsystem`); fonts copied
+from `Keel/Resources/Fonts` at build time; `KeelTheme` + 5 themes + dark + OKLab mix; type scale;
+metrics; buttons, cards, inputs, segmented, symptom chip, radio card, emoji glyph, toast,
+`KeelScreen` with floating header; `KeelMark`; adaptive launcher icon (disc at the brand art's
+60% of the tile); system bars follow Keel's colour mode; debug harness + component gallery;
+copy parity/lint tests; `android/CLAUDE.md`. Tests (all green): ThemeColourTests 5,
+KeelMarkTests 3 (pixel match against `brand/keel-icon-1024.png`), TwemojiVectorsTest 3,
+CopyParityTest 3, CopyLintTest 4, LiteralExtractorTests 10. Lint: 0 errors.
+Verified on emulators API 36 and API 28: gallery in 5 themes × light/dark, emoji, system bars,
+launcher icon, R8 + resource-shrunk release build launches with no debug code in its dex.
+Deferred: monochrome (themed) launcher layer (needs brand art, owner), `core-splashscreen`
+(M2 with the app shell), Material Symbols mapping table (grows with each screen; M0 has back,
+home, check, plus, leaf, chevron), `KeelClock` (M1 with its first user), API 33 AVD (M3/M7).
+
+### Onboarding slice (21 Oct 2026)
+Built: `core/data` (Room `MainDatabase` v1 with `user_profile`, `UserRepository` with the iOS
+operations, `SettingsStore` with iOS keys, `LocalIdentity` `local-<UUID>`, `DeviceContext`),
+`core/domain` (`Pathway`, `RootRouting`, `KeelClock`, `SyncStatus`), `feature/onboarding`
+(all six screens, copy verbatim; back gesture returns a step), app shell (`AppContainer`
+manual DI instead of Hilt: nothing yet needs Hilt's codegen; `KeelAppController`; `KeelRoot`;
+splash held until saved state loads; theme from saved settings). Tests: RootRouting 7,
+Pathway 2, UserRepository 12, LocalStores 3, OnboardingFlow 7 (Robolectric Compose),
+KeelAppController 6; mapping in `android/docs/test-parity.md`. Verified on emulators API 36
+and 28 (fresh install → all six screens → saved profile read back from the device database →
+relaunch lands in the app), dark mode, Midnight, 200% font size, and the R8 release build.
+Stand-ins (`// FAKE:`): Home (shows only the mark) and the Health Connect request (Continue
+moves on, nothing is read) until M7. Owner sign-off pending: the Health Connect wording on the
+health step (in `platform-substitutions.json`, D12).
+
 ## 6. Decisions (recommendation; "owner" = needs Mischa's sign-off before release)
 | # | Topic | Recommendation |
 |---|---|---|
@@ -422,7 +463,7 @@ dark) and a short "not verified" note.
 | D11 | Reminders only topped up when the app opens | Add a daily WorkManager top-up; keep `cycleHorizon` identical |
 | D12 | Health Connect copy substitutions | §3.8 table (owner) |
 | D13 | HRV type differs | Store RMSSD as `hrvRmssd`; restored iOS `hrv` rows kept, not charted |
-| D14 | Emoji rendering | M0 spike: Twemoji COLR font via Compose on API 28 and 36; if not in colour, convert the 28 distinct mood-pack glyphs to VectorDrawables (CC-BY credit already in About) |
+| D14 | Emoji rendering | **Resolved in M0:** the COLR font renders in colour on API 36 but blank on API 28, so `tools/twemoji_to_vectors.py` generates vector drawables for the 28 mood emoji from the iOS font; the font no longer ships on Android (CC-BY credit already in About) |
 | D15 | "Face ID"/"Touch ID"/"passcode", "microphone and speech access" | "biometrics", "Use biometric unlock", "Unlock with biometrics."; "Voice notes need microphone access. You can type instead, or allow access in Settings." (owner) |
 | D16 | App-switcher privacy | 33+ `setRecentsScreenshotEnabled(false)`; 28 to 32 `FLAG_SECURE` while lock is on |
 | D17 | Export | SAF `CreateDocument` named `Keel-backup-yyyy-MM-dd-HHmm.keelbackup` |
@@ -457,10 +498,9 @@ Commands (put in `android/CLAUDE.md`): `cd android && ./gradlew check`,
 `./gradlew :app:assembleRelease`, `./gradlew verifyRoborazziDebug`.
 
 ## 8. First steps for the next session
-1. Copy this plan to `docs/android-port-plan.md`; add a memory pointer.
-2. Install Android Studio / command-line SDK; create AVDs API 28, 33 (Play), 36 (Play).
-3. Ask the owner about D9 (backup), D3/D12/D15 (copy) and the iOS test-only fixture change, then
-   start M0.
+1. ~~Copy this plan; install the SDK; create AVDs~~ done (API 28 and 36; add API 33 Play for M3/M7).
+2. Ask the owner about D9 (backup), D3/D12/D15 (copy), the iOS test-only fixture change and the
+   `applicationId`, then start M1.
 
 ## Sources (checked 20 Oct 2026)
 Health Connect releases, get started, read data, aggregate data, data types, HealthConnectClient

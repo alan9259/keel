@@ -1,0 +1,8 @@
+[
+  {
+    "ios": "Keel can read your sleep, activity, vitals and periods from Apple Health, so there is less for you to enter by hand. Keel shows these alongside your own record and labels where each one came from. Keel only ever reads. It never writes anything back.",
+    "android": "Keel can read your sleep, activity, vitals and periods from Health Connect, so there is less for you to enter by hand. Keel shows these alongside your own record and labels where each one came from. Keel only ever reads. It never writes anything back.",
+    "approvedByOwner": false,
+    "note": "Onboarding health step (iOS AppleHealthView). Plan §3.8 / D12: Apple Health -> Health Connect, otherwise verbatim."
+  }
+]
