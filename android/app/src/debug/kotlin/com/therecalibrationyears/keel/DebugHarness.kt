@@ -17,7 +17,7 @@ import com.therecalibrationyears.keel.onboarding.OnboardingStep
  *   uitOnboardStep <step>    start onboarding at welcome, right_place, create_account,
  *                            pathway, health or ready (iOS -uitOnboardPathway etc.)
  *   uitRoute <route>         push cycle, medications, patterns, more or gp_summary
- *   uitReset true            soft-delete check-ins and stop medicines first
+ *   uitReset true            soft-delete check-ins and remove medicines first
  *   uitSeedCheckIn / uitSeedMed / uitSeedEnergyMix / uitSeedWeek true   sample records
  *
  * Never compiled into release builds (see src/release).

@@ -26,7 +26,8 @@ internal class DebugSeeds(private val container: AppContainer) {
     suspend fun reset() {
         val now = clock.now()
         db.checkIns().observeLive().first().forEach { db.checkIns().upsert(it.copy(deletedAt = now, updatedAt = now)) }
-        db.medications().observeActive().first().forEach { db.medications().upsert(it.copy(isActive = false, updatedAt = now)) }
+        // Removed from her list (iOS archives them), so nothing lingers under "No longer taking".
+        db.medications().live().forEach { db.medications().upsert(it.copy(isActive = false, deletedAt = now, updatedAt = now)) }
     }
 
     /** One representative check-in (iOS -uitSeedCheckIn). */

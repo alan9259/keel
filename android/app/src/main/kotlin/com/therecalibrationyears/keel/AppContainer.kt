@@ -10,6 +10,8 @@ import com.therecalibrationyears.keel.data.MedicationRepository
 import com.therecalibrationyears.keel.data.LocalIdentity
 import com.therecalibrationyears.keel.data.SettingsStore
 import com.therecalibrationyears.keel.data.SymptomRepository
+import com.therecalibrationyears.keel.data.TreatmentCatalogStore
+import com.therecalibrationyears.keel.designsystem.KeelDateFormats
 import com.therecalibrationyears.keel.data.UserRepository
 import com.therecalibrationyears.keel.data.db.MainDatabase
 import com.therecalibrationyears.keel.domain.KeelClock
@@ -40,10 +42,16 @@ class AppContainer(context: Context) {
     )
     private val checkIns = CheckInRepository(database.checkIns(), identity::ownerId, clock)
     private val symptoms = SymptomRepository(database.symptoms(), database.checkIns(), settings, identity::ownerId, clock)
-    private val medications = MedicationRepository(database.medications(), identity::ownerId, clock)
+    // The locale's time words for the stored `timing` text, read at save time (12 or 24 hour).
+    private val medications = MedicationRepository(database.medications(), identity::ownerId, clock) {
+        KeelDateFormats(context, zone = clock.zone())
+    }
+    private val treatments = TreatmentCatalogStore(context)
     private val activities = ActivityRepository(database.activityLogs(), clock, identity::ownerId)
 
     private val speech = SpeechRecognitionService(context)
 
-    val controller = KeelAppController(users, identity, settings, checkIns, symptoms, medications, activities, speech, clock, appScope)
+    val controller = KeelAppController(
+        users, identity, settings, checkIns, symptoms, medications, activities, speech, treatments, clock, appScope,
+    )
 }

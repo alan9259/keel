@@ -18,14 +18,21 @@ import com.therecalibrationyears.keel.data.db.MainDatabase
 import com.therecalibrationyears.keel.data.db.MedicationEntity
 import com.therecalibrationyears.keel.domain.KeelClock
 import com.therecalibrationyears.keel.domain.Mood
+import com.therecalibrationyears.keel.domain.DoseSchedule
+import com.therecalibrationyears.keel.domain.DoseSlot
 import com.therecalibrationyears.keel.domain.Pathway
+import com.therecalibrationyears.keel.domain.TreatmentDraft
+import com.therecalibrationyears.keel.domain.TreatmentKind
+import com.therecalibrationyears.keel.data.TreatmentCatalogStore
 import java.io.File
 import java.time.Instant
+import java.time.LocalDate
 import java.time.ZoneId
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.cancel
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.filterNotNull
 import kotlinx.coroutines.runBlocking
@@ -90,7 +97,8 @@ class KeelAppControllerTests {
             SymptomRepository(db.symptoms(), db.checkIns(), settings, identity::ownerId, clock),
             MedicationRepository(db.medications(), identity::ownerId, clock),
             ActivityRepository(db.activityLogs(), clock, identity::ownerId),
-            com.therecalibrationyears.keel.platform.SpeechRecognitionService(RuntimeEnvironment.getApplication()), clock, scope,
+            com.therecalibrationyears.keel.platform.SpeechRecognitionService(RuntimeEnvironment.getApplication()),
+            TreatmentCatalogStore(RuntimeEnvironment.getApplication()), clock, scope,
         )
     }
 
@@ -223,7 +231,55 @@ class KeelAppControllerTests {
 
     @Test fun bootstrapSeedsTheSymptomCatalog() = runBlocking {
         launch().bootstrap()
-        withTimeout(5_000) { while (db.symptoms().count() == 0) kotlinx.coroutines.delay(20) }
+        withTimeout(5_000) { while (db.symptoms().count() == 0) delay(20) }
         assertTrue(db.symptoms().count() >= 54)
+    }
+
+    // M3: the Medications screen's actions and the launch steps for medicines.
+
+    @Test fun addingWithAutoLogTicksTodayStraightAway() = runBlocking {
+        val app = launch()
+        app.medicationsActions.add(
+            TreatmentDraft(
+                name = "Magnesium", kind = TreatmentKind.SUPPLEMENT, autoLogDoses = true,
+                schedule = DoseSchedule(slots = listOf(DoseSlot(hour = 8))),
+            ),
+        )
+        val med = app.medicationsActions.active.first().single()
+        val logs = db.medications().observeLiveLogs().first()
+        assertEquals(1, logs.size) // 8:00 has passed at 12:00 in Sydney
+        assertEquals(med.id, logs.single().medicationID)
+        assertEquals(LocalDate.of(2026, 10, 21).atStartOfDay(clock.zone()).toInstant(), logs.single().date)
+    }
+
+    @Test fun bootstrapMovesOlderEntriesOntoSchedulesAndTidiesNames() = runBlocking {
+        val now = clock.now()
+        db.medications().upsert(
+            MedicationEntity(
+                id = "OLD", name = "Oral micronised progesterone (e.g. Prometrium)", frequencyRaw = "daily", timeOfDayRaw = "evening",
+                ownerID = "o", createdAt = now, updatedAt = now,
+            ),
+        )
+        launch().bootstrap()
+        val m = withTimeout(5_000) {
+            var found: MedicationEntity? = null
+            while (found?.scheduleKindRaw == null || found.name.contains("(e.g.")) {
+                found = db.medications().byId("OLD"); delay(20)
+            }
+            found
+        }
+        assertEquals("Oral micronised progesterone", m.name)
+        assertEquals("weekly", m.scheduleKindRaw)
+    }
+
+    @Test fun removingTakesItOffBothLists() = runBlocking {
+        val app = launch()
+        app.medicationsActions.add(TreatmentDraft(name = "Iron", kind = TreatmentKind.SUPPLEMENT))
+        val id = app.medicationsActions.active.first().single().id
+        app.medicationsActions.setTracked(id, false)
+        assertFalse(app.medicationsActions.active.first().single().isTracked)
+        app.medicationsActions.remove(id)
+        assertTrue(app.medicationsActions.active.first().isEmpty())
+        assertTrue(app.medicationsActions.stopped.first().isEmpty())
     }
 }

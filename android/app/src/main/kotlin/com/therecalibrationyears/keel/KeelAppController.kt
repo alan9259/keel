@@ -7,6 +7,7 @@ import com.therecalibrationyears.keel.data.MedicationRepository
 import com.therecalibrationyears.keel.data.SettingsStore
 import com.therecalibrationyears.keel.data.SymptomPick
 import com.therecalibrationyears.keel.data.SymptomRepository
+import com.therecalibrationyears.keel.data.TreatmentCatalogStore
 import com.therecalibrationyears.keel.data.UserRepository
 import com.therecalibrationyears.keel.data.db.MedicationEntity
 import com.therecalibrationyears.keel.data.db.SymptomEntity
@@ -21,7 +22,12 @@ import com.therecalibrationyears.keel.domain.MoodPacks
 import com.therecalibrationyears.keel.platform.SpeechRecognitionService
 import com.therecalibrationyears.keel.domain.KeelClock
 import com.therecalibrationyears.keel.domain.Pathway
+import com.therecalibrationyears.keel.domain.TreatmentCatalog
+import com.therecalibrationyears.keel.domain.TreatmentDraft
 import com.therecalibrationyears.keel.home.HomeData
+import com.therecalibrationyears.keel.medications.MedicationsActions
+import java.time.Instant
+import java.time.ZoneId
 import com.therecalibrationyears.keel.onboarding.OnboardingActions
 import java.time.LocalDate
 import kotlinx.coroutines.CoroutineScope
@@ -50,16 +56,31 @@ class KeelAppController(
     private val medications: MedicationRepository,
     private val activities: ActivityRepository,
     private val speech: SpeechRecognitionService,
+    private val treatments: TreatmentCatalogStore,
     val clock: KeelClock,
     private val scope: CoroutineScope,
 ) : OnboardingActions {
 
     /**
      * Launch work (iOS `bootstrap`, in its order; later milestones add their steps): bring
-     * the built-in symptom catalog up to date.
+     * the built-in symptom catalog up to date, carry older medicine entries onto schedules,
+     * tidy brand examples out of their names, then log today's auto-logged doses.
      */
     fun bootstrap() {
-        scope.launch { symptoms.syncBuiltIns() }
+        scope.launch {
+            symptoms.syncBuiltIns()
+            medications.migrateLegacySchedules()
+            medications.stripExampleBrandsFromNames()
+            autoLogTodaysDoses()
+        }
+    }
+
+    /**
+     * Log today's arrived doses for medicines set to auto-log (iOS `autoLogTodaysDoses`).
+     * Runs while the app is open: a day she never opens Keel isn't logged.
+     */
+    suspend fun autoLogTodaysDoses() {
+        medications.autoLogTodaysDueDoses()
     }
 
     /** Her chosen mood pack (the default until she picks one). */
@@ -152,6 +173,28 @@ class KeelAppController(
             override suspend fun rename(symptom: SymptomEntity, name: String) = symptoms.rename(symptom, name)
             override suspend fun move(symptom: SymptomEntity, categoryRaw: String) = symptoms.move(symptom, categoryRaw)
         }
+    }
+
+    /** The Medications screen's view of the app. */
+    val medicationsActions: MedicationsActions = object : MedicationsActions {
+        override val active = medications.observeActive()
+        override val stopped = medications.observeStopped()
+        override val catalog: TreatmentCatalog get() = treatments.catalog
+        override val zone: ZoneId get() = clock.zone()
+        override fun now(): Instant = clock.now()
+
+        override suspend fun add(draft: TreatmentDraft) {
+            medications.add(draft)
+            autoLogTodaysDoses() // added with auto-log on: tick today now
+        }
+
+        override suspend fun update(id: String, draft: TreatmentDraft) {
+            medications.update(id, draft)
+            autoLogTodaysDoses() // turning auto-log on ticks today's log straight away
+        }
+
+        override suspend fun remove(id: String) = medications.archive(id)
+        override suspend fun setTracked(id: String, tracked: Boolean) = medications.setTracked(id, tracked)
     }
 
     /** Everything the first frame depends on has loaded (the launch screen waits for this). */

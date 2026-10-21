@@ -29,3 +29,16 @@ test classes keep the iOS name. Suites not listed yet are ported with their mile
 | AlcoholTests: GP summary line and backup tests | | with GP summary (M5) and backup (M1 backup) |
 | SensitiveGroupCopyTests: intimacyIntroWording | core/domain `SymptomCatalogTests` | ported |
 | SpeechOnDeviceTests (3) | core/platform `SpeechOnDeviceTests` | ported (+ Android 12/13 rules, language match) |
+| DoseScheduleTests (8) | core/domain `DoseScheduleTests` | ported (+ no-active-days, no-anchor, nextDue edges) |
+| DoseScheduleSummaryTests (8) | core/domain `DoseScheduleSummaryTests` | ported; fixed test words also pin the whole sentence (narrower dose clause, week order, cycle times) |
+| DoseUnitTests (3) | core/domain `DoseUnitTests` | ported (+ "%" and decimals) |
+| NotificationGateTests (5) | core/domain `NotificationGateTests` | adapted: Android has no provisional/ephemeral; covers never asked, refused once (system still asks), refused twice (Settings), allowed, and turned off below Android 13 |
+| ReminderWordingTests: medicineNameHiddenByDefault, medicineNameShownWhenSheChoosesIt, bodiesAreHonestAboutLogging, everydayRemindersMakeNoHealthClaims | core/domain `ReminderWordingTests` | ported |
+| ReminderWordingTests: theSettingIsOffByDefault | core/data `ReminderSettingsTests.medicineNamesInRemindersIsOffByDefault` | ported |
+| MedReminderPlanTests (11) | core/domain `MedReminderPlanTests` | ported (+ Sydney clocks-forward day) |
+| MedicationScheduleTests (6) | core/domain `MedicationScheduleTests` | ported against the stored columns (+ iOS JSON shape, tolerant reads, days moved onto the dose, rebuilt from older columns) |
+| MedicationNameCleanupTests: stripsOnlyATrailingExample | core/domain `MedicationNameCleanupTests` | ported |
+| MedicationNameCleanupTests: cleanupRenamesSavedEntriesAndIsIdempotent | core/data `MedicationRepositoryTests` | ported |
+| MedicationRepositoryTests (11) | core/data `MedicationRepositoryTests` | ported with a fixed clock (+ upsert by name, stored text, start date kept, archive, legacy migration, form read-back) |
+| TreatmentCatalogTests (5) | core/data `TreatmentCatalogTests` | ported (+ bundled copy is the iOS file, cached copy wins, alphabetical order) |
+| ReminderExplainerTests (3) | | with the reminders explanation (M3 reminders stage) |

@@ -10,8 +10,9 @@
 > first real screens came next: **onboarding is built** (M2 slice) on the parts of M1 it needs
 > (UserProfile table, UserRepository, SettingsStore, LocalIdentity). See "Onboarding slice"
 > under §5. **Home is built** on the check-in, symptom, medicine and activity tables (see
-> "Home slice"). **The check-in flow is built** (see "Check-in slice"). Next: the rest of M2
-> (the reminders explanation needs M3), then M3 medications and reminders.
+> "Home slice"). **The check-in flow is built** (see "Check-in slice"). **M3 medications are
+> built** (see "M3 medications"); next: M3 reminders (alarms, receivers, the reminders
+> explanation and permission, the Reminders screen), then the rest of M2.
 
 ## Context
 
@@ -476,6 +477,29 @@ Verified on emulators: create → Home → edit (Change mood) → remove, each r
 device database; picker opt-in, add your own, rename, drag to another group; voice permission
 prompt and the unavailable message on API 28 and 36. Not verified: dictation itself (needs a real
 phone with an on-device language pack). Owner sign-off pending: the microphone message (D15).
+
+### M3 medications (21 Oct 2026)
+Built: `core/domain` schedule rules (`DoseSlot`, `DoseSchedule` with due days, cycles, upcoming
+dates and the summary sentence), dose units, methods, kinds, the stored-column mapping (iOS
+`doseTimesJSON` shape, upper-case slot ids, weekdays 1 = Sunday), legacy migration and
+brand-example cleanup rules, auto-log decision, `TreatmentDraft`, the treatment catalog model
+and search, and the reminder rules (`plannedOccurrences`, `cycleHorizon`, `dayKey`, wording,
+Android notification gate, `ReminderConfig`). `core/data`: full `MedicationRepository` (add as
+upsert by name, update, stop/reactivate, archive, tick, auto-log, launch migrations),
+`TreatmentCatalogStore` (iOS `treatment-catalog.json` copied into assets at build time; cached
+copy wins), reminder settings with iOS keys. `feature/medications`: Medications screen (groups,
+"No longer taking", track tick, Auto-logged badge, empty state), picker sheet (tabs, search,
+"Add your own", "Add “…”"), details form (strength and unit menu, method, weekly/cycle/as
+directed, per-dose times with the system time picker in her 12/24 hour setting, per-dose days,
+cycle steppers, auto-log, note, still taking + optional stop date). Launch now also runs the
+legacy schedule migration, the name cleanup and today's auto-log, in iOS order. Seeding the
+symptom catalog is now one transaction (it was row by row, which made a launch test flaky).
+Tests: domain +64, data +30, Medications 17, controller +3 (267 in all). Verified on emulators:
+add from the list with two times and narrowed days → saved row read back from the device
+database (iOS JSON shape) → edit → stop with a date → "No longer taking"; API 28 dark mode;
+an old-style entry migrated on launch. Launch time measured against the previous commit,
+interleaved: no change (release about 2.3 s on the loaded API 28 emulator either way).
+Not verified: TalkBack; the date and time pickers use the system font, not Poppins (M8).
 
 ## 6. Decisions (recommendation; "owner" = needs Mischa's sign-off before release)
 | # | Topic | Recommendation |

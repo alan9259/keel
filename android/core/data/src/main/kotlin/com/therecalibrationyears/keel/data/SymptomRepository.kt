@@ -49,6 +49,10 @@ class SymptomRepository(
 
     private suspend fun reconcileBuiltIns() {
         val now = clock.now()
+        // Written in one transaction at the end (iOS saves the context once), so nothing
+        // ever reads a half-seeded catalog. Keyed by id: a later change to a row wins.
+        val writes = linkedMapOf<String, SymptomEntity>()
+        fun write(s: SymptomEntity) { writes[s.id] = s }
         val all = dao.all()
         val builtIns = all.filter { !it.isCustom }.associateBy { it.name.lowercase() }.toMutableMap()
         fun reference(s: SymptomEntity) = s.copy(updatedAt = now, syncStatusRaw = SyncStatus.SYNCED.raw)
@@ -58,7 +62,7 @@ class SymptomRepository(
             val s = builtIns[old.lowercase()] ?: return@forEach
             if (builtIns[new.lowercase()] != null) return@forEach
             val renamed = reference(s.copy(name = new))
-            dao.upsert(renamed)
+            write(renamed)
             builtIns.remove(old.lowercase()); builtIns[new.lowercase()] = renamed
         }
 
@@ -68,9 +72,9 @@ class SymptomRepository(
             catalogNames += key
             val existing = builtIns[key]
             if (existing != null) {
-                dao.upsert(reference(existing.copy(categoryRaw = entry.category.raw, isDefaultChip = entry.isDefault)))
+                write(reference(existing.copy(categoryRaw = entry.category.raw, isDefaultChip = entry.isDefault)))
             } else {
-                dao.upsert(
+                write(
                     SymptomEntity(
                         id = UUID.randomUUID().toString().uppercase(), name = entry.name, categoryRaw = entry.category.raw,
                         isCustom = false, isDefaultChip = entry.isDefault, ownerID = "",
@@ -82,7 +86,8 @@ class SymptomRepository(
 
         // Built-ins the catalog dropped: archive, never delete, so past entries keep their labels.
         builtIns.values.filter { !it.isArchived && it.name.lowercase() !in catalogNames }
-            .forEach { dao.upsert(reference(it.copy(isArchived = true))) }
+            .forEach { write(reference(it.copy(isArchived = true))) }
+        dao.upsertAll(writes.values.toList())
     }
 
     /** Active symptoms (not archived), by name in her language's order. */

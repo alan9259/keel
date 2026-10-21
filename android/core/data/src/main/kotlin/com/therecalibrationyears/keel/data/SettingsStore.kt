@@ -6,6 +6,9 @@ import androidx.datastore.preferences.core.booleanPreferencesKey
 import androidx.datastore.preferences.core.edit
 import androidx.datastore.preferences.core.intPreferencesKey
 import androidx.datastore.preferences.core.stringPreferencesKey
+import androidx.datastore.preferences.core.stringSetPreferencesKey
+import com.therecalibrationyears.keel.domain.ReminderConfig
+import kotlinx.serialization.json.Json
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.map
 
@@ -38,6 +41,27 @@ class SettingsStore(private val store: DataStore<Preferences>) {
     /** Home owes her the one-line reminders explanation (set when onboarding finishes). */
     val notificationExplainerPending: Flow<Boolean> = store.data.map { it[NOTIFICATION_EXPLAINER_PENDING] ?: false }
 
+    /** The master switch for reminders (Settings, and the reminders explanation). */
+    val pushNotifications: Flow<Boolean> = store.data.map { it[PUSH_NOTIFICATIONS] ?: true }
+
+    /** Which reminders are on: `dailyCheckIn`, `medication`, `hydration`, `movement`, `windDown`. */
+    val enabledReminderIds: Flow<Set<String>> = store.data.map { it[REMINDERS] ?: DEFAULT_REMINDERS }
+
+    /** Timing for the everyday reminders; iOS defaults until she changes them. */
+    val reminderConfig: Flow<ReminderConfig> = store.data.map { prefs ->
+        prefs[REMINDER_CONFIG]?.let { runCatching { json.decodeFromString(ReminderConfig.serializer(), it) }.getOrNull() }
+            ?: ReminderConfig()
+    }
+
+    /** Reminders show on the lock screen, so medicine names stay off until she chooses. */
+    val medicineNamesInReminders: Flow<Boolean> = store.data.map { it[MED_NAMES_IN_REMINDERS] ?: false }
+
+    /**
+     * Android only: whether Keel has shown the notification permission prompt, so a later
+     * refusal can be told apart from "never asked" (the system API can't).
+     */
+    val notificationPermissionAsked: Flow<Boolean> = store.data.map { it[NOTIFICATION_PERMISSION_ASKED] ?: false }
+
     suspend fun setColourModeRaw(raw: String) = store.edit { it[COLOUR_MODE] = raw }
     suspend fun setThemeId(id: String) = store.edit { it[THEME_ID] = id }
     suspend fun setHaptics(on: Boolean) = store.edit { it[HAPTICS] = on }
@@ -48,14 +72,33 @@ class SettingsStore(private val store: DataStore<Preferences>) {
     suspend fun setNotificationExplainerPending(pending: Boolean) =
         store.edit { it[NOTIFICATION_EXPLAINER_PENDING] = pending }
 
-    private companion object {
-        val COLOUR_MODE = stringPreferencesKey("keel.colourMode")
-        val THEME_ID = stringPreferencesKey("keel.themeID")
-        val HAPTICS = booleanPreferencesKey("keel.haptics")
-        val MOOD_PACK_ID = stringPreferencesKey("keel.moodPackID")
-        val NOTES_ALCOHOL = booleanPreferencesKey("keel.notesAlcohol")
-        val SENSITIVE_SYMPTOMS = booleanPreferencesKey("keel.sensitiveSymptoms")
-        val SYMPTOM_CATALOG_VERSION = intPreferencesKey("keel.symptomCatalogVersion")
-        val NOTIFICATION_EXPLAINER_PENDING = booleanPreferencesKey("keel.notificationExplainerPending")
+    suspend fun setPushNotifications(on: Boolean) = store.edit { it[PUSH_NOTIFICATIONS] = on }
+    suspend fun setReminderEnabled(id: String, on: Boolean) = store.edit {
+        val current = it[REMINDERS] ?: DEFAULT_REMINDERS
+        it[REMINDERS] = if (on) current + id else current - id
+    }
+    suspend fun setReminderConfig(config: ReminderConfig) =
+        store.edit { it[REMINDER_CONFIG] = json.encodeToString(ReminderConfig.serializer(), config) }
+    suspend fun setMedicineNamesInReminders(on: Boolean) = store.edit { it[MED_NAMES_IN_REMINDERS] = on }
+    suspend fun setNotificationPermissionAsked(asked: Boolean) = store.edit { it[NOTIFICATION_PERMISSION_ASKED] = asked }
+
+    companion object {
+        /** iOS: the daily check-in and medication reminders start on. */
+        val DEFAULT_REMINDERS = setOf("dailyCheckIn", "medication")
+        private val json = Json { ignoreUnknownKeys = true }
+
+        private val COLOUR_MODE = stringPreferencesKey("keel.colourMode")
+        private val THEME_ID = stringPreferencesKey("keel.themeID")
+        private val HAPTICS = booleanPreferencesKey("keel.haptics")
+        private val MOOD_PACK_ID = stringPreferencesKey("keel.moodPackID")
+        private val NOTES_ALCOHOL = booleanPreferencesKey("keel.notesAlcohol")
+        private val SENSITIVE_SYMPTOMS = booleanPreferencesKey("keel.sensitiveSymptoms")
+        private val SYMPTOM_CATALOG_VERSION = intPreferencesKey("keel.symptomCatalogVersion")
+        private val NOTIFICATION_EXPLAINER_PENDING = booleanPreferencesKey("keel.notificationExplainerPending")
+        private val PUSH_NOTIFICATIONS = booleanPreferencesKey("keel.pushNotifications")
+        private val REMINDERS = stringSetPreferencesKey("keel.reminders")
+        private val REMINDER_CONFIG = stringPreferencesKey("keel.reminderConfig")
+        private val MED_NAMES_IN_REMINDERS = booleanPreferencesKey("keel.medNamesInReminders")
+        private val NOTIFICATION_PERMISSION_ASKED = booleanPreferencesKey("keel.notificationPermissionAsked")
     }
 }

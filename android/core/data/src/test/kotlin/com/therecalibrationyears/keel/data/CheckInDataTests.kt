@@ -126,6 +126,22 @@ class CheckInDataTests {
         assertEquals(SymptomCatalog.VERSION, settings.symptomCatalogVersion.first())
     }
 
+    /**
+     * Regression for a flaky launch test: the catalog was written one row at a time, so a
+     * reader could see it half seeded. It's now one write (iOS saves the context once).
+     */
+    @Test fun syncBuiltInsWritesTheCatalogInOneTransaction() = runBlocking {
+        val recording = object : com.therecalibrationyears.keel.data.db.SymptomDao by db.symptoms() {
+            var singleWrites = 0
+            val batchSizes = mutableListOf<Int>()
+            override suspend fun upsert(symptom: SymptomEntity) { singleWrites++; db.symptoms().upsert(symptom) }
+            override suspend fun upsertAll(symptoms: List<SymptomEntity>) { batchSizes += symptoms.size; db.symptoms().upsertAll(symptoms) }
+        }
+        SymptomRepository(recording, db.checkIns(), settings, { "local-TEST" }, clock).syncBuiltIns()
+        assertEquals(0, recording.singleWrites)
+        assertEquals(listOf(SymptomCatalog.builtIn.size), recording.batchSizes)
+    }
+
     @Test fun syncBuiltInsIsIdempotent() = runBlocking {
         symptoms.syncBuiltIns(); val first = symptoms.allActive().size
         symptoms.syncBuiltIns()

@@ -42,6 +42,7 @@ import com.therecalibrationyears.keel.data.db.MedicationEntity
 import com.therecalibrationyears.keel.designsystem.LocalGoHome
 import com.therecalibrationyears.keel.designsystem.LocalKeelTheme
 import com.therecalibrationyears.keel.designsystem.components.KeelScreen
+import com.therecalibrationyears.keel.medications.MedicationsScreen
 import com.therecalibrationyears.keel.home.HomeActions
 import com.therecalibrationyears.keel.home.HomeData
 import com.therecalibrationyears.keel.home.HomeDestination
@@ -117,7 +118,7 @@ fun MainShell(controller: KeelAppController) {
                 entryProvider = entryProvider {
                     entry<MainRoute.Home> { HomeRoute(controller, flow) { backStack.add(it) } }
                     entry<MainRoute.Cycle> { StandInScreen("Cycle", back) }
-                    entry<MainRoute.Medications> { StandInScreen("Medications and supplements", back) }
+                    entry<MainRoute.Medications> { MedicationsScreen(controller.medicationsActions, back) }
                     entry<MainRoute.Patterns> { StandInScreen("Looking back", back) }
                     entry<MainRoute.More> { StandInScreen("More", back) }
                     entry<MainRoute.GpSummary> { StandInScreen("GP Visit Summary", back) }

@@ -51,12 +51,29 @@ interface SymptomDao {
     fun observeActive(): Flow<List<SymptomEntity>>
 
     @Upsert suspend fun upsert(symptom: SymptomEntity)
+    /** One transaction, so readers see all of the rows or none of them. */
+    @Upsert suspend fun upsertAll(symptoms: List<SymptomEntity>)
 }
 
 @Dao
 interface MedicationDao {
     @Query("SELECT * FROM medication WHERE deletedAt IS NULL AND isActive = 1 ORDER BY createdAt")
     fun observeActive(): Flow<List<MedicationEntity>>
+
+    @Query("SELECT * FROM medication WHERE deletedAt IS NULL AND isActive = 0 ORDER BY createdAt")
+    fun observeStopped(): Flow<List<MedicationEntity>>
+
+    @Query("SELECT * FROM medication WHERE deletedAt IS NULL AND isActive = 1 ORDER BY createdAt")
+    suspend fun active(): List<MedicationEntity>
+
+    @Query("SELECT * FROM medication WHERE deletedAt IS NULL AND isActive = 0 ORDER BY createdAt")
+    suspend fun stopped(): List<MedicationEntity>
+
+    @Query("SELECT * FROM medication WHERE deletedAt IS NULL ORDER BY createdAt")
+    suspend fun live(): List<MedicationEntity>
+
+    @Query("SELECT * FROM medication WHERE id = :id")
+    suspend fun byId(id: String): MedicationEntity?
 
     @Query("SELECT * FROM medication_log WHERE deletedAt IS NULL")
     fun observeLiveLogs(): Flow<List<MedicationLogEntity>>
