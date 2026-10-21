@@ -58,6 +58,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.therecalibrationyears.keel.designsystem.KeelDateFormats
 import com.therecalibrationyears.keel.designsystem.KeelFont
 import com.therecalibrationyears.keel.designsystem.KeelHapticKind
 import com.therecalibrationyears.keel.designsystem.KeelHaptics
@@ -101,7 +102,7 @@ interface HomeActions {
 fun HomeScreen(data: HomeData, now: Instant, zone: ZoneId, actions: HomeActions) {
     val theme = LocalKeelTheme.current
     val context = LocalContext.current
-    val formats = remember(zone) { HomeFormats(context, zone = zone) }
+    val formats = remember(zone) { KeelDateFormats(context, zone = zone) }
     val today = now.atZone(zone).toLocalDate()
     val model = remember(data, today, zone) { HomeModel(data, today, zone) }
     val pack = MoodPacks.pack(data.moodPackId)
@@ -189,7 +190,7 @@ private fun TopBar(
 @OptIn(ExperimentalLayoutApi::class)
 @Composable
 private fun Snapshot(
-    model: HomeModel, day: LocalDate, label: String, formats: HomeFormats,
+    model: HomeModel, day: LocalDate, label: String, formats: KeelDateFormats,
     pack: com.therecalibrationyears.keel.domain.MoodPack, actions: HomeActions,
 ) {
     val theme = LocalKeelTheme.current
@@ -353,7 +354,7 @@ private fun GpSummaryCard(onClick: () -> Unit) {
 }
 
 @Composable
-private fun Trends(model: HomeModel, today: LocalDate, formats: HomeFormats, pack: com.therecalibrationyears.keel.domain.MoodPack) {
+private fun Trends(model: HomeModel, today: LocalDate, formats: KeelDateFormats, pack: com.therecalibrationyears.keel.domain.MoodPack) {
     val theme = LocalKeelTheme.current
     var selectedEnergyDay by remember { mutableStateOf<LocalDate?>(null) }
     var selectedSleepDay by remember { mutableStateOf<LocalDate?>(null) }
@@ -402,7 +403,7 @@ private fun Trends(model: HomeModel, today: LocalDate, formats: HomeFormats, pac
  */
 @Composable
 private fun BarTrendCard(
-    title: String, trailing: String, bars: List<DayBar>, colour: Color, maxValue: Double, formats: HomeFormats,
+    title: String, trailing: String, bars: List<DayBar>, colour: Color, maxValue: Double, formats: KeelDateFormats,
     selected: LocalDate?, onSelect: (LocalDate?) -> Unit, selectedText: (LocalDate, Double) -> String,
 ) {
     val theme = LocalKeelTheme.current
@@ -457,7 +458,7 @@ private fun BarTrendCard(
 
 @Composable
 private fun CalendarCard(
-    model: HomeModel, month: YearMonth, selected: LocalDate, formats: HomeFormats,
+    model: HomeModel, month: YearMonth, selected: LocalDate, formats: KeelDateFormats,
     pack: com.therecalibrationyears.keel.domain.MoodPack, onMonth: (Int) -> Unit, onSelect: (LocalDate) -> Unit,
 ) {
     val theme = LocalKeelTheme.current

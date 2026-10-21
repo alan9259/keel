@@ -9,9 +9,11 @@ import com.therecalibrationyears.keel.data.DeviceContext
 import com.therecalibrationyears.keel.data.MedicationRepository
 import com.therecalibrationyears.keel.data.LocalIdentity
 import com.therecalibrationyears.keel.data.SettingsStore
+import com.therecalibrationyears.keel.data.SymptomRepository
 import com.therecalibrationyears.keel.data.UserRepository
 import com.therecalibrationyears.keel.data.db.MainDatabase
 import com.therecalibrationyears.keel.domain.KeelClock
+import com.therecalibrationyears.keel.platform.SpeechRecognitionService
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
@@ -36,9 +38,12 @@ class AppContainer(context: Context) {
         database.userProfiles(), ownerId = identity::ownerId, clock = clock,
         device = DeviceContext.Android(context),
     )
-    private val checkIns = CheckInRepository(database.checkIns())
+    private val checkIns = CheckInRepository(database.checkIns(), identity::ownerId, clock)
+    private val symptoms = SymptomRepository(database.symptoms(), database.checkIns(), settings, identity::ownerId, clock)
     private val medications = MedicationRepository(database.medications(), identity::ownerId, clock)
-    private val activities = ActivityRepository(database.activityLogs(), clock)
+    private val activities = ActivityRepository(database.activityLogs(), clock, identity::ownerId)
 
-    val controller = KeelAppController(users, identity, settings, checkIns, medications, activities, clock, appScope)
+    private val speech = SpeechRecognitionService(context)
+
+    val controller = KeelAppController(users, identity, settings, checkIns, symptoms, medications, activities, speech, clock, appScope)
 }

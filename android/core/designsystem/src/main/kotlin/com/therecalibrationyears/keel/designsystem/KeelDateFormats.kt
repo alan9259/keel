@@ -1,4 +1,4 @@
-package com.therecalibrationyears.keel.home
+package com.therecalibrationyears.keel.designsystem
 
 import android.content.Context
 import android.text.format.DateFormat
@@ -16,10 +16,11 @@ import java.util.Locale
  * Locale-aware date text, matching the iOS `.dateTime` formats: the same fields, in the
  * order and style her locale uses (e.g. "Tue 21 Oct" in Australia, "Tue, Oct 21" in the US).
  */
-class HomeFormats(context: Context, private val locale: Locale = Locale.getDefault(), private val zone: ZoneId) {
+class KeelDateFormats(context: Context, private val zone: ZoneId, private val locale: Locale = Locale.getDefault()) {
     private fun skeleton(s: String) = DateTimeFormatter.ofPattern(DateFormat.getBestDateTimePattern(locale, s), locale)
 
     private val weekdayMonthDay = skeleton("EEEMMMd")
+    private val fullWeekdayMonthDay = skeleton("EEEEMMMd")
     private val weekdayDay = skeleton("EEEd")
     private val monthYear = skeleton("MMMMy")
     private val fullDate = skeleton("EEEEMMMMd")
@@ -28,7 +29,10 @@ class HomeFormats(context: Context, private val locale: Locale = Locale.getDefau
 
     val firstDayOfWeek: DayOfWeek = WeekFields.of(locale).firstDayOfWeek
 
+    /** iOS `.weekday(.abbreviated).month(.abbreviated).day()`. */
     fun weekdayMonthDay(day: LocalDate): String = weekdayMonthDay.format(day)
+    /** iOS `.weekday(.wide).month(.abbreviated).day()`. */
+    fun fullWeekdayMonthDay(day: LocalDate): String = fullWeekdayMonthDay.format(day)
     fun weekdayDay(day: LocalDate): String = weekdayDay.format(day)
     fun monthYear(month: YearMonth): String = monthYear.format(month.atDay(1))
     fun fullDate(day: LocalDate): String = fullDate.format(day)

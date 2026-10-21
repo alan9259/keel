@@ -10,8 +10,8 @@
 > first real screens came next: **onboarding is built** (M2 slice) on the parts of M1 it needs
 > (UserProfile table, UserRepository, SettingsStore, LocalIdentity). See "Onboarding slice"
 > under §5. **Home is built** on the check-in, symptom, medicine and activity tables (see
-> "Home slice"). Next: the check-in flow (mood slide → detail → symptoms), so entries can be
-> made on Android.
+> "Home slice"). **The check-in flow is built** (see "Check-in slice"). Next: the rest of M2
+> (the reminders explanation needs M3), then M3 medications and reminders.
 
 ## Context
 
@@ -464,6 +464,18 @@ Finding: on SwiftShader (software GPU) the emoji vectors made Home take 10 s to 
 low-end phone in M8. New TalkBack labels iOS lacks are in `android-additions.json` for
 sign-off (iOS's Home arrows and docked buttons have no explicit VoiceOver labels and rely on
 the SF Symbol's built-in name: worth checking with VoiceOver).
+
+### Check-in slice (21 Oct 2026)
+Built: symptom catalog (54 built-ins, version-gated seeding with renames and archive-never-delete,
+quick-chip ranking, find-or-create ignoring case), check-in create/update (link reconcile)/delete
+(tombstones), alcohol (setting on by default), manual sleep; `feature/checkin` (mood slide, entry
+screen, "more" picker with groups, sensitive opt-in, add your own, edit mode rename/remove,
+long-press drag between groups with edge auto-scroll); toasts; voice notes in `core/platform`
+(on-device only: unavailable on Android 9 to 11 and when her language isn't installed).
+Verified on emulators: create → Home → edit (Change mood) → remove, each read back from the
+device database; picker opt-in, add your own, rename, drag to another group; voice permission
+prompt and the unavailable message on API 28 and 36. Not verified: dictation itself (needs a real
+phone with an on-device language pack). Owner sign-off pending: the microphone message (D15).
 
 ## 6. Decisions (recommendation; "owner" = needs Mischa's sign-off before release)
 | # | Topic | Recommendation |

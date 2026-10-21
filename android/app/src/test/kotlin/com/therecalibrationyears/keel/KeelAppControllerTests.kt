@@ -8,6 +8,10 @@ import com.therecalibrationyears.keel.data.DeviceContext
 import com.therecalibrationyears.keel.data.LocalIdentity
 import com.therecalibrationyears.keel.data.MedicationRepository
 import com.therecalibrationyears.keel.data.SettingsStore
+import com.therecalibrationyears.keel.data.SymptomRepository
+import com.therecalibrationyears.keel.checkin.CheckInDraft
+import com.therecalibrationyears.keel.checkin.CheckInRequest
+import com.therecalibrationyears.keel.domain.EnergyLevel
 import com.therecalibrationyears.keel.data.UserRepository
 import com.therecalibrationyears.keel.data.db.CheckInEntity
 import com.therecalibrationyears.keel.data.db.MainDatabase
@@ -80,10 +84,13 @@ class KeelAppControllerTests {
         val identity = LocalIdentity(prefs)
         val users = UserRepository(db.userProfiles(), identity::ownerId, clock) { device }
         val scope = CoroutineScope(SupervisorJob() + Dispatchers.Default).also { scopes += it }
+        val settings = SettingsStore(prefs)
         return KeelAppController(
-            users, identity, SettingsStore(prefs), CheckInRepository(db.checkIns()),
+            users, identity, settings, CheckInRepository(db.checkIns(), identity::ownerId, clock),
+            SymptomRepository(db.symptoms(), db.checkIns(), settings, identity::ownerId, clock),
             MedicationRepository(db.medications(), identity::ownerId, clock),
-            ActivityRepository(db.activityLogs(), clock), clock, scope,
+            ActivityRepository(db.activityLogs(), clock, identity::ownerId),
+            com.therecalibrationyears.keel.platform.SpeechRecognitionService(RuntimeEnvironment.getApplication()), clock, scope,
         )
     }
 
@@ -161,5 +168,62 @@ class KeelAppControllerTests {
         assertEquals(1, withTimeout(5_000) { app.homeData.first { it.medicationLogs.isNotEmpty() } }.medicationLogs.size)
         app.toggleMedicationFromHome(med, today, currentlyTaken = true)
         assertTrue(withTimeout(5_000) { app.homeData.first { it.medicationLogs.isEmpty() } }.medicationLogs.isEmpty())
+    }
+
+    // Saving a check-in (port of iOS CheckInModal.save)
+
+    private val sydney = ZoneId.of("Australia/Sydney")
+
+    @Test fun aNewEntryIsStampedWithTodaysTimeOnTheChosenDay() = runBlocking {
+        val app = launch()
+        val day = java.time.LocalDate.of(2026, 10, 18) // a past day, picked on Home
+        app.saveCheckIn(CheckInRequest(Mood.LOW, day), CheckInDraft(energy = EnergyLevel.LOW, notes = " Rough night "))
+        val saved = db.checkIns().observeLive().first().single()
+        assertEquals("2026-10-18T12:00+11:00[Australia/Sydney]", saved.date.atZone(sydney).toString()) // clock is 12:00
+        assertEquals(40, saved.energy)
+        assertEquals("Rough night", saved.notes)
+    }
+
+    @Test fun editingKeepsTheDayAndUpdatesInPlace() = runBlocking {
+        val app = launch()
+        val day = java.time.LocalDate.of(2026, 10, 18)
+        app.saveCheckIn(CheckInRequest(Mood.LOW, day), CheckInDraft())
+        val id = db.checkIns().observeLive().first().single().id
+        val edit = app.editRequest(id)!!
+        assertEquals(day, edit.day)
+        app.saveCheckIn(edit.copy(mood = Mood.GREAT), CheckInDraft(energy = EnergyLevel.CHARGED))
+        val after = db.checkIns().observeLive().first().single()
+        assertEquals(Mood.GREAT, after.mood)
+        assertEquals(100, after.energy)
+        assertEquals("2026-10-18T12:00+11:00[Australia/Sydney]", after.date.atZone(sydney).toString())
+    }
+
+    /** Turning alcohol off later never erases a number she already recorded. */
+    @Test fun alcoholIsOnlyWrittenWhileTheSettingIsOn() = runBlocking {
+        val app = launch()
+        val today = java.time.LocalDate.of(2026, 10, 21)
+        app.saveCheckIn(CheckInRequest(Mood.OKAY, today), CheckInDraft(alcohol = 2))
+        val id = db.checkIns().observeLive().first().single().id
+        SettingsStore(prefs).setNotesAlcohol(false)
+        app.saveCheckIn(CheckInRequest(Mood.OKAY, today, id), CheckInDraft(alcohol = null))
+        assertEquals(2, db.checkIns().byId(id)!!.alcoholCount)
+    }
+
+    @Test fun archivedSymptomsAreDroppedAndSleepIsSavedForThatNight() = runBlocking {
+        val app = launch()
+        val today = java.time.LocalDate.of(2026, 10, 21)
+        val repo = SymptomRepository(db.symptoms(), db.checkIns(), SettingsStore(prefs), { "o" }, clock)
+        val kept = repo.findOrCreateCustom("Kept", "body")
+        val gone = repo.findOrCreateCustom("Gone", "body").also { repo.archive(it) }
+        app.saveCheckIn(CheckInRequest(Mood.OKAY, today), CheckInDraft(sleepHours = 6.5, selected = mapOf(kept.id to 2, gone.id to 3)))
+        val id = db.checkIns().observeLive().first().single().id
+        assertEquals(listOf(kept.id), db.checkIns().liveLinks(id).map { it.symptomID })
+        assertEquals(6.5, ActivityRepository(db.activityLogs(), clock).manualSleep(today)!!, 0.0)
+    }
+
+    @Test fun bootstrapSeedsTheSymptomCatalog() = runBlocking {
+        launch().bootstrap()
+        withTimeout(5_000) { while (db.symptoms().count() == 0) kotlinx.coroutines.delay(20) }
+        assertTrue(db.symptoms().count() >= 54)
     }
 }

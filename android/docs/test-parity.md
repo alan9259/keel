@@ -21,12 +21,11 @@ test classes keep the iOS name. Suites not listed yet are ported with their mile
 | LookingBackTests: labelNeedsThreeEntries, mostlyIsTheMostFrequentLevelNotAnAverage, tieGoesToTheMostRecentlyPickedLevel | core/domain `EnergySummaryTests` | ported |
 | LookingBackTests: the rest (MonthSummary) | | with Looking back (M4) |
 | MedicationHomeLogTests: appearsWhenTrackedOrAutoLogged | core/data `HomeDataTests.appearsInHomeLogWhenTrackedOrAutoLogged` | ported |
-
-Android-only tests so far: `UserRepositoryTests` (upsert, pathway, health flag, concurrent
-taps, oldest live profile), `LocalStoresTests`, `PathwayTests`, `OnboardingFlowTests`
-(screen order, blank name, nothing pre-selected, Continue-only before permissions, double
-taps, back), `TwemojiVectorsTest`, `CopyParityTest`, `CopyLintTest`, `LiteralExtractorTests`,
-`HomeModelTests` (Home's derived values in Sydney time; iOS keeps these inside the view),
-`HomeDataTests` (whole-day ticks, clear-all-slots, symptom join, local days),
-`EnergyLevelTests`, `MoodTests`, `GreetingTests`, `MergedActivityTests`, `CalendarGridTests`,
-`ParityFormattingTests` (half-away rounding, printf `%.1f`).
+| CheckInRepositoryTests: createWithSymptoms, createTrimsBlankNotesToNil, updateReconcilesSymptoms_addKeepRemove, deleteSoftDeletesAndTombstonesLinks | core/data `CheckInDataTests` | ported |
+| CheckInRepositoryTests: recentIsNewestFirstAndLimited, trackingDayCountCountsDistinctDays | | with the screens that use them (M4) |
+| SymptomRepositoryTests (6) | core/data `CheckInDataTests` | ported (+ rename/archive reconcile, archive/rename/move) |
+| QuickChipRankingTests (5 pure + 2 repository) | core/domain `QuickChipRankingTests`, core/data `CheckInDataTests` | ported |
+| AlcoholTests: newEntryHasNoAlcoholRecorded, zeroIsARealAnswer…, editingTheRestOfAnEntryKeepsItsAlcohol, theSettingIsOnByDefault… | core/data `CheckInDataTests` | ported |
+| AlcoholTests: GP summary line and backup tests | | with GP summary (M5) and backup (M1 backup) |
+| SensitiveGroupCopyTests: intimacyIntroWording | core/domain `SymptomCatalogTests` | ported |
+| SpeechOnDeviceTests (3) | core/platform `SpeechOnDeviceTests` | ported (+ Android 12/13 rules, language match) |

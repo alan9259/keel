@@ -5,8 +5,20 @@ import com.therecalibrationyears.keel.data.CheckInRepository
 import com.therecalibrationyears.keel.data.LocalIdentity
 import com.therecalibrationyears.keel.data.MedicationRepository
 import com.therecalibrationyears.keel.data.SettingsStore
+import com.therecalibrationyears.keel.data.SymptomPick
+import com.therecalibrationyears.keel.data.SymptomRepository
 import com.therecalibrationyears.keel.data.UserRepository
 import com.therecalibrationyears.keel.data.db.MedicationEntity
+import com.therecalibrationyears.keel.data.db.SymptomEntity
+import com.therecalibrationyears.keel.checkin.CheckInActions
+import com.therecalibrationyears.keel.checkin.CheckInDraft
+import com.therecalibrationyears.keel.checkin.CheckInRequest
+import com.therecalibrationyears.keel.checkin.SymptomPickerActions
+import com.therecalibrationyears.keel.domain.CheckInRules
+import com.therecalibrationyears.keel.domain.EnergyLevel
+import com.therecalibrationyears.keel.domain.MoodPack
+import com.therecalibrationyears.keel.domain.MoodPacks
+import com.therecalibrationyears.keel.platform.SpeechRecognitionService
 import com.therecalibrationyears.keel.domain.KeelClock
 import com.therecalibrationyears.keel.domain.Pathway
 import com.therecalibrationyears.keel.home.HomeData
@@ -17,6 +29,8 @@ import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.launch
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
 
@@ -32,11 +46,25 @@ class KeelAppController(
     private val identity: LocalIdentity,
     private val settings: SettingsStore,
     private val checkIns: CheckInRepository,
+    private val symptoms: SymptomRepository,
     private val medications: MedicationRepository,
     private val activities: ActivityRepository,
+    private val speech: SpeechRecognitionService,
     val clock: KeelClock,
-    scope: CoroutineScope,
+    private val scope: CoroutineScope,
 ) : OnboardingActions {
+
+    /**
+     * Launch work (iOS `bootstrap`, in its order; later milestones add their steps): bring
+     * the built-in symptom catalog up to date.
+     */
+    fun bootstrap() {
+        scope.launch { symptoms.syncBuiltIns() }
+    }
+
+    /** Her chosen mood pack (the default until she picks one). */
+    val moodPack: StateFlow<MoodPack> = settings.moodPackId.map { MoodPacks.pack(it) }
+        .stateIn(scope, SharingStarted.Eagerly, MoodPacks.pack(null))
 
     /**
      * She has finished onboarding on this phone, read live from her profile in the database
@@ -68,6 +96,62 @@ class KeelAppController(
     suspend fun toggleMedicationFromHome(medication: MedicationEntity, day: LocalDate, currentlyTaken: Boolean) {
         if (currentlyTaken) medications.clearTaken(medication, day)
         else medications.setTaken(medication, day, slot = null, taken = true)
+    }
+
+    /** Opening an existing entry to edit: its mood and day (iOS `onEditEntry`). */
+    suspend fun editRequest(checkInId: String): CheckInRequest? = checkIns.entry(checkInId)?.let {
+        CheckInRequest(it.mood, it.date.atZone(clock.zone()).toLocalDate(), it.id)
+    }
+
+    /**
+     * Save the check-in (port of iOS `CheckInModal.save`): create or update the entry with
+     * the symptoms still in the catalog, then alcohol (only while the setting is on, so
+     * turning it off never erases a number she recorded) and her own sleep for that night.
+     */
+    suspend fun saveCheckIn(request: CheckInRequest, draft: CheckInDraft) {
+        val active = symptoms.allActive().map { it.id }.toSet()
+        val picks = draft.selected.filter { (id, level) -> level > 0 && id in active }.map { (id, level) -> SymptomPick(id, level) }
+        val energy = draft.energy?.percent ?: EnergyLevel.NOT_RECORDED
+        val existing = request.editingId?.let { checkIns.entry(it) }
+        val id = if (existing != null) {
+            checkIns.update(existing.id, request.mood, energy, draft.notes, picks)
+            existing.id
+        } else {
+            val stamp = CheckInRules.entryTimestamp(request.day, clock.now(), clock.zone())
+            checkIns.create(request.mood, energy, draft.notes, picks, stamp).id
+        }
+        if (settings.notesAlcohol.first()) checkIns.setAlcohol(id, draft.alcohol)
+        if (!draft.sleepFromHealth) activities.saveManualSleep(request.day, draft.sleepHours)
+    }
+
+    /** The check-in screen's view of the app. */
+    val checkInActions: CheckInActions = object : CheckInActions {
+        override val activeSymptoms: Flow<List<SymptomEntity>> = symptoms.observeActive()
+        override val notesAlcohol: Flow<Boolean> = settings.notesAlcohol
+        override suspend fun quickChipIds(): List<String> = symptoms.defaultChips().map { it.id }
+
+        override suspend fun loadDraft(request: CheckInRequest): CheckInDraft {
+            val sleep = activities.manualSleep(request.day)
+            val entry = request.editingId?.let { checkIns.entry(it) } ?: return CheckInDraft(sleepHours = sleep)
+            return CheckInDraft(
+                energy = entry.energyLevel, notes = entry.notes.orEmpty(), sleepHours = sleep, alcohol = entry.alcoholCount,
+                selected = checkIns.picks(entry.id).associate { it.symptomId to it.severity },
+            )
+        }
+
+        override suspend fun save(request: CheckInRequest, draft: CheckInDraft) = saveCheckIn(request, draft)
+        override suspend fun delete(checkInId: String) = checkIns.delete(checkInId)
+
+        override val voice: SpeechRecognitionService = speech
+
+        override val picker: SymptomPickerActions = object : SymptomPickerActions {
+            override val showsSensitive: Flow<Boolean> = settings.showsSensitiveSymptoms
+            override suspend fun showSensitive() { settings.setShowsSensitiveSymptoms(true) }
+            override suspend fun addCustom(name: String, categoryRaw: String) { symptoms.findOrCreateCustom(name, categoryRaw) }
+            override suspend fun archive(symptom: SymptomEntity) = symptoms.archive(symptom)
+            override suspend fun rename(symptom: SymptomEntity, name: String) = symptoms.rename(symptom, name)
+            override suspend fun move(symptom: SymptomEntity, categoryRaw: String) = symptoms.move(symptom, categoryRaw)
+        }
     }
 
     /** Everything the first frame depends on has loaded (the launch screen waits for this). */

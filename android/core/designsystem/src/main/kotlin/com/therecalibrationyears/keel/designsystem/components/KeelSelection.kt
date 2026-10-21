@@ -2,7 +2,9 @@ package com.therecalibrationyears.keel.designsystem.components
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
+import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.selection.selectable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -74,6 +76,18 @@ fun KeelSegmented(
 /** Severity labels, as iOS `SymptomSeverity.label`. */
 private val severityLabels = mapOf(1 to "Mild", 2 to "Moderate", 3 to "Severe")
 
+/**
+ * Energy fill from the theme (port of iOS `EnergyLevel.color(in:)`): accent (drained) through
+ * copper and sand to sage (charged). No red.
+ */
+fun energyColour(level: Int, theme: KeelTheme): Color = when (level) {
+    1 -> theme.accent
+    2 -> theme.copper
+    3 -> theme.sand
+    4 -> theme.sageSoft
+    else -> theme.sage
+}
+
 /** Severity fill from the theme's warm ramp: mild sand, moderate copper, severe accent. */
 fun severityColour(level: Int, theme: KeelTheme): Color? = when (level) {
     1 -> theme.sand
@@ -86,8 +100,16 @@ fun severityColour(level: Int, theme: KeelTheme): Color? = when (level) {
  * Symptom pill with a severity level (port of iOS `SymptomChip`): 0 unselected, 1 to 3
  * filled from the warm ramp with that many white dots.
  */
+@OptIn(ExperimentalFoundationApi::class)
 @Composable
-fun SymptomChip(title: String, level: Int, modifier: Modifier = Modifier, onClick: () -> Unit) {
+fun SymptomChip(
+    title: String,
+    level: Int,
+    modifier: Modifier = Modifier,
+    /** Press and hold (the picker uses it to start dragging the chip to another group). */
+    onLongClick: (() -> Unit)? = null,
+    onClick: () -> Unit,
+) {
     val theme = LocalKeelTheme.current
     val haptic = KeelHaptics.rememberPerformer()
     val fill = severityColour(level, theme)
@@ -96,7 +118,7 @@ fun SymptomChip(title: String, level: Int, modifier: Modifier = Modifier, onClic
             .clip(CircleShape)
             .background(fill ?: theme.card)
             .border(1.dp, if (fill != null) Color.Transparent else theme.border, CircleShape)
-            .clickable(role = Role.Button) { haptic(KeelHapticKind.SELECTION); onClick() }
+            .combinedClickable(role = Role.Button, onLongClick = onLongClick) { haptic(KeelHapticKind.SELECTION); onClick() }
             .semantics {
                 selected = fill != null
                 stateDescription = severityLabels[level] ?: "Not selected"

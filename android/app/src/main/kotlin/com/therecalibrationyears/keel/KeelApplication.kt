@@ -10,5 +10,6 @@ class KeelApplication : Application() {
     override fun onCreate() {
         super.onCreate()
         container = AppContainer(this)
+        container.controller.bootstrap()
     }
 }

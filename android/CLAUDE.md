@@ -73,6 +73,9 @@ adb exec-out screencap -p > shot.png
   interface (the module never touches storage).
 - `feature/home`: Home (`HomeScreen`) and its pure rules (`HomeModel`, unit-tested), fed a
   `HomeData` snapshot by the app; actions go back through `HomeActions`.
+- `feature/checkin`: the mood slide (`EntrySheetContent`), the entry screen (`CheckInScreen`),
+  the "more" picker (`SymptomPickerSheet`) and voice button, behind `CheckInActions`.
+- `core/platform`: device services (so far `SpeechRecognitionService`, on-device only).
 - `app`: `AppContainer` (manual DI, built once in `KeelApplication`), `KeelAppController`
   (port of iOS `AppEnvironment`, same method names), `KeelRoot` (onboarding vs app),
   `MainActivity` (splash held until her saved state loads), `src/debug` harness and gallery,
@@ -118,8 +121,15 @@ create_account, pathway, health, ready). For a truly fresh start:
   "Try out your stylus" sheet that swallows typed text. Turn it off once per emulator:
   `adb shell settings put secure stylus_handwriting_enabled 0`.
 - **Stand-ins:** `grep -rn "// FAKE:" android/` lists them (currently: the title-only feature
-  screens and the inert check-in taps in `MainShell.kt`, and the Health Connect request in
-  `KeelAppController.kt`).
+  screens in `MainShell.kt`, and the Health Connect request in `KeelAppController.kt`).
+- **Drag and drop from a bottom sheet:** start it (`View.startDragAndDrop`) with the view from
+  *inside* the sheet's content (the sheet is its own window; the activity's view fails with
+  "from window is not being touched"), and from the chip's own long press (Compose's default
+  drag start never sees a touch the chip's tap handling has claimed). See `SymptomDrag.kt`.
+- **Robolectric** never goes idle with a dialog over an open `ModalBottomSheet`; test that
+  combination on the emulator instead.
+- **uiautomator on API 28** can return a stale tree for Compose overlays after scrolling; drive
+  those screens by coordinates from screenshots, or test on API 36.
 - **Debug seeds:** `--ez uitSeedMed true --ez uitSeedWeek true --ez uitSeedCheckIn true`
   (and `uitReset`, `uitSeedEnergyMix`) fill Home for screenshots; `--es uitRoute more` opens a
   screen. They live in `app/src/debug` and never ship.
