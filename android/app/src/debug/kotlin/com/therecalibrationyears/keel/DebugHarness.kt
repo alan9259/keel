@@ -1,6 +1,7 @@
 package com.therecalibrationyears.keel
 
 import android.content.Intent
+import com.therecalibrationyears.keel.domain.ActivityPeriod
 import com.therecalibrationyears.keel.domain.KeelClock
 import java.time.LocalDate
 import androidx.compose.runtime.Composable
@@ -44,6 +45,10 @@ object DebugHarness {
     var initialRoute: MainRoute? = null
         private set
     private var seeds: List<String> = emptyList()
+    /** `--es uitActivitiesPeriod week` (or month): Activities opens on that view. */
+    var activitiesPeriod: ActivityPeriod? = null
+        private set
+
     /** `--ez uitCycleSheet true`: the Cycle screen opens the log sheet for two days ago. */
     private var cycleSheet = false
 
@@ -65,6 +70,7 @@ object DebugHarness {
         }
         initialRoute = MainRoute.fromDebugName(intent.getStringExtra("uitRoute"))
         cycleSheet = intent.getBooleanExtra("uitCycleSheet", false)
+        activitiesPeriod = intent.getStringExtra("uitActivitiesPeriod")?.let { raw -> ActivityPeriod.entries.firstOrNull { it.name.equals(raw, ignoreCase = true) } }
         seeds = listOf("uitReset", "uitSeedMed", "uitSeedCheckIn", "uitSeedEnergyMix", "uitSeedWeek", "uitReminderExplainer", "uitExactTimingAgain", "uitRemindSoon", "uitSeedCycle")
             .filter { intent.getBooleanExtra(it, false) }
     }

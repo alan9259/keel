@@ -40,6 +40,7 @@ import com.therecalibrationyears.keel.designsystem.components.KeelTextField
 import com.therecalibrationyears.keel.designsystem.components.KeelTextLink
 import com.therecalibrationyears.keel.designsystem.components.KeelToast
 import com.therecalibrationyears.keel.designsystem.components.RadioCard
+import com.therecalibrationyears.keel.designsystem.components.VitalLineChart
 import com.therecalibrationyears.keel.designsystem.components.StandardCard
 import com.therecalibrationyears.keel.designsystem.components.SymptomChip
 import com.therecalibrationyears.keel.designsystem.components.ToastData
@@ -104,6 +105,16 @@ fun ComponentGallery(scrollToBottom: Boolean) {
         HeroCard { Text("Hero card", style = KeelFont.body, color = theme.text) }
         CalloutCard { Text("Callout card", style = KeelFont.body, color = theme.text) }
         InfoNoteCard(lead = "Info note:", message = "sage tint with a bold lead-in.")
+        // Sample readings (debug only): the vitals chart has no real data before Health Connect.
+        StandardCard {
+            val start = java.time.LocalDate.of(2026, 10, 1)
+            VitalLineChart(
+                listOf(62.0, 61.0, 63.0, 60.0, 64.0, 62.5, 61.0, 65.0, 63.0, 62.0).mapIndexed { i, v ->
+                    com.therecalibrationyears.keel.domain.VitalTrend.Point(start.plusDays(i.toLong()), v)
+                },
+                theme.accent,
+            )
+        }
         Box(Modifier.align(Alignment.CenterHorizontally)) { KeelToast(ToastData("Entry saved.", "Toast preview")) }
     }
 }

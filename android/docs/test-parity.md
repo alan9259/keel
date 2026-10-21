@@ -59,3 +59,8 @@ test classes keep the iOS name. Suites not listed yet are ported with their mile
 | (Android) Cycle screen | feature/cycle `CycleModelTests`, `CycleScreenTests` | new: the iOS view's derived values are untested there |
 | (Android) Looking back cards | core/data `InsightRepositoryTests` | new: iOS has no `InsightRepository` test (five-day minimum, rewritten each launch, spotting store path) |
 | (Android) Looking back and Your notes | feature/insights `LookingBackScreenTests` | new |
+| ActivityAggregationTests (10) | core/domain `ActivityAggregationTests` | ported on `LocalDate`s with Monday first (+ Sunday-first week, month back from the 31st) |
+| VitalTrendTests (4) | core/domain `VitalTrendTests` | ported (+ a .5 average rounds away from zero, as Swift) |
+| VitalLineChartTests (3) | core/designsystem `VitalLineChartTests` | ported on the pure curve builder (`VitalChartPath`) |
+| EatingLogTests (2) | core/data `EatingLogTests` (+ core/domain `EatingStateTests`) | ported on the activity repository (+ water counting, the Health Connect items setting) |
+| (Android) Activities screen | feature/insights `ActivitiesModelTests`, `ActivitiesScreenTests`, app `KeelAppControllerTests.activitiesWritesComeBackLiveAndNothingIsImportedYet` | new: the iOS view's rules (shown tiles, trend arrow, counts, labels, number format) are untested there |

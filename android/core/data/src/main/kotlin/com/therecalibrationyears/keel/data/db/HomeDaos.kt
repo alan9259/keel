@@ -1,6 +1,7 @@
 package com.therecalibrationyears.keel.data.db
 
 import androidx.room.Dao
+import androidx.room.Delete
 import androidx.room.Query
 import androidx.room.Upsert
 import java.time.Instant
@@ -100,5 +101,14 @@ interface ActivityLogDao {
     @Query("SELECT * FROM activity_log WHERE deletedAt IS NULL AND activityID = :activityId AND date = :day LIMIT 1")
     suspend fun liveOn(activityId: String, day: Instant): ActivityLogEntity?
 
+    /** Every live row, any activity (the Activities screen). */
+    @Query("SELECT * FROM activity_log WHERE deletedAt IS NULL")
+    fun observeAllLive(): Flow<List<ActivityLogEntity>>
+
+    @Query("SELECT * FROM activity_log WHERE activityID = :activityId")
+    suspend fun allFor(activityId: String): List<ActivityLogEntity>
+
     @Upsert suspend fun upsert(log: ActivityLogEntity)
+
+    @Delete suspend fun delete(log: ActivityLogEntity)
 }

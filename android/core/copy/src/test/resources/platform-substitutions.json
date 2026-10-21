@@ -40,5 +40,35 @@
     "android": "Health Connect has this as a period day, {} flow.",
     "approvedByOwner": false,
     "note": "Cycle screen (iOS CycleTrackingView). Plan §3.8 / D12: Apple Health -> Health Connect, otherwise verbatim. Shown only once period days are imported (M7). Log sheet, for a day only imported, with its level."
+  },
+  {
+    "ios": "From Apple Health",
+    "android": "From Health Connect",
+    "approvedByOwner": false,
+    "note": "Activities (iOS ActivitiesView). Plan §3.8 / D12: Apple Health -> Health Connect, otherwise verbatim. Section heading (day, week and month)."
+  },
+  {
+    "ios": "Connect Apple Health",
+    "android": "Connect to Health Connect",
+    "approvedByOwner": false,
+    "note": "Activities (iOS ActivitiesView). Plan §3.8 / D12: Apple Health -> Health Connect, otherwise verbatim. Prompt row while not connected; 'Connect Health Connect' would read oddly, so 'to' as in the iOS offer title 'Connect to Apple Health?'."
+  },
+  {
+    "ios": "Overnight wrist temperature",
+    "android": "Overnight skin temperature",
+    "approvedByOwner": false,
+    "note": "Activities (iOS ActivitiesView). Plan §3.8 / D12: Apple Health -> Health Connect, otherwise verbatim. Vital row title: Health Connect's measure is skin temperature (plan §3.2)."
+  },
+  {
+    "ios": "These fill in once Apple Health has a few days of data. Weight and overnight wrist temperature show up here too, when Apple Health has them.",
+    "android": "These fill in once Health Connect has a few days of data. Weight and overnight skin temperature show up here too, when Health Connect has them.",
+    "approvedByOwner": false,
+    "note": "Activities (iOS ActivitiesView). Plan §3.8 / D12: Apple Health -> Health Connect, otherwise verbatim. Your body lately, before any readings; wrist -> skin as above."
+  },
+  {
+    "ios": "Recent readings from Apple Health, shown as they were recorded.",
+    "android": "Recent readings from Health Connect, shown as they were recorded.",
+    "approvedByOwner": false,
+    "note": "Activities (iOS ActivitiesView). Plan §3.8 / D12: Apple Health -> Health Connect, otherwise verbatim. Your body lately, under the readings."
   }
 ]

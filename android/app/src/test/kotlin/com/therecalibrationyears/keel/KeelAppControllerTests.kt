@@ -426,4 +426,19 @@ class KeelAppControllerTests {
         assertEquals(listOf(today to com.therecalibrationyears.keel.domain.FlowLevel.HEAVY), days.map { it.first to it.second.level })
         assertTrue(app.cycleActions.data.first().imported.isEmpty()) // nothing imported before Health Connect
     }
+
+    @Test fun activitiesWritesComeBackLiveAndNothingIsImportedYet() = runBlocking {
+        val app = launch()
+        val today = LocalDate.of(2026, 10, 21)
+        app.activitiesActions.setAmount("water", today, 2.0)
+        app.activitiesActions.setEating("eat.protein", today, false)
+        app.saveCheckIn(CheckInRequest(Mood.GOOD, today), CheckInDraft(energy = EnergyLevel.LOW))
+        val data = app.activitiesActions.data.first { it.manual.size == 2 && it.feelings.isNotEmpty() }
+        assertEquals(setOf("water" to 2.0, "eat.protein" to 0.0), data.manual.map { it.activityId to it.amount }.toSet())
+        assertEquals(Mood.GOOD, data.feelings.single().mood)
+        assertTrue(data.imported.isEmpty() && data.readings.isEmpty()) // Health Connect arrives in M7
+        assertFalse(data.healthConnected)
+        app.activitiesActions.setEating("eat.protein", today, null) // cleared: not answered
+        assertEquals(listOf("water"), app.activitiesActions.data.first { it.manual.size == 1 }.manual.map { it.activityId })
+    }
 }

@@ -15,6 +15,8 @@ import androidx.compose.ui.unit.dp
 import com.therecalibrationyears.keel.checkin.CheckInRequest
 import com.therecalibrationyears.keel.checkin.CheckInScreen
 import com.therecalibrationyears.keel.cycle.CycleScreen
+import com.therecalibrationyears.keel.domain.ActivityPeriod
+import com.therecalibrationyears.keel.insights.ActivitiesScreen
 import com.therecalibrationyears.keel.insights.AllNotesScreen
 import com.therecalibrationyears.keel.insights.LookingBackScreen
 import com.therecalibrationyears.keel.checkin.EntrySheetContent
@@ -79,6 +81,10 @@ sealed interface MainRoute : NavKey {
     @Serializable data object Profile : MainRoute
     /** Every note she has written (Looking back's "See all notes"). */
     @Serializable data object Notes : MainRoute
+    /** Reached from More on iOS; More is ported in M6, so for now only by debug route. */
+    @Serializable data object Activities : MainRoute
+    /** The Health Connect screen (iOS `appleHealth`, M6/M7). */
+    @Serializable data object HealthConnect : MainRoute
 
     companion object {
         /** Debug launch routes (`--es uitRoute cycle`). */
@@ -91,6 +97,8 @@ sealed interface MainRoute : NavKey {
             "reminders" -> Reminders
             "profile" -> Profile
             "notes" -> Notes
+            "activities" -> Activities
+            "health" -> HealthConnect
             else -> null
         }
     }
@@ -155,6 +163,14 @@ fun MainShell(controller: KeelAppController) {
                         )
                     }
                     entry<MainRoute.Notes> { AllNotesScreen(controller.lookingBackActions, back) }
+                    entry<MainRoute.Activities> {
+                        ActivitiesScreen(
+                            controller.activitiesActions, back,
+                            onConnectHealth = { backStack.add(MainRoute.HealthConnect) },
+                            initialPeriod = DebugHarness.activitiesPeriod ?: ActivityPeriod.DAY,
+                        )
+                    }
+                    entry<MainRoute.HealthConnect> { StandInScreen("Health Connect", back) }
                     entry<MainRoute.More> { StandInScreen("More", back) }
                     entry<MainRoute.GpSummary> { StandInScreen("GP Visit Summary", back) }
                     entry<MainRoute.Reminders> { RemindersScreen(controller.remindersActions, back) }

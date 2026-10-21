@@ -80,8 +80,10 @@ adb exec-out screencap -p > shot.png
   pure rules (`TreatmentForm`, `TreatmentPicker`), behind `MedicationsActions`.
 - `feature/cycle`: the Cycle screen (timeline, history, phase, insight, month grid, log sheet)
   and its pure rules (`CycleModel`), behind `CycleActions`.
-- `feature/insights`: Looking back and Your notes (`LookingBackScreen`, `AllNotesScreen`),
-  behind `LookingBackActions`; Activities and Stats join them in M4.
+- `feature/insights`: Looking back and Your notes (`LookingBackScreen`, `AllNotesScreen`,
+  behind `LookingBackActions`) and Activities (`ActivitiesScreen` and its pure
+  `ActivitiesModel`, behind `ActivitiesActions`; reached by debug route until More in M6);
+  Stats joins them in M4.
 - `feature/settings`: settings screens (so far Reminders) and `rememberNotificationAccess`,
   the notification permission gate shared with Home's "Gentle reminders".
 - `core/platform`: device services: `SpeechRecognitionService` (on-device only),
@@ -145,7 +147,8 @@ create_account, pathway, health, ready). For a truly fresh start:
   those screens by coordinates from screenshots, or test on API 36.
 - **Debug seeds:** `--ez uitSeedMed true --ez uitSeedWeek true --ez uitSeedCheckIn true`
   (and `uitReset`, `uitSeedEnergyMix`) fill Home for screenshots; `uitSeedCycle` seeds cycles
-  and a current period, `uitCycleSheet` opens the Cycle log sheet; `--es uitRoute more` opens a
+  and a current period, `uitCycleSheet` opens the Cycle log sheet, `--es uitActivitiesPeriod
+  week` opens Activities on a week (or month); `--es uitRoute more` opens a
   screen. They live in `app/src/debug` and never ship.
 - **Copy for new wording:** a user-facing string with no iOS original (e.g. a TalkBack label
   iOS lacks) goes in `core/copy/src/test/resources/android-additions.json` for owner sign-off.

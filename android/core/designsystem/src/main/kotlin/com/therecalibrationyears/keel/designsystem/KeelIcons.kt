@@ -211,9 +211,58 @@ object KeelIcons {
         "M16.59,7.58L10,14.17l-3.59,-3.58L5,12l5,5 8,-8zM12,2C6.48,2 2,6.48 2,12s4.48,10 10,10 10,-4.48 10,-10S17.52,2 12,2zM12,20c-4.42,0 -8,-3.58 -8,-8s3.58,-8 8,-8 8,3.58 8,8 -3.58,8 -8,8z",
     )
 
-    /** A stored SF Symbol name (an insight's `iconKey`) drawn with Keel's icons. */
+    /** SF "flame.fill" (exercise). */
+    val flame = icon(
+        "flame",
+        "M12,12.9l-2.13,2.09C9.31,15.55 9,16.28 9,17.06C9,18.68 10.35,20 12,20s3,-1.32 3,-2.94c0,-0.78 -0.31,-1.52 -0.87,-2.07L12,12.9zM16,6l-0.44,0.55C14.38,8.02 12,7.19 12,5.3V2c0,0 -8,4 -8,11c0,2.92 1.56,5.47 3.89,6.86C7.33,19.07 7,18.1 7,17.06c0,-1.32 0.52,-2.56 1.47,-3.5L12,10.1l3.53,3.47c0.95,0.93 1.47,2.17 1.47,3.5c0,1.02 -0.31,1.96 -0.85,2.75c1.89,-1.15 3.29,-3.06 3.71,-5.3C20.52,10.97 18.79,7.62 16,6z",
+    )
+
+    /** SF "bolt.fill" (active energy). */
+    val bolt = icon(
+        "bolt",
+        "M11,21h-1l1,-7H7.5c-0.58,0 -0.57,-0.32 -0.38,-0.66c0.19,-0.34 0.05,-0.08 0.07,-0.12C8.48,10.94 10.42,7.54 13,3h1l-1,7h3.5c0.49,0 0.56,0.33 0.47,0.51l-0.07,0.15C12.96,17.55 11,21 11,21z",
+    )
+
+    /** SF "stairs" (flights climbed). */
+    val stairs = icon(
+        "stairs",
+        "M19,3H5C3.9,3 3,3.9 3,5v14c0,1.1 0.9,2 2,2h14c1.1,0 2,-0.9 2,-2V5C21,3.9 20.1,3 19,3zM18,8h-2.42v3.33H13v3.33h-2.58V18H6v-2h2.42v-3.33H11V9.33h2.58V6H18V8z",
+    )
+
+    /** SF "lungs.fill" (respiratory rate), drawn as Material's "air". */
+    val breath = icon(
+        "breath",
+        "M14.5,17c0,1.65 -1.35,3 -3,3s-3,-1.35 -3,-3h2c0,0.55 0.45,1 1,1s1,-0.45 1,-1s-0.45,-1 -1,-1H2v-2h9.5C13.15,14 14.5,15.35 14.5,17zM19,6.5C19,4.57 17.43,3 15.5,3S12,4.57 12,6.5h2C14,5.67 14.67,5 15.5,5S17,5.67 17,6.5S16.33,8 15.5,8H2v2h13.5C17.43,10 19,8.43 19,6.5zM18.5,11H2v2h16.5c0.83,0 1.5,0.67 1.5,1.5S19.33,16 18.5,16v2c1.93,0 3.5,-1.57 3.5,-3.5S20.43,11 18.5,11z",
+    )
+
+    /** SF "thermometer.medium" (body temperature). */
+    val thermometer = icon(
+        "thermometer",
+        "M15,13V5c0,-1.66 -1.34,-3 -3,-3S9,3.34 9,5v8c-1.21,0.91 -2,2.37 -2,4c0,2.76 2.24,5 5,5s5,-2.24 5,-5C17,15.37 16.21,13.91 15,13zM11,5c0,-0.55 0.45,-1 1,-1s1,0.45 1,1h-1v1h1v2h-1v1h1v2h-2V5z",
+    )
+
+    /** SF "arrow.up" (a tile above her recent days). */
+    val arrowUp = icon("arrowUp", "M4,12l1.41,1.41L11,7.83V20h2V7.83l5.58,5.59L20,12l-8,-8 -8,8z")
+
+    /** SF "arrow.down". */
+    val arrowDown = icon("arrowDown", "M20,12l-1.41,-1.41L13,16.17V4h-2v12.17l-5.58,-5.59L4,12l8,8 8,-8z")
+
+    /** SF "equal" (about her usual). */
+    val equal = icon("equal", "M20,9H4v2h16V9zM4,15h16v-2H4v2z")
+
+    /** A stored SF Symbol name (an insight's `iconKey`, a metric's symbol) drawn with Keel's icons. */
     fun forSymbolName(name: String): ImageVector = when (name) {
         "arrow.left.and.right" -> leftRight
+        "figure.walk", "figure.walk.motion" -> walk
+        "flame.fill" -> flame
+        "bolt.fill" -> bolt
+        "stairs" -> stairs
+        "moon.fill" -> moon
+        "heart.fill" -> heart
+        "lungs.fill" -> breath
+        "drop.fill", "drop.circle.fill" -> waterDrop
+        "thermometer.medium" -> thermometer
+        "sun.max.fill" -> sun
         else -> leaf
     }
 }

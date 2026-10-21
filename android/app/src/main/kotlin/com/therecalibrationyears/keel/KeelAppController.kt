@@ -5,6 +5,9 @@ import com.therecalibrationyears.keel.data.CheckInRepository
 import com.therecalibrationyears.keel.data.CycleRepository
 import com.therecalibrationyears.keel.data.InsightRepository
 import com.therecalibrationyears.keel.domain.MonthSummary
+import com.therecalibrationyears.keel.insights.ActivitiesActions
+import com.therecalibrationyears.keel.insights.ActivitiesData
+import com.therecalibrationyears.keel.insights.DayFeeling
 import com.therecalibrationyears.keel.insights.LookingBackActions
 import com.therecalibrationyears.keel.insights.LookingBackData
 import com.therecalibrationyears.keel.cycle.CycleActions
@@ -334,6 +337,30 @@ class KeelAppController(
         }
         override val zone: ZoneId get() = clock.zone()
         override fun now(): Instant = clock.now()
+    }
+
+    /**
+     * The Activities screen's view of the app (iOS `ActivitiesView`): her own entries, her
+     * check-ins, the Health Connect items she has on, and whether it's connected. Imported
+     * amounts and readings are empty until Health Connect is integrated (M7): nothing is
+     * imported yet, so those tiles say "No data yet".
+     */
+    val activitiesActions: ActivitiesActions = object : ActivitiesActions {
+        override val data: Flow<ActivitiesData> = combine(
+            activities.observeAll(), checkIns.observeLive(), settings.disabledHealthItemIds,
+            users.observeCurrentProfile(), moodPack,
+        ) { manual, entries, disabled, profile, pack ->
+            val zone = clock.zone()
+            ActivitiesData(
+                manual = manual, imported = emptyList(), readings = emptyList(),
+                feelings = entries.map { DayFeeling(it.date.atZone(zone).toLocalDate(), it.mood, it.energyLevel) },
+                disabledItems = disabled, healthConnected = profile?.healthConnected == true, moodPack = pack,
+            )
+        }
+        override val zone: ZoneId get() = clock.zone()
+        override fun now(): Instant = clock.now()
+        override suspend fun setAmount(activityId: String, day: LocalDate, amount: Double) = activities.setAmount(activityId, day, amount)
+        override suspend fun setEating(itemId: String, day: LocalDate, answer: Boolean?) = activities.setEating(itemId, day, answer)
     }
 
     /** The Reminders screen's view of the app. */

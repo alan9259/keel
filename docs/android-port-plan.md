@@ -13,8 +13,8 @@
 > "Home slice"). **The check-in flow is built** (see "Check-in slice"). **M3 medications are
 > built** (see "M3 medications") **and so are reminders** (see "M3 reminders"), with
 > "Reminders on time" for exact alarms (D25). Open: the daily top-up (D11). **M4 is under
-> way:** Cycle and Looking back are built (see "M4 Cycle", "M4 Looking back"); next
-> Activities, then Stats.
+> way:** Cycle, Looking back and Activities are built (see "M4 Cycle", "M4 Looking back",
+> "M4 Activities"); next Stats.
 
 ## Context
 
@@ -573,6 +573,25 @@ notes", pattern cards, the GP Visit Summary link, a stand-in until M5) and Your 
 is iOS-verbatim. Tests: domain +7, data +3, app +3, insights +4. Verified on the API 36
 emulator with seeded entries (and "See all notes" opening Your notes), on API 28 in dark
 mode, and in the release (R8) build on API 36. Not verified: TalkBack.
+
+### M4 Activities (21 Oct 2026)
+Built: `ActivityPeriod`, `ActivityAggregation`, `ActivityCatalog`, `EatingCatalog`,
+`EatingLog`, `VitalTrend` (`core/domain`); `ActivityRepository.setAmount` / `setEating`
+(no answers a 0, clearing deletes the row, as iOS) and `keel.disabledHealthItems`
+(`core/data`); `VitalLineChart` and nine metric icons (`core/designsystem`); `ActivitiesScreen`
+and `ActivitiesModel` (`feature/insights`): Day / Week / Month, how she felt, the Health
+Connect tiles with the "vs your usual" arrow, roll-ups with per-day bars, Your body lately,
+Eating, water, and the "You logged" counts. Imported amounts and readings are empty until M7
+(tiles say "No data yet"; her own sleep, water and eating work now). Reached by debug route
+until More (M6); "Connect to Health Connect" opens a title-only stand-in. Copy: five Health
+Connect substitutions ("wrist" becomes "skin" temperature, plan §3.2); a past week reads
+"12 Oct to 18 Oct" where iOS writes an en dash, which Android's copy rules don't allow (the
+"{} to {}" shape is already iOS copy). HRV reads `hrvRmssd` (D13). Tests: domain +16, data
++4, designsystem +3, insights +13, app +1. Verified on the API 36 emulator: day view with her
+check-in and sleep, water and eating written as her rows on her local day (read back from the
+device database), clearing an answer deletes its row, the week counts; the chart in the debug
+gallery with sample points (no real readings before M7); API 28 dark month view. Not verified:
+the vitals rows and arrows on real imported data (M7), TalkBack.
 
 ## 6. Decisions (recommendation; "owner" = needs Mischa's sign-off before release)
 | # | Topic | Recommendation |

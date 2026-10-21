@@ -134,6 +134,42 @@ class ActivityRepository(
         }
     }
 
+    /** Every live entry she made, any activity, as day amounts (the Activities screen). */
+    fun observeAll(): Flow<List<DayAmount>> = dao.observeAllLive().map { logs ->
+        logs.map { DayAmount(it.activityID, it.date.atZone(clock.zone()).toLocalDate(), it.amount) }
+    }
+
+    /**
+     * A counted activity for a day (water): the day's row takes the new amount, even 0, and a
+     * row is only created for an amount above 0 (iOS `setAmount`).
+     */
+    suspend fun setAmount(activityId: String, day: LocalDate, amount: Double) = writes.withLock {
+        val start = day.atStartOfDay(clock.zone()).toInstant()
+        val existing = dao.liveOn(activityId, start)
+        val now = clock.now()
+        when {
+            existing != null -> dao.upsert(existing.copy(amount = amount, updatedAt = now, syncStatusRaw = SyncStatus.PENDING_UPLOAD.raw))
+            amount > 0 -> dao.upsert(ActivityLogEntity(newId(), start, activityId, amount, MANUAL, ownerId(), now, now))
+        }
+    }
+
+    /**
+     * Her eating answer for a day (iOS `EatingLog.set`): yes is a row of 1, no a row of 0, and
+     * clearing removes the row, so the day reads as not answered rather than a clean no.
+     */
+    suspend fun setEating(itemId: String, day: LocalDate, answer: Boolean?) = writes.withLock {
+        val start = day.atStartOfDay(clock.zone()).toInstant()
+        val existing = dao.liveOn(itemId, start)
+        val now = clock.now()
+        when {
+            answer == null -> if (existing != null) dao.delete(existing)
+            existing != null -> dao.upsert(existing.copy(amount = if (answer) 1.0 else 0.0, updatedAt = now, syncStatusRaw = SyncStatus.PENDING_UPLOAD.raw))
+            else -> dao.upsert(ActivityLogEntity(newId(), start, itemId, if (answer) 1.0 else 0.0, MANUAL, ownerId(), now, now))
+        }
+    }
+
+    private fun newId() = UUID.randomUUID().toString().uppercase()
+
     private companion object {
         const val SLEEP = "sleep"
         const val MANUAL = "manual"

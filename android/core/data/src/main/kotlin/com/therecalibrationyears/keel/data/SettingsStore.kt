@@ -62,6 +62,12 @@ class SettingsStore(private val store: DataStore<Preferences>) {
      */
     val notificationPermissionAsked: Flow<Boolean> = store.data.map { it[NOTIFICATION_PERMISSION_ASKED] ?: false }
 
+    /**
+     * Health Connect items she has switched off (`keel.disabledHealthItems`, iOS's ids). A
+     * disabled set, so anything not listed, including items added later, is on.
+     */
+    val disabledHealthItemIds: Flow<Set<String>> = store.data.map { it[DISABLED_HEALTH_ITEMS] ?: emptySet() }
+
     /** Android only: she has been told, once, how to get reminders on time (plan D25). */
     val exactTimingOffered: Flow<Boolean> = store.data.map { it[EXACT_TIMING_OFFERED] ?: false }
 
@@ -85,6 +91,7 @@ class SettingsStore(private val store: DataStore<Preferences>) {
     suspend fun setMedicineNamesInReminders(on: Boolean) = store.edit { it[MED_NAMES_IN_REMINDERS] = on }
     suspend fun setNotificationPermissionAsked(asked: Boolean) = store.edit { it[NOTIFICATION_PERMISSION_ASKED] = asked }
     suspend fun setExactTimingOffered(offered: Boolean) = store.edit { it[EXACT_TIMING_OFFERED] = offered }
+    suspend fun setDisabledHealthItemIds(ids: Set<String>) = store.edit { it[DISABLED_HEALTH_ITEMS] = ids }
 
     companion object {
         /** iOS: the daily check-in and medication reminders start on. */
@@ -105,5 +112,6 @@ class SettingsStore(private val store: DataStore<Preferences>) {
         private val MED_NAMES_IN_REMINDERS = booleanPreferencesKey("keel.medNamesInReminders")
         private val NOTIFICATION_PERMISSION_ASKED = booleanPreferencesKey("keel.notificationPermissionAsked")
         private val EXACT_TIMING_OFFERED = booleanPreferencesKey("keel.exactTimingOffered")
+        private val DISABLED_HEALTH_ITEMS = stringSetPreferencesKey("keel.disabledHealthItems")
     }
 }
