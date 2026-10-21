@@ -44,6 +44,7 @@ dependencies {
     implementation(project(":feature:home"))
     implementation(project(":feature:checkin"))
     implementation(project(":feature:medications"))
+    implementation(project(":feature:settings"))
     implementation(libs.navigation3.runtime)
     implementation(libs.navigation3.ui)
     implementation(libs.kotlinx.serialization.json)
@@ -52,6 +53,7 @@ dependencies {
     implementation(libs.androidx.core.ktx)
     implementation(libs.androidx.activity.compose)
     implementation(libs.androidx.lifecycle.runtime.compose)
+    implementation(libs.androidx.lifecycle.process) // foreground: auto-log and reminder top-up
     implementation(platform(libs.compose.bom))
     implementation(libs.compose.ui.tooling.preview)
     debugImplementation(libs.compose.ui.tooling)

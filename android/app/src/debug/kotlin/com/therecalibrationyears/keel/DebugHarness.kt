@@ -16,9 +16,11 @@ import com.therecalibrationyears.keel.onboarding.OnboardingStep
  *   uitForceOnboarding true  show onboarding even when already onboarded (iOS -uitForceOnboarding)
  *   uitOnboardStep <step>    start onboarding at welcome, right_place, create_account,
  *                            pathway, health or ready (iOS -uitOnboardPathway etc.)
- *   uitRoute <route>         push cycle, medications, patterns, more or gp_summary
+ *   uitRoute <route>         push cycle, medications, patterns, more, gp_summary or reminders
  *   uitReset true            soft-delete check-ins and remove medicines first
  *   uitSeedCheckIn / uitSeedMed / uitSeedEnergyMix / uitSeedWeek true   sample records
+ *   uitReminderExplainer true  queue the "Gentle reminders" explanation (iOS -uitReminderExplainer)
+ *   uitRemindSoon true       a medicine due in 2 minutes and the check-in in 3, to watch them fire
  *
  * Never compiled into release builds (see src/release).
  */
@@ -55,7 +57,7 @@ object DebugHarness {
             OnboardingStep.entries.firstOrNull { it.name.equals(raw, ignoreCase = true) }
         }
         initialRoute = MainRoute.fromDebugName(intent.getStringExtra("uitRoute"))
-        seeds = listOf("uitReset", "uitSeedMed", "uitSeedCheckIn", "uitSeedEnergyMix", "uitSeedWeek")
+        seeds = listOf("uitReset", "uitSeedMed", "uitSeedCheckIn", "uitSeedEnergyMix", "uitSeedWeek", "uitReminderExplainer", "uitRemindSoon")
             .filter { intent.getBooleanExtra(it, false) }
     }
 
@@ -69,6 +71,8 @@ object DebugHarness {
                 "uitSeedCheckIn" -> s.checkIn()
                 "uitSeedEnergyMix" -> s.energyMix()
                 "uitSeedWeek" -> s.week()
+                "uitReminderExplainer" -> container.settings.setNotificationExplainerPending(true)
+                "uitRemindSoon" -> s.remindSoon()
             }
         }
         seeds = emptyList() // once per launch, not again on recreation

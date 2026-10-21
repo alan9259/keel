@@ -41,4 +41,6 @@ test classes keep the iOS name. Suites not listed yet are ported with their mile
 | MedicationNameCleanupTests: cleanupRenamesSavedEntriesAndIsIdempotent | core/data `MedicationRepositoryTests` | ported |
 | MedicationRepositoryTests (11) | core/data `MedicationRepositoryTests` | ported with a fixed clock (+ upsert by name, stored text, start date kept, archive, legacy migration, form read-back) |
 | TreatmentCatalogTests (5) | core/data `TreatmentCatalogTests` | ported (+ bundled copy is the iOS file, cached copy wins, alphabetical order) |
-| ReminderExplainerTests (3) | | with the reminders explanation (M3 reminders stage) |
+| ReminderExplainerTests: finishingOnboardingQueuesTheExplanationNotThePrompt | app `KeelAppControllerTests` | ported |
+| ReminderExplainerTests: notNowTurnsRemindersOffWithoutAsking, continueLeavesRemindersOn | app `KeelRemindersTests` | ported (the explanation has only Continue; "not now" stays tested as the record step) |
+| (Android) reminder scheduling, ids, everyday plans | core/domain `ReminderRulesTests`, core/platform `ReminderSchedulerTests`, app `KeelRemindersTests`, `ReminderPosterTests`, feature/settings `RemindersScreenTests` | new: alarm service, registry, receivers and channels have no iOS counterpart |

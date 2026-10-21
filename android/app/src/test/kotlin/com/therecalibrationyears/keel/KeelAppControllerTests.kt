@@ -24,6 +24,7 @@ import com.therecalibrationyears.keel.domain.Pathway
 import com.therecalibrationyears.keel.domain.TreatmentDraft
 import com.therecalibrationyears.keel.domain.TreatmentKind
 import com.therecalibrationyears.keel.data.TreatmentCatalogStore
+import com.therecalibrationyears.keel.data.schedule
 import java.io.File
 import java.time.Instant
 import java.time.LocalDate
@@ -87,18 +88,23 @@ class KeelAppControllerTests {
         override fun zone(): ZoneId = ZoneId.of("Australia/Sydney")
     }
 
+    /** Reminders armed by the app under test (no alarm service needed). */
+    private val scheduler = FakeScheduler()
+
     private fun launch(): KeelAppController {
         val identity = LocalIdentity(prefs)
         val users = UserRepository(db.userProfiles(), identity::ownerId, clock) { device }
         val scope = CoroutineScope(SupervisorJob() + Dispatchers.Default).also { scopes += it }
         val settings = SettingsStore(prefs)
+        val medications = MedicationRepository(db.medications(), identity::ownerId, clock)
         return KeelAppController(
             users, identity, settings, CheckInRepository(db.checkIns(), identity::ownerId, clock),
             SymptomRepository(db.symptoms(), db.checkIns(), settings, identity::ownerId, clock),
-            MedicationRepository(db.medications(), identity::ownerId, clock),
+            medications,
             ActivityRepository(db.activityLogs(), clock, identity::ownerId),
             com.therecalibrationyears.keel.platform.SpeechRecognitionService(RuntimeEnvironment.getApplication()),
-            TreatmentCatalogStore(RuntimeEnvironment.getApplication()), clock, scope,
+            TreatmentCatalogStore(RuntimeEnvironment.getApplication()),
+            KeelReminders(settings, medications, scheduler, clock) { true }, clock, scope,
         )
     }
 
@@ -281,5 +287,66 @@ class KeelAppControllerTests {
         app.medicationsActions.remove(id)
         assertTrue(app.medicationsActions.active.first().isEmpty())
         assertTrue(app.medicationsActions.stopped.first().isEmpty())
+    }
+
+    // M3 reminders: the controller's side (iOS AppEnvironment).
+
+    /** Port of ReminderExplainerTests.testFinishingOnboardingQueuesTheExplanationNotThePrompt. */
+    @Test fun finishingOnboardingQueuesTheExplanationNotThePrompt() = runBlocking {
+        val app = launch()
+        assertFalse(app.notificationExplainerPending.first())
+        app.completeOnboarding()
+        assertTrue(app.notificationExplainerPending.first())
+        assertTrue(scheduler.armed.isEmpty()) // nothing laid out, nothing asked, until Continue
+    }
+
+    @Test fun markTakenFromAReminderLogsTheDoseAndDropsItsReminder() = runBlocking {
+        val app = launch()
+        app.medicationsActions.add(TreatmentDraft(name = "Prometrium", kind = TreatmentKind.TREATMENT, schedule = DoseSchedule(slots = listOf(DoseSlot(hour = 20)))))
+        val med = app.medicationsActions.active.first().single()
+        val slot = med.schedule(clock.zone()).slots.single().id
+        assertTrue(scheduler.armed.keys.any { it.endsWith(".d20261021") })
+        app.markMedicationTaken(med.id, slot, LocalDate.of(2026, 10, 21))
+        assertFalse(scheduler.armed.keys.any { it.endsWith(".d20261021") })
+        assertEquals(slot, db.medications().observeLiveLogs().first().single().slot)
+    }
+
+    @Test fun homeTickDropsTheDaysRemindersAndUntickBringsThemBack() = runBlocking {
+        val app = launch()
+        app.medicationsActions.add(TreatmentDraft(name = "Prometrium", kind = TreatmentKind.TREATMENT, schedule = DoseSchedule(slots = listOf(DoseSlot(hour = 20)))))
+        val med = app.medicationsActions.active.first().single()
+        val day = LocalDate.of(2026, 10, 21)
+        app.toggleMedicationFromHome(med, day, currentlyTaken = false)
+        assertFalse(scheduler.armed.keys.any { it.endsWith(".d20261021") })
+        app.toggleMedicationFromHome(med, day, currentlyTaken = true)
+        assertTrue(scheduler.armed.keys.any { it.endsWith(".d20261021") })
+    }
+
+    @Test fun alwaysMarkTakenTurnsOnAutoLogAndRewordsItsReminders() = runBlocking {
+        val app = launch()
+        app.medicationsActions.add(TreatmentDraft(name = "Prometrium", kind = TreatmentKind.TREATMENT, schedule = DoseSchedule(slots = listOf(DoseSlot(hour = 20)))))
+        val med = app.medicationsActions.active.first().single()
+        app.enableMedicationAutoLog(med.id, null, LocalDate.of(2026, 10, 21))
+        assertTrue(db.medications().byId(med.id)!!.autoLogDoses)
+        assertTrue(scheduler.armed.values.all { it.first.autoLog })
+        assertFalse(scheduler.armed.keys.any { it.endsWith(".d20261021") }) // today's is logged
+    }
+
+    @Test fun removingAMedicineCancelsItsReminders() = runBlocking {
+        val app = launch()
+        app.medicationsActions.add(TreatmentDraft(name = "Prometrium", kind = TreatmentKind.TREATMENT, schedule = DoseSchedule(slots = listOf(DoseSlot(hour = 20)))))
+        assertTrue(scheduler.armed.isNotEmpty())
+        app.medicationsActions.remove(app.medicationsActions.active.first().single().id)
+        assertTrue(scheduler.armed.isEmpty())
+    }
+
+    @Test fun remindersScreenTogglesAndTimingReschedule() = runBlocking {
+        val app = launch()
+        app.remindersActions.setEnabled("winddown", true)
+        assertTrue("keel.winddown" in scheduler.armed)
+        app.remindersActions.setConfig(com.therecalibrationyears.keel.domain.ReminderConfig(windDownHour = 22, windDownMinute = 0))
+        assertEquals(22, scheduler.armed["keel.winddown"]!!.second.hour)
+        app.remindersActions.setEnabled("winddown", false)
+        assertFalse("keel.winddown" in scheduler.armed)
     }
 }

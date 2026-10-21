@@ -11,8 +11,8 @@
 > (UserProfile table, UserRepository, SettingsStore, LocalIdentity). See "Onboarding slice"
 > under §5. **Home is built** on the check-in, symptom, medicine and activity tables (see
 > "Home slice"). **The check-in flow is built** (see "Check-in slice"). **M3 medications are
-> built** (see "M3 medications"); next: M3 reminders (alarms, receivers, the reminders
-> explanation and permission, the Reminders screen), then the rest of M2.
+> built** (see "M3 medications") **and so are reminders** (see "M3 reminders"); open: the
+> exact-alarm decision and the daily top-up (D11). Next: M4.
 
 ## Context
 
@@ -500,6 +500,28 @@ database (iOS JSON shape) → edit → stop with a date → "No longer taking"; 
 an old-style entry migrated on launch. Launch time measured against the previous commit,
 interleaved: no change (release about 2.3 s on the loaded API 28 emulator either way).
 Not verified: TalkBack; the date and time pickers use the system font, not Poppins (M8).
+
+### M3 reminders (21 Oct 2026)
+Built: reminder ids, everyday reminder plans and next-fire times, medication reminder plans
+(`core/domain`); `AlarmReminderScheduler` with a device-only registry, one notification
+channel per reminder kind named as on the iOS Reminders screen, a status icon from the mark
+(`core/platform`); `KeelReminders` (iOS reminder methods), receivers for the alarm, "Mark
+taken", "Always mark taken" and re-arming (boot, time, zone, update, exact-alarm permission
+change), body tap marks the dose taken (D20) on the occurrence's day (D10), foreground top-up
+and auto-log (`app`); "Gentle reminders" on Home with Continue only, then Android 13's prompt;
+the Reminders screen (`feature/settings`, reached by debug route until Settings in M6). Android
+honours the "Medication reminders" toggle (D2). Tests: domain +11, platform +6, app +25,
+Reminders screen 3 (312 in all). Verified on the API 36 emulator: explanation → Android prompt
+→ Allow → check-in armed; a medicine and the check-in fired at their times; "Mark taken",
+"Always mark taken" and a body tap each logged the dose (read back from the device database)
+and cleared the notification; 25 alarms re-armed after a reboot; a reminder delivered in forced
+deep Doze; Hydration turned on lays 7 alarms. API 28: the explanation with no prompt, exact
+alarms. **Finding for the owner:** on Android 13+ exact alarms aren't granted by default and
+Keel never asks, so Android may deliver a reminder up to an hour late (`window=+1h`); options
+in the M3 report. Not done: the daily top-up (D11; reminders are topped up whenever Keel
+opens, as iOS); the Settings master switch and "Medicine names in reminders" (with Settings,
+M6; the logic is in place and tested). Not verified: a real phone (OEM battery savers can delay
+or drop alarms), the lock-screen look with names hidden, TalkBack.
 
 ## 6. Decisions (recommendation; "owner" = needs Mischa's sign-off before release)
 | # | Topic | Recommendation |

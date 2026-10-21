@@ -2,6 +2,11 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android">
     <!-- Voice notes in the check-in diary (dictated on the phone only). -->
     <uses-permission android:name="android.permission.RECORD_AUDIO" />
+    <!-- Gentle reminders. Exact alarms are declared, never asked for: without them Android
+         delivers the reminder close to its time instead (plan §1.7). -->
+    <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
+    <uses-permission android:name="android.permission.SCHEDULE_EXACT_ALARM" />
+    <uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED" />
     <queries>
         <intent>
             <action android:name="android.speech.RecognitionService" />

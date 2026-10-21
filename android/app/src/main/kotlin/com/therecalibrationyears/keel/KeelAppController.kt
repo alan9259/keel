@@ -3,6 +3,7 @@ package com.therecalibrationyears.keel
 import com.therecalibrationyears.keel.data.ActivityRepository
 import com.therecalibrationyears.keel.data.CheckInRepository
 import com.therecalibrationyears.keel.data.LocalIdentity
+import com.therecalibrationyears.keel.data.LoggedDose
 import com.therecalibrationyears.keel.data.MedicationRepository
 import com.therecalibrationyears.keel.data.SettingsStore
 import com.therecalibrationyears.keel.data.SymptomPick
@@ -26,6 +27,9 @@ import com.therecalibrationyears.keel.domain.TreatmentCatalog
 import com.therecalibrationyears.keel.domain.TreatmentDraft
 import com.therecalibrationyears.keel.home.HomeData
 import com.therecalibrationyears.keel.medications.MedicationsActions
+import com.therecalibrationyears.keel.settings.RemindersActions
+import com.therecalibrationyears.keel.domain.ReminderConfig
+import com.therecalibrationyears.keel.domain.ReminderKinds
 import java.time.Instant
 import java.time.ZoneId
 import com.therecalibrationyears.keel.onboarding.OnboardingActions
@@ -57,6 +61,7 @@ class KeelAppController(
     private val activities: ActivityRepository,
     private val speech: SpeechRecognitionService,
     private val treatments: TreatmentCatalogStore,
+    val reminders: KeelReminders,
     val clock: KeelClock,
     private val scope: CoroutineScope,
 ) : OnboardingActions {
@@ -64,24 +69,74 @@ class KeelAppController(
     /**
      * Launch work (iOS `bootstrap`, in its order; later milestones add their steps): bring
      * the built-in symptom catalog up to date, carry older medicine entries onto schedules,
-     * tidy brand examples out of their names, then log today's auto-logged doses.
+     * tidy brand examples out of their names, then the everyday reminders, today's
+     * auto-logged doses and the medication reminders.
      */
     fun bootstrap() {
         scope.launch {
             symptoms.syncBuiltIns()
             medications.migrateLegacySchedules()
             medications.stripExampleBrandsFromNames()
-            autoLogTodaysDoses()
+            reminders.refreshAll(::autoLogTodaysDoses)
         }
     }
 
     /**
-     * Log today's arrived doses for medicines set to auto-log (iOS `autoLogTodaysDoses`).
-     * Runs while the app is open: a day she never opens Keel isn't logged.
+     * Keel came to the foreground: log today's arrived auto-log doses and top up the
+     * medication reminders (laid out a few weeks ahead, so opening the app extends them).
      */
-    suspend fun autoLogTodaysDoses() {
-        medications.autoLogTodaysDueDoses()
+    fun onForeground() {
+        scope.launch {
+            autoLogTodaysDoses()
+            reminders.refreshMedicationReminders()
+        }
     }
+
+    /** A reboot, a clock or time zone change, or an update: alarms are re-armed from scratch. */
+    suspend fun rearmReminders() = reminders.refreshAll(::autoLogTodaysDoses)
+
+    /**
+     * Log today's arrived doses for medicines set to auto-log (iOS `autoLogTodaysDoses`), and
+     * drop their now-redundant reminders. Runs while the app is open: a day she never opens
+     * Keel isn't logged.
+     */
+    suspend fun autoLogTodaysDoses(): List<LoggedDose> {
+        val logged = medications.autoLogTodaysDueDoses()
+        val today = clock.now().atZone(clock.zone()).toLocalDate()
+        logged.forEach { reminders.cancelMedicationReminders(it.medicationId, today, it.slot) }
+        return logged
+    }
+
+    /** "Mark taken" on a reminder, or a tap on it (iOS `markMedicationTaken`). */
+    suspend fun markMedicationTaken(medicationId: String, slot: String?, day: LocalDate) {
+        val med = medications.active(medicationId) ?: return
+        medications.setTaken(med, day, slot, taken = true)
+        // Logged, so no nudge for this dose again today.
+        reminders.cancelMedicationReminders(med.id, day, slot)
+    }
+
+    /** "Always mark taken": auto-log this medicine from now on, and log this dose. */
+    suspend fun enableMedicationAutoLog(medicationId: String, slot: String?, day: LocalDate) {
+        val med = medications.active(medicationId) ?: return
+        medications.setAutoLog(med.id, true)
+        medications.setTaken(med, day, slot, taken = true)
+        // Its reminders now carry the auto-log wording, and today's logged dose is skipped.
+        reminders.refreshMedicationReminders()
+    }
+
+    /** The reminders explanation is owed (set when onboarding finishes). */
+    val notificationExplainerPending: Flow<Boolean> = settings.notificationExplainerPending
+
+    /** "Continue" on the reminders explanation, after Android's prompt (if any) has answered. */
+    suspend fun answerNotificationExplainer() {
+        reminders.recordNotificationExplainerAnswer(allow = true)
+        reminders.refreshLifestyleReminders()
+        reminders.refreshMedicationReminders()
+    }
+
+    /** Keel asked Android for notification permission (it can't say "never asked" itself). */
+    suspend fun markNotificationPermissionAsked() { settings.setNotificationPermissionAsked(true) }
+    val notificationPermissionAsked: Flow<Boolean> = settings.notificationPermissionAsked
 
     /** Her chosen mood pack (the default until she picks one). */
     val moodPack: StateFlow<MoodPack> = settings.moodPackId.map { MoodPacks.pack(it) }
@@ -111,12 +166,18 @@ class KeelAppController(
     }
 
     /**
-     * She tapped a medicine on Home: unticking clears every log for it that day; ticking
-     * records the whole day as taken (iOS `toggleMedicationFromHome`; reminders follow in M3).
+     * She tapped a medicine on Home (iOS `toggleMedicationFromHome`). Ticking records the whole
+     * day and cancels that day's remaining reminders; unticking clears every log for it that
+     * day and lays them out again, so a still-upcoming dose can nudge her.
      */
     suspend fun toggleMedicationFromHome(medication: MedicationEntity, day: LocalDate, currentlyTaken: Boolean) {
-        if (currentlyTaken) medications.clearTaken(medication, day)
-        else medications.setTaken(medication, day, slot = null, taken = true)
+        if (currentlyTaken) {
+            medications.clearTaken(medication, day)
+            reminders.refreshMedicationReminders()
+        } else {
+            medications.setTaken(medication, day, slot = null, taken = true)
+            reminders.cancelMedicationReminders(medication.id, day, slot = null)
+        }
     }
 
     /** Opening an existing entry to edit: its mood and day (iOS `onEditEntry`). */
@@ -186,15 +247,44 @@ class KeelAppController(
         override suspend fun add(draft: TreatmentDraft) {
             medications.add(draft)
             autoLogTodaysDoses() // added with auto-log on: tick today now
+            reminders.refreshMedicationReminders()
         }
 
         override suspend fun update(id: String, draft: TreatmentDraft) {
             medications.update(id, draft)
             autoLogTodaysDoses() // turning auto-log on ticks today's log straight away
+            reminders.refreshMedicationReminders()
         }
 
-        override suspend fun remove(id: String) = medications.archive(id)
+        override suspend fun remove(id: String) {
+            medications.archive(id)
+            reminders.cancelMedicationReminders(id)
+        }
         override suspend fun setTracked(id: String, tracked: Boolean) = medications.setTracked(id, tracked)
+    }
+
+    /** The Reminders screen's view of the app. */
+    val remindersActions: RemindersActions = object : RemindersActions {
+        override val enabledIds = settings.enabledReminderIds
+        override val config = settings.reminderConfig
+        override val notificationPermissionAsked = settings.notificationPermissionAsked
+        override suspend fun markNotificationPermissionAsked() { settings.setNotificationPermissionAsked(true) }
+
+        override suspend fun setEnabled(id: String, on: Boolean) {
+            settings.setReminderEnabled(id, on)
+            when {
+                id == ReminderKinds.MEDICATION -> reminders.refreshMedicationReminders()
+                on -> reminders.rescheduleLifestyleReminder(id)
+                else -> reminders.cancelLifestyleReminder(id)
+            }
+        }
+
+        override suspend fun setConfig(config: ReminderConfig) {
+            settings.setReminderConfig(config)
+            // Any edit to the timing reschedules the reminders she has switched on.
+            val enabled = settings.enabledReminderIds.first()
+            ReminderKinds.LIFESTYLE.filter { it in enabled }.forEach { reminders.rescheduleLifestyleReminder(it) }
+        }
     }
 
     /** Everything the first frame depends on has loaded (the launch screen waits for this). */

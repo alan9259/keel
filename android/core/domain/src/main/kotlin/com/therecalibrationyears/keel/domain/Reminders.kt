@@ -111,3 +111,190 @@ data class ReminderConfig(
     val windDownHour: Int = 21,
     val windDownMinute: Int = 30,
 )
+
+/** The everyday reminders, by the ids iOS stores in `keel.reminders`. */
+object ReminderKinds {
+    const val DAILY_CHECK_IN = "dailyCheckIn"
+    const val MEDICATION = "medication"
+    const val HYDRATION = "hydration"
+    const val MOVEMENT = "movement"
+    const val WIND_DOWN = "winddown"
+    val LIFESTYLE = listOf(DAILY_CHECK_IN, HYDRATION, MOVEMENT, WIND_DOWN)
+}
+
+/** Reminder identifiers, character for character with iOS (`NotificationService`). */
+object ReminderIds {
+    const val MED_PREFIX = "keel.med."
+    const val CHECK_IN = "keel.dailyCheckIn"
+    const val HYDRATION_PREFIX = "keel.hydration."
+    const val MOVEMENT_PREFIX = "keel.movement."
+    const val WIND_DOWN = "keel.winddown"
+
+    /** `keel.med.<UUID>.<first 8 of the slot id>.d<yyyyMMdd>`. */
+    fun medication(medicationId: String, slotId: String, dayKey: String): String =
+        "$MED_PREFIX${medicationId.uppercase()}.${slotId.take(8)}.d$dayKey"
+
+    fun medicationPrefix(medicationId: String): String = "$MED_PREFIX${medicationId.uppercase()}"
+
+    /**
+     * Whether a medication reminder id is for this medicine on this day, and (when [slotId] is
+     * given) this dose: the iOS day/slot cancel, as a test on the id.
+     */
+    fun matchesMedication(id: String, medicationId: String, dayKey: String? = null, slotId: String? = null): Boolean {
+        if (!id.startsWith(medicationPrefix(medicationId))) return false
+        if (dayKey != null && !id.endsWith(".d$dayKey")) return false
+        if (slotId != null && !id.contains(".${slotId.take(8)}.")) return false
+        return true
+    }
+
+    fun hydration(hour: Int): String = "$HYDRATION_PREFIX$hour"
+    fun movement(weekday: Int?): String = "$MOVEMENT_PREFIX${weekday ?: "daily"}"
+}
+
+/**
+ * One repeating everyday reminder (iOS uses a repeating calendar trigger; Android arms the
+ * next occurrence and re-arms when it fires). [weekday] is the iOS weekday (1 is Sunday), or
+ * null for every day.
+ */
+data class RepeatingReminder(
+    val id: String,
+    val kind: String,
+    val title: String,
+    val body: String,
+    val hour: Int,
+    val minute: Int,
+    val weekday: Int? = null,
+) {
+    /** The next time it fires strictly after [now], in her wall-clock time. */
+    fun nextFire(now: ZonedDateTime): ZonedDateTime {
+        var day = now.toLocalDate()
+        repeat(8) {
+            if (weekday == null || day.iosWeekday() == weekday) {
+                val at = day.atTime(hour, minute).atZone(now.zone)
+                if (at.isAfter(now)) return at
+            }
+            day = day.plusDays(1)
+        }
+        error("unreachable: a weekly reminder recurs within 8 days") // not-copy: an exception message, never shown
+    }
+}
+
+/** What the everyday reminders she has on look like (iOS `schedule*` functions). */
+object LifestyleReminders {
+    /** Every reminder for the kinds she has on, from her timing. */
+    fun plan(enabled: Set<String>, config: ReminderConfig): List<RepeatingReminder> = buildList {
+        if (ReminderKinds.DAILY_CHECK_IN in enabled) addAll(checkIn(config))
+        if (ReminderKinds.HYDRATION in enabled) addAll(hydration(config))
+        if (ReminderKinds.MOVEMENT in enabled) addAll(movement(config))
+        if (ReminderKinds.WIND_DOWN in enabled) addAll(windDown(config))
+    }
+
+    fun forKind(kind: String, config: ReminderConfig): List<RepeatingReminder> = when (kind) {
+        ReminderKinds.DAILY_CHECK_IN -> checkIn(config)
+        ReminderKinds.HYDRATION -> hydration(config)
+        ReminderKinds.MOVEMENT -> movement(config)
+        ReminderKinds.WIND_DOWN -> windDown(config)
+        else -> emptyList()
+    }
+
+    /** Every id a kind could occupy, so a cancel clears the whole set whatever the timing was. */
+    fun allIds(kind: String): List<String> = when (kind) {
+        ReminderKinds.DAILY_CHECK_IN -> listOf(ReminderIds.CHECK_IN)
+        ReminderKinds.HYDRATION -> (0..23).map(ReminderIds::hydration)
+        ReminderKinds.MOVEMENT -> (1..7).map { ReminderIds.movement(it) } + ReminderIds.movement(null)
+        ReminderKinds.WIND_DOWN -> listOf(ReminderIds.WIND_DOWN)
+        else -> emptyList()
+    }
+
+    private fun checkIn(c: ReminderConfig) = listOf(
+        RepeatingReminder(ReminderIds.CHECK_IN, ReminderKinds.DAILY_CHECK_IN, ReminderCopy.CHECK_IN_TITLE, ReminderCopy.CHECK_IN_BODY, c.checkInHour, c.checkInMinute),
+    )
+
+    /** Across the waking window only, so it goes quiet overnight. */
+    private fun hydration(c: ReminderConfig): List<RepeatingReminder> {
+        val step = maxOf(c.hydrationIntervalHours, 1)
+        return (c.hydrationStartHour..c.hydrationEndHour step step).map { h ->
+            RepeatingReminder(ReminderIds.hydration(h), ReminderKinds.HYDRATION, ReminderCopy.HYDRATION_TITLE, ReminderCopy.HYDRATION_BODY, h, 0)
+        }
+    }
+
+    /** Monday to Friday by default, or every day. */
+    private fun movement(c: ReminderConfig): List<RepeatingReminder> =
+        if (c.movementWeekdaysOnly) {
+            (2..6).map { d ->
+                RepeatingReminder(ReminderIds.movement(d), ReminderKinds.MOVEMENT, ReminderCopy.MOVEMENT_TITLE, ReminderCopy.MOVEMENT_BODY, c.movementHour, c.movementMinute, d)
+            }
+        } else {
+            listOf(RepeatingReminder(ReminderIds.movement(null), ReminderKinds.MOVEMENT, ReminderCopy.MOVEMENT_TITLE, ReminderCopy.MOVEMENT_BODY, c.movementHour, c.movementMinute))
+        }
+
+    private fun windDown(c: ReminderConfig) = listOf(
+        RepeatingReminder(ReminderIds.WIND_DOWN, ReminderKinds.WIND_DOWN, ReminderCopy.WIND_DOWN_TITLE, ReminderCopy.WIND_DOWN_BODY, c.windDownHour, c.windDownMinute),
+    )
+}
+
+/** A dated medication reminder, ready for the alarm layer. */
+data class MedicationReminder(
+    val id: String,
+    val medicationId: String,
+    val slotId: String,
+    val dayKey: String,
+    val day: LocalDate,
+    val fireAt: ZonedDateTime,
+    val title: String,
+    val body: String,
+    val autoLog: Boolean,
+)
+
+object MedicationReminders {
+    /**
+     * A medicine's reminders (iOS `rescheduleMedication`): its planned occurrences, each with
+     * its iOS id, wording and fire time in her zone.
+     */
+    fun plan(
+        medicationId: String,
+        name: String,
+        schedule: DoseSchedule,
+        autoLog: Boolean,
+        showName: Boolean,
+        cycleHorizon: Int,
+        loggedTodayWholeDay: Boolean,
+        loggedTodaySlots: Set<String>,
+        now: ZonedDateTime,
+    ): List<MedicationReminder> {
+        val (title, body) = ReminderPlanner.medicationReminderText(name, showName, autoLog)
+        return ReminderPlanner.plannedOccurrences(schedule, cycleHorizon, loggedTodayWholeDay, loggedTodaySlots, now).map { o ->
+            MedicationReminder(
+                id = ReminderIds.medication(medicationId, o.slotId, o.dayKey),
+                medicationId = medicationId.uppercase(),
+                slotId = o.slotId,
+                dayKey = o.dayKey,
+                day = o.day,
+                fireAt = o.day.atTime(o.hour, o.minute).atZone(now.zone),
+                title = title,
+                body = body,
+                autoLog = autoLog,
+            )
+        }
+    }
+
+    /** The day a reminder's dose belongs to, from its key (the occurrence's day, not delivery: D10). */
+    fun dayOf(dayKey: String): LocalDate? = runCatching {
+        LocalDate.of(dayKey.substring(0, 4).toInt(), dayKey.substring(4, 6).toInt(), dayKey.substring(6, 8).toInt())
+    }.getOrNull()
+}
+
+/** A reminder she can turn on, as the iOS Reminders screen lists it (`ReminderCatalog`). */
+data class ReminderDef(val id: String, val label: String, val desc: String)
+
+object ReminderCatalog {
+    val all = listOf(
+        ReminderDef(ReminderKinds.DAILY_CHECK_IN, "Daily check-in", "A gentle nudge to log how you're feeling"),
+        ReminderDef(ReminderKinds.MEDICATION, "Medication reminders", "On the days each one is due"),
+        ReminderDef(ReminderKinds.HYDRATION, "Hydration", "Stay on top of water through the day"),
+        ReminderDef(ReminderKinds.MOVEMENT, "Movement", "A little daily activity"),
+        ReminderDef(ReminderKinds.WIND_DOWN, "Wind-down", "An end-of-day nudge, if you want one"),
+    )
+
+    fun def(id: String): ReminderDef? = all.firstOrNull { it.id == id }
+}

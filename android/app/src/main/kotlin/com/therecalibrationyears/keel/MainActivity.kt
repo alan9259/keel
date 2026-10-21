@@ -1,5 +1,6 @@
 package com.therecalibrationyears.keel
 
+import android.content.Intent
 import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.SystemBarStyle
@@ -21,12 +22,18 @@ import com.therecalibrationyears.keel.designsystem.ThemeCatalog
 import com.therecalibrationyears.keel.designsystem.isDarkAppearance
 
 class MainActivity : ComponentActivity() {
+    override fun onNewIntent(intent: Intent) {
+        super.onNewIntent(intent)
+        handleReminderTap(intent)
+    }
+
     override fun onCreate(savedInstanceState: Bundle?) {
         val controller = (application as KeelApplication).container.controller
         installSplashScreen().setKeepOnScreenCondition { !controller.isReady }
         super.onCreate(savedInstanceState)
         DebugHarness.apply(intent)
         lifecycleScope.launch { DebugHarness.seed((application as KeelApplication).container) }
+        if (savedInstanceState == null) handleReminderTap(intent)
         setContent {
             val appearance by controller.appearance.collectAsStateWithLifecycle()
             val themeId = DebugHarness.themeId ?: appearance?.themeId ?: ThemeCatalog.DEFAULT_ID
@@ -37,6 +44,19 @@ class MainActivity : ComponentActivity() {
             }
         }
     }
+}
+
+/**
+ * A tap on a medication reminder's body marks the dose taken, as on iOS (D20). The intent is
+ * then replaced, so recreating the screen can't log it twice.
+ */
+private fun MainActivity.handleReminderTap(intent: Intent?) {
+    if (intent?.action != ReminderPoster.ACTION_TAP_MEDICATION) return
+    val payload = com.therecalibrationyears.keel.platform.ReminderPayload.from(intent) ?: return
+    val medicationId = payload.medicationId ?: return
+    val controller = (application as KeelApplication).container.controller
+    setIntent(Intent(this, MainActivity::class.java))
+    lifecycleScope.launch { controller.markMedicationTaken(medicationId, payload.slotId, controller.reminders.doseDay(payload)) }
 }
 
 /**

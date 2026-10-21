@@ -75,12 +75,20 @@ adb exec-out screencap -p > shot.png
   `HomeData` snapshot by the app; actions go back through `HomeActions`.
 - `feature/checkin`: the mood slide (`EntrySheetContent`), the entry screen (`CheckInScreen`),
   the "more" picker (`SymptomPickerSheet`) and voice button, behind `CheckInActions`.
-- `core/platform`: device services (so far `SpeechRecognitionService`, on-device only).
+- `feature/medications`: Medications screen, catalog picker and details form, with their
+  pure rules (`TreatmentForm`, `TreatmentPicker`), behind `MedicationsActions`.
+- `feature/settings`: settings screens (so far Reminders) and `rememberNotificationAccess`,
+  the notification permission gate shared with Home's "Gentle reminders".
+- `core/platform`: device services: `SpeechRecognitionService` (on-device only),
+  `AlarmReminderScheduler` (alarms plus a device-only registry of armed ids, since Android
+  can't list pending alarms), `ReminderChannels`, the reminder status icon.
 - `app`: `AppContainer` (manual DI, built once in `KeelApplication`), `KeelAppController`
   (port of iOS `AppEnvironment`, same method names), `KeelRoot` (onboarding vs app),
   `MainActivity` (splash held until her saved state loads), `src/debug` harness and gallery,
-  `src/release` no-op harness.
-- Later: `core/platform`, more `feature/*` modules (see the plan, §1.1).
+  `src/release` no-op harness. `KeelReminders` lays out and answers reminders (port of the
+  iOS reminder methods); the receivers (`ReminderReceivers.kt`) post them, handle "Mark taken"
+  / "Always mark taken", and re-arm after a reboot, clock or zone change, or an update.
+- Later: more `feature/*` modules (see the plan, §1.1).
 
 ## Debug harness (`app/src/debug`, never in release)
 
@@ -135,6 +143,17 @@ create_account, pathway, health, ready). For a truly fresh start:
   screen. They live in `app/src/debug` and never ship.
 - **Copy for new wording:** a user-facing string with no iOS original (e.g. a TalkBack label
   iOS lacks) goes in `core/copy/src/test/resources/android-additions.json` for owner sign-off.
+- **`MainActivity` is `singleTop`** (so a reminder tap reaches the open screen). A debug
+  `am start` to a running app goes to `onNewIntent` and skips the harness: use `am start -S`.
+- **Reminders on an emulator:** `--ez uitReminderExplainer true` queues "Gentle reminders";
+  `--ez uitRemindSoon true` adds a medicine due in 2 minutes and the check-in in 3. Check
+  armed alarms with `adb shell dumpsys alarm | grep -A2 "com.therecalibrationyears.keel}"`,
+  posted ones with `dumpsys notification --noredact`. Doze: `dumpsys battery unplug` +
+  `dumpsys deviceidle force-idle` (undo with `unforce` and `battery reset`). After `adb reboot`
+  the boot broadcast can take a minute or more to reach `RescheduleReceiver`.
+- **Exact alarms:** Android 13+ doesn't grant them by default, and Keel never asks (plan
+  §1.7), so reminders are inexact there: Android may deliver one up to an hour after its time
+  (`window=+1h` in `dumpsys alarm`). Android 9 to 12 deliver on time. Owner decision pending.
 - **Dates on screen** use `HomeFormats`-style skeletons (`DateFormat.getBestDateTimePattern`)
   so they follow her locale like iOS `.dateTime` formats; one-decimal numbers use
   `formatOneDecimal` (iOS `%.1f` rounds ties to even).

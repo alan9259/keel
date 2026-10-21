@@ -15,6 +15,8 @@ import com.therecalibrationyears.keel.designsystem.KeelDateFormats
 import com.therecalibrationyears.keel.data.UserRepository
 import com.therecalibrationyears.keel.data.db.MainDatabase
 import com.therecalibrationyears.keel.domain.KeelClock
+import com.therecalibrationyears.keel.platform.AlarmReminderScheduler
+import com.therecalibrationyears.keel.platform.ReminderChannels
 import com.therecalibrationyears.keel.platform.SpeechRecognitionService
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -51,7 +53,22 @@ class AppContainer(context: Context) {
 
     private val speech = SpeechRecognitionService(context)
 
+    /** Work started by broadcast receivers (alarms, reminder buttons, reboot). */
+    val receiverScope = CoroutineScope(SupervisorJob() + Dispatchers.Default)
+
+    /** Armed reminders are device state, kept apart from her settings and records. */
+    private val reminderRegistry = PreferenceDataStoreFactory.create(
+        scope = CoroutineScope(SupervisorJob() + Dispatchers.IO),
+        produceFile = { context.preferencesDataStoreFile("keel-reminders") },
+    )
+    val scheduler = AlarmReminderScheduler(context, reminderRegistry, ReminderAlarmReceiver::class.java)
+    private val reminders = KeelReminders(settings, medications, scheduler, clock) { ReminderChannels.enabled(context) }
+
+    init {
+        ReminderChannels.ensure(context)
+    }
+
     val controller = KeelAppController(
-        users, identity, settings, checkIns, symptoms, medications, activities, speech, treatments, clock, appScope,
+        users, identity, settings, checkIns, symptoms, medications, activities, speech, treatments, reminders, clock, appScope,
     )
 }

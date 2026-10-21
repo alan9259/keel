@@ -92,6 +92,22 @@ internal class DebugSeeds(private val container: AppContainer) {
             ?: clock.now().let { now ->
                 SymptomEntity(id(), name, "body", ownerID = "", createdAt = now, updatedAt = now).also { db.symptoms().upsert(it) }
             }
-}
 
-private fun Instant.coerceAtMost(max: Instant): Instant = if (this > max) max else this
+    /** A medicine due in 2 minutes and the daily check-in in 3, each laid out as she'd set them. */
+    suspend fun remindSoon() {
+        val now = clock.now().atZone(clock.zone())
+        val dose = now.plusMinutes(2)
+        container.controller.medicationsActions.add(
+            com.therecalibrationyears.keel.domain.TreatmentDraft(
+                name = "Magnesium", kind = com.therecalibrationyears.keel.domain.TreatmentKind.SUPPLEMENT,
+                schedule = com.therecalibrationyears.keel.domain.DoseSchedule(
+                    slots = listOf(com.therecalibrationyears.keel.domain.DoseSlot(hour = dose.hour, minute = dose.minute)),
+                ),
+            ),
+        )
+        val checkIn = now.plusMinutes(3)
+        val config = container.settings.reminderConfig.first()
+        container.settings.setReminderConfig(config.copy(checkInHour = checkIn.hour, checkInMinute = checkIn.minute))
+        container.controller.reminders.rescheduleLifestyleReminder(com.therecalibrationyears.keel.domain.ReminderKinds.DAILY_CHECK_IN)
+    }
+}

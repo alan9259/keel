@@ -43,6 +43,15 @@ import com.therecalibrationyears.keel.designsystem.LocalGoHome
 import com.therecalibrationyears.keel.designsystem.LocalKeelTheme
 import com.therecalibrationyears.keel.designsystem.components.KeelScreen
 import com.therecalibrationyears.keel.medications.MedicationsScreen
+import com.therecalibrationyears.keel.settings.RemindersScreen
+import com.therecalibrationyears.keel.settings.rememberNotificationAccess
+import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.unit.sp
+import androidx.compose.ui.window.DialogProperties
+import com.therecalibrationyears.keel.designsystem.KeelFont
 import com.therecalibrationyears.keel.home.HomeActions
 import com.therecalibrationyears.keel.home.HomeData
 import com.therecalibrationyears.keel.home.HomeDestination
@@ -60,6 +69,8 @@ sealed interface MainRoute : NavKey {
     @Serializable data object Patterns : MainRoute
     @Serializable data object More : MainRoute
     @Serializable data object GpSummary : MainRoute
+    /** Reached from Settings on iOS; Settings is ported in M6, so for now only by debug route. */
+    @Serializable data object Reminders : MainRoute
 
     companion object {
         /** Debug launch routes (`--es uitRoute cycle`). */
@@ -69,6 +80,7 @@ sealed interface MainRoute : NavKey {
             "patterns" -> Patterns
             "more" -> More
             "gp_summary" -> GpSummary
+            "reminders" -> Reminders
             else -> null
         }
     }
@@ -122,6 +134,7 @@ fun MainShell(controller: KeelAppController) {
                     entry<MainRoute.Patterns> { StandInScreen("Looking back", back) }
                     entry<MainRoute.More> { StandInScreen("More", back) }
                     entry<MainRoute.GpSummary> { StandInScreen("GP Visit Summary", back) }
+                    entry<MainRoute.Reminders> { RemindersScreen(controller.remindersActions, back) }
                 },
             )
 
@@ -147,6 +160,8 @@ fun MainShell(controller: KeelAppController) {
                     )
                 }
             }
+
+            ReminderExplainer(controller)
 
             toast?.let {
                 Box(
@@ -219,4 +234,46 @@ private fun HomeRoute(controller: KeelAppController, flow: EntryFlow, push: (Mai
 @Composable
 private fun StandInScreen(title: String, onBack: () -> Unit) {
     KeelScreen(title = title, onBack = onBack) {}
+}
+
+/**
+ * "Gentle reminders" (iOS MainView): once onboarding is done, Home explains reminders in one
+ * line before Android's own prompt. It comes before a permission prompt, so "Continue" is its
+ * only button (App Review 5.1.1(iv), applied to Android); the choice is on Android's dialog.
+ * Below Android 13 there's no prompt, and Continue just lays the reminders out.
+ */
+@Composable
+private fun ReminderExplainer(controller: KeelAppController) {
+    val theme = LocalKeelTheme.current
+    val scope = rememberCoroutineScope()
+    val pending by controller.notificationExplainerPending.collectAsStateWithLifecycle(false)
+    val asked by controller.notificationPermissionAsked.collectAsStateWithLifecycle(false)
+    var showing by remember { mutableStateOf(false) }
+    // Let Home settle first so the explanation doesn't land mid-transition.
+    LaunchedEffect(pending) {
+        showing = false
+        if (pending) { delay(800); showing = true }
+    }
+    // Whatever she answers on Android's dialog, the explanation has been given.
+    val finish: () -> Unit = { scope.launch { controller.answerNotificationExplainer() } }
+    val access = rememberNotificationAccess(onAsked = controller::markNotificationPermissionAsked, onBlocked = finish)
+    if (showing && pending) {
+        AlertDialog(
+            onDismissRequest = {},
+            properties = DialogProperties(dismissOnBackPress = false, dismissOnClickOutside = false),
+            containerColor = theme.card,
+            title = { Text("Gentle reminders", style = KeelFont.serif(20.sp), color = theme.heading) },
+            text = {
+                Text(
+                    "Keel can remind you to check in and take your medicines. You can change this any time in Settings.",
+                    style = KeelFont.body, color = theme.text,
+                )
+            },
+            confirmButton = {
+                TextButton(onClick = { showing = false; access.whenAllowed(asked, finish) }) {
+                    Text("Continue", style = KeelFont.sans(15.sp, FontWeight.Medium), color = theme.accent)
+                }
+            },
+        )
+    }
 }
