@@ -11,10 +11,21 @@ import androidx.room.TypeConverters
  * ports its models. Version 1 stays editable until the first Play upload; from then on
  * every schema change is a migration and never a destructive reset (plan D6).
  */
-@Database(entities = [UserProfileEntity::class], version = 1, exportSchema = true)
+@Database(
+    entities = [
+        UserProfileEntity::class, CheckInEntity::class, SymptomEntity::class, CheckInSymptomEntity::class,
+        MedicationEntity::class, MedicationLogEntity::class, ActivityLogEntity::class,
+    ],
+    version = 1,
+    exportSchema = true,
+)
 @TypeConverters(Converters::class)
 abstract class MainDatabase : RoomDatabase() {
     abstract fun userProfiles(): UserProfileDao
+    abstract fun checkIns(): CheckInDao
+    abstract fun symptoms(): SymptomDao
+    abstract fun medications(): MedicationDao
+    abstract fun activityLogs(): ActivityLogDao
 
     companion object {
         private const val FILE_NAME = "keel-main.db"

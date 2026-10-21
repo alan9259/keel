@@ -16,6 +16,9 @@ data class SourcedLiteral(val file: String, val literal: Literal, val sourceLine
 /** An Android wording that differs from iOS (§3.8 of the port plan), with the owner's sign-off. */
 data class Substitution(val ios: String, val android: String, val approvedByOwner: Boolean, val note: String)
 
+/** New Android wording with no iOS original (e.g. a TalkBack label iOS lacks), for sign-off. */
+data class Addition(val android: String, val approvedByOwner: Boolean, val note: String)
+
 /** Reads the iOS reference sources and the shipping Android sources from this repo. */
 object CopySources {
     val repoRoot = File(System.getProperty("keel.repoRoot") ?: error("keel.repoRoot not set (run via Gradle)"))
@@ -59,6 +62,17 @@ object CopySources {
         }
     }
 
+    val additions: List<Addition> by lazy {
+        Json.parseToJsonElement(resource("android-additions.json")).jsonArray.map {
+            val o = it.jsonObject
+            Addition(
+                android = o.getValue("android").jsonPrimitive.content,
+                approvedByOwner = o.getValue("approvedByOwner").jsonPrimitive.boolean,
+                note = o["note"]?.jsonPrimitive?.content.orEmpty(),
+            )
+        }
+    }
+
     /** Lines of a list resource; `#` starts a comment line and `\n` is a newline. */
     fun listResource(name: String): Set<String> = resource(name).lines()
         .filter { it.isNotBlank() && !it.startsWith("#") }
@@ -89,5 +103,6 @@ fun looksLikeCopy(text: String): Boolean {
 }
 
 private val PATH_DATA = Regex("""^[MmZzLlHhVvCcSsQqTtAa0-9.,\s-]+$""")
-private val SQL = Regex("""^(SELECT|INSERT|UPDATE|DELETE|CREATE|DROP|ALTER|PRAGMA|WITH)\b""")
+/** Room queries, including the clause lines of a query split across `+` (upper case only). */
+private val SQL = Regex("""^(SELECT|INSERT|UPDATE|DELETE|CREATE|DROP|ALTER|PRAGMA|WITH|FROM|WHERE|AND|OR|ORDER BY|GROUP BY|JOIN|LEFT JOIN|LIMIT)\b""")
 private val CAPITALISED = Regex("^[A-Z][a-z]")

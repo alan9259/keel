@@ -102,5 +102,8 @@ class LiteralExtractorTests {
         assertFalse(looksLikeCopy("£1.99"))
         assertFalse(looksLikeCopy("M20,11H7.83l5.59,-5.59L12,4l-8,8 8,8z"))
         assertFalse(looksLikeCopy("SELECT * FROM medication WHERE deletedAt IS NULL"))
+        assertFalse(looksLikeCopy("AND date >= :start AND date < :end"))
+        assertFalse(looksLikeCopy("FROM check_in_symptom l JOIN symptom s ON s.id = l.symptomID "))
+        assertTrue(looksLikeCopy("And then she logged it")) // prose isn't upper-case SQL
     }
 }

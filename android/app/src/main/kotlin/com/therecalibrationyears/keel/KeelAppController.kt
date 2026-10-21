@@ -1,11 +1,19 @@
 package com.therecalibrationyears.keel
 
+import com.therecalibrationyears.keel.data.ActivityRepository
+import com.therecalibrationyears.keel.data.CheckInRepository
 import com.therecalibrationyears.keel.data.LocalIdentity
+import com.therecalibrationyears.keel.data.MedicationRepository
 import com.therecalibrationyears.keel.data.SettingsStore
 import com.therecalibrationyears.keel.data.UserRepository
+import com.therecalibrationyears.keel.data.db.MedicationEntity
+import com.therecalibrationyears.keel.domain.KeelClock
 import com.therecalibrationyears.keel.domain.Pathway
+import com.therecalibrationyears.keel.home.HomeData
 import com.therecalibrationyears.keel.onboarding.OnboardingActions
+import java.time.LocalDate
 import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.combine
@@ -23,6 +31,10 @@ class KeelAppController(
     private val users: UserRepository,
     private val identity: LocalIdentity,
     private val settings: SettingsStore,
+    private val checkIns: CheckInRepository,
+    private val medications: MedicationRepository,
+    private val activities: ActivityRepository,
+    val clock: KeelClock,
     scope: CoroutineScope,
 ) : OnboardingActions {
 
@@ -37,6 +49,26 @@ class KeelAppController(
     val appearance: StateFlow<Appearance?> =
         combine(settings.themeId, settings.colourModeRaw, settings.haptics, ::Appearance)
             .stateIn(scope, SharingStarted.Eagerly, null)
+
+    /**
+     * Everything Home reads, live from the database. Imported sleep is empty until Health
+     * Connect is integrated (M7): nothing is imported yet, so nothing is shown for it.
+     */
+    val homeData: Flow<HomeData> = combine(
+        checkIns.observeLive(), checkIns.observeLoggedSymptoms(), medications.observeActive(), medications.observeLogs(),
+        combine(activities.observeAmounts("sleep"), settings.moodPackId) { sleep, pack -> sleep to pack },
+    ) { checkInList, symptoms, meds, logs, (sleep, pack) ->
+        HomeData(checkInList, symptoms, meds, logs, manualSleep = sleep, importedSleep = emptyList(), moodPackId = pack)
+    }
+
+    /**
+     * She tapped a medicine on Home: unticking clears every log for it that day; ticking
+     * records the whole day as taken (iOS `toggleMedicationFromHome`; reminders follow in M3).
+     */
+    suspend fun toggleMedicationFromHome(medication: MedicationEntity, day: LocalDate, currentlyTaken: Boolean) {
+        if (currentlyTaken) medications.clearTaken(medication, day)
+        else medications.setTaken(medication, day, slot = null, taken = true)
+    }
 
     /** Everything the first frame depends on has loaded (the launch screen waits for this). */
     val isReady: Boolean get() = hasCompletedOnboarding.value != null && appearance.value != null

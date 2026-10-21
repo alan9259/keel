@@ -1,0 +1,22 @@
+[
+  {
+    "android": "Previous day",
+    "approvedByOwner": false,
+    "note": "Home day selector arrow. TalkBack label; iOS gives this icon button no explicit label."
+  },
+  {
+    "android": "Next day",
+    "approvedByOwner": false,
+    "note": "Home day selector arrow. TalkBack label; iOS gives this icon button no explicit label."
+  },
+  {
+    "android": "Previous month",
+    "approvedByOwner": false,
+    "note": "Home calendar arrow. TalkBack label; iOS gives this icon button no explicit label."
+  },
+  {
+    "android": "Next month",
+    "approvedByOwner": false,
+    "note": "Home calendar arrow. TalkBack label; iOS gives this icon button no explicit label."
+  }
+]

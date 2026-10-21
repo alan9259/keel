@@ -2,14 +2,22 @@ package com.therecalibrationyears.keel
 
 import android.app.Application
 import androidx.datastore.preferences.core.PreferenceDataStoreFactory
+import com.therecalibrationyears.keel.data.ActivityRepository
+import com.therecalibrationyears.keel.data.CheckInRepository
 import com.therecalibrationyears.keel.data.DeviceContext
 import com.therecalibrationyears.keel.data.LocalIdentity
+import com.therecalibrationyears.keel.data.MedicationRepository
 import com.therecalibrationyears.keel.data.SettingsStore
 import com.therecalibrationyears.keel.data.UserRepository
+import com.therecalibrationyears.keel.data.db.CheckInEntity
 import com.therecalibrationyears.keel.data.db.MainDatabase
+import com.therecalibrationyears.keel.data.db.MedicationEntity
 import com.therecalibrationyears.keel.domain.KeelClock
+import com.therecalibrationyears.keel.domain.Mood
 import com.therecalibrationyears.keel.domain.Pathway
 import java.io.File
+import java.time.Instant
+import java.time.ZoneId
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
@@ -62,11 +70,21 @@ class KeelAppControllerTests {
     }
 
     /** A launch of the app over the same stored data. */
+    /** A fixed Sydney clock, so "today" doesn't depend on when the test runs. */
+    private val clock = object : KeelClock {
+        override fun now(): Instant = Instant.parse("2026-10-21T01:00:00Z") // 12:00 in Sydney
+        override fun zone(): ZoneId = ZoneId.of("Australia/Sydney")
+    }
+
     private fun launch(): KeelAppController {
         val identity = LocalIdentity(prefs)
-        val users = UserRepository(db.userProfiles(), identity::ownerId, KeelClock.System) { device }
+        val users = UserRepository(db.userProfiles(), identity::ownerId, clock) { device }
         val scope = CoroutineScope(SupervisorJob() + Dispatchers.Default).also { scopes += it }
-        return KeelAppController(users, identity, SettingsStore(prefs), scope)
+        return KeelAppController(
+            users, identity, SettingsStore(prefs), CheckInRepository(db.checkIns()),
+            MedicationRepository(db.medications(), identity::ownerId, clock),
+            ActivityRepository(db.activityLogs(), clock), clock, scope,
+        )
     }
 
     private fun KeelAppController.onboarded(): Boolean = runBlocking {
@@ -119,5 +137,29 @@ class KeelAppControllerTests {
         assertEquals("slate", appearance.themeId)
         app.onboarded()
         assertTrue(app.isReady)
+    }
+
+    /** Home sees her entries, medicines and chosen mood pack as one live snapshot. */
+    @Test fun homeDataCombinesTheLiveTables() = runBlocking {
+        val t = clock.now()
+        db.checkIns().upsert(CheckInEntity("C1", t, Mood.GOOD.raw, 80, ownerID = "o", createdAt = t, updatedAt = t))
+        db.medications().upsert(MedicationEntity("M1", "Magnesium", ownerID = "o", createdAt = t, updatedAt = t))
+        SettingsStore(prefs).setMoodPackId("moon")
+        val data = withTimeout(5_000) { launch().homeData.first { it.moodPackId == "moon" && it.checkIns.isNotEmpty() } }
+        assertEquals(listOf("C1"), data.checkIns.map { it.id })
+        assertEquals(listOf("Magnesium"), data.medications.map { it.name })
+        assertTrue("nothing is imported before Health Connect", data.importedSleep.isEmpty())
+    }
+
+    /** Port of the iOS toggleMedicationFromHome contract: tick records the day, untick clears it. */
+    @Test fun tickingAMedicineFromHomeRecordsAndClearsTheDay() = runBlocking {
+        val app = launch()
+        val t = clock.now()
+        val med = MedicationEntity("M1", "Magnesium", ownerID = "o", createdAt = t, updatedAt = t).also { db.medications().upsert(it) }
+        val today = t.atZone(clock.zone()).toLocalDate()
+        app.toggleMedicationFromHome(med, today, currentlyTaken = false)
+        assertEquals(1, withTimeout(5_000) { app.homeData.first { it.medicationLogs.isNotEmpty() } }.medicationLogs.size)
+        app.toggleMedicationFromHome(med, today, currentlyTaken = true)
+        assertTrue(withTimeout(5_000) { app.homeData.first { it.medicationLogs.isEmpty() } }.medicationLogs.isEmpty())
     }
 }

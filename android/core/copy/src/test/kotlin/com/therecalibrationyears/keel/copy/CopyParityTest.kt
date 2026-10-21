@@ -7,8 +7,9 @@ import org.junit.Test
 /**
  * The iOS app is the reference for every word Keel shows. Any user-facing string in
  * shipping Android code must exist verbatim in the iOS sources, or be a platform
- * substitution listed in `platform-substitutions.json` (owner sign-off before release),
- * or be an Android-only literal in `android-only-literals.txt`. A literal on a line marked
+ * substitution listed in `platform-substitutions.json`, or new wording with no iOS original
+ * listed in `android-additions.json` (both need owner sign-off before release), or be a
+ * non-user-facing literal in `android-only-literals.txt`. A literal on a line marked
  * `// not-copy: <reason>` is not user-facing (a log tag, an exception message).
  */
 class CopyParityTest {
@@ -16,7 +17,7 @@ class CopyParityTest {
     private val ios by lazy { CopySources.iosLiterals.map { it.text }.toSet() }
 
     @Test fun everyAndroidStringIsIosCopyOrAnApprovedSubstitution() {
-        val substituted = CopySources.substitutions.map { it.android }.toSet()
+        val substituted = CopySources.substitutions.map { it.android }.toSet() + CopySources.additions.map { it.android }
         val androidOnly = CopySources.listResource("android-only-literals.txt")
         val drift = CopySources.androidShippingLiterals.filter {
             looksLikeCopy(it.text) &&
@@ -25,10 +26,16 @@ class CopyParityTest {
         }
         assertTrue(
             "These Android strings don't match any iOS string. Copy the iOS wording exactly " +
-                "(no raw strings for copy), or add a platform substitution for the owner to " +
-                "approve:\n" + drift.joinToString("\n"),
+                "(no raw strings for copy), or add a platform substitution or Android addition for " +
+                "the owner to approve:\n" + drift.joinToString("\n"),
             drift.isEmpty(),
         )
+    }
+
+    /** An addition must really be new: if iOS has the wording, it isn't one. */
+    @Test fun additionsAreNotAlreadyIosCopy() {
+        val dupes = CopySources.additions.filter { it.android in ios }
+        assertTrue("Already iOS copy, remove from android-additions.json: $dupes", dupes.isEmpty())
     }
 
     @Test fun substitutionsStillMatchTheirIosOriginal() {

@@ -18,8 +18,15 @@ test classes keep the iOS name. Suites not listed yet are ported with their mile
 | ProfileTests: updateBasicInfoRoundTripsAndClears, updateBasicInfoCreatesAProfileIfNoneExists | core/data `UserRepositoryTests` | ported |
 | ProfileTests: ageAndBirthYearAreInverse, derivedAgeUsesStoredBirthYear | | with the Profile screen (M6) |
 | ProfileTests: reassignOwnership* | | N/A: no account upgrade on Android (plan D21) |
+| LookingBackTests: labelNeedsThreeEntries, mostlyIsTheMostFrequentLevelNotAnAverage, tieGoesToTheMostRecentlyPickedLevel | core/domain `EnergySummaryTests` | ported |
+| LookingBackTests: the rest (MonthSummary) | | with Looking back (M4) |
+| MedicationHomeLogTests: appearsWhenTrackedOrAutoLogged | core/data `HomeDataTests.appearsInHomeLogWhenTrackedOrAutoLogged` | ported |
 
 Android-only tests so far: `UserRepositoryTests` (upsert, pathway, health flag, concurrent
 taps, oldest live profile), `LocalStoresTests`, `PathwayTests`, `OnboardingFlowTests`
 (screen order, blank name, nothing pre-selected, Continue-only before permissions, double
-taps, back), `TwemojiVectorsTest`, `CopyParityTest`, `CopyLintTest`, `LiteralExtractorTests`.
+taps, back), `TwemojiVectorsTest`, `CopyParityTest`, `CopyLintTest`, `LiteralExtractorTests`,
+`HomeModelTests` (Home's derived values in Sydney time; iOS keeps these inside the view),
+`HomeDataTests` (whole-day ticks, clear-all-slots, symptom join, local days),
+`EnergyLevelTests`, `MoodTests`, `GreetingTests`, `MergedActivityTests`, `CalendarGridTests`,
+`ParityFormattingTests` (half-away rounding, printf `%.1f`).

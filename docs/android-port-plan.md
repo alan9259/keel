@@ -9,7 +9,9 @@
 > **Status (21 Oct 2026): M0 done** (see "M0 outcome" under §5). At the owner's request the
 > first real screens came next: **onboarding is built** (M2 slice) on the parts of M1 it needs
 > (UserProfile table, UserRepository, SettingsStore, LocalIdentity). See "Onboarding slice"
-> under §5. Next: Home (the rest of M1's models + M2 Dashboard).
+> under §5. **Home is built** on the check-in, symptom, medicine and activity tables (see
+> "Home slice"). Next: the check-in flow (mood slide → detail → symptoms), so entries can be
+> made on Android.
 
 ## Context
 
@@ -446,6 +448,22 @@ relaunch lands in the app), dark mode, Midnight, 200% font size, and the R8 rele
 Stand-ins (`// FAKE:`): Home (shows only the mark) and the Health Connect request (Continue
 moves on, nothing is read) until M7. Owner sign-off pending: the Health Connect wording on the
 health step (in `platform-substitutions.json`, D12).
+
+### Home slice (21 Oct 2026)
+Built: domain rules (Mood + mood packs, EnergyLevel + the "most picked" label, severity,
+Greeting, MergedActivity, CalendarGrid, iOS rounding and `%.1f` parity helpers); Room tables
+`check_in`, `symptom`, `check_in_symptom`, `medication`, `medication_log`, `activity_log` (all
+iOS columns, iOS delete rules); repositories for Home's reads and the medicine tick;
+`feature/home` (pure `HomeModel` + `HomeScreen`: day selector, greeting, entries, medicines,
+GP card, mood/energy/sleep strips with tap-to-read, month calendar, docked buttons);
+Navigation 3 shell with the Home button; title-only stand-ins for Cycle, Medications,
+Looking back, More, GP Visit Summary; debug seeds. Tests: domain 26, data 22, HomeModel 9.
+Verified on emulators: empty and filled Home, medicine ticks and the 7-day count step by step.
+Finding: on SwiftShader (software GPU) the emoji vectors made Home take 10 s to open; on a GPU
+0.6 s. Emulators now always start with `-gpu host`; check emoji rendering speed on a real
+low-end phone in M8. New TalkBack labels iOS lacks are in `android-additions.json` for
+sign-off (iOS's Home arrows and docked buttons have no explicit VoiceOver labels and rely on
+the SF Symbol's built-in name: worth checking with VoiceOver).
 
 ## 6. Decisions (recommendation; "owner" = needs Mischa's sign-off before release)
 | # | Topic | Recommendation |

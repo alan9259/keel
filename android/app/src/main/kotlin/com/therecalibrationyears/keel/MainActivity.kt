@@ -12,6 +12,8 @@ import androidx.compose.runtime.getValue
 import androidx.compose.ui.graphics.toArgb
 import androidx.core.splashscreen.SplashScreen.Companion.installSplashScreen
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import androidx.lifecycle.lifecycleScope
+import kotlinx.coroutines.launch
 import com.therecalibrationyears.keel.designsystem.ColourMode
 import com.therecalibrationyears.keel.designsystem.KeelTheme
 import com.therecalibrationyears.keel.designsystem.KeelThemeProvider
@@ -24,6 +26,7 @@ class MainActivity : ComponentActivity() {
         installSplashScreen().setKeepOnScreenCondition { !controller.isReady }
         super.onCreate(savedInstanceState)
         DebugHarness.apply(intent)
+        lifecycleScope.launch { DebugHarness.seed((application as KeelApplication).container) }
         setContent {
             val appearance by controller.appearance.collectAsStateWithLifecycle()
             val themeId = DebugHarness.themeId ?: appearance?.themeId ?: ThemeCatalog.DEFAULT_ID

@@ -12,6 +12,10 @@ object DebugHarness {
     const val forcedOnboarded = false
     const val forceOnboarding = false
     val onboardingStartStep: OnboardingStep? = null
+    val initialRoute: MainRoute? = null
+
+    @Suppress("UNUSED_PARAMETER")
+    suspend fun seed(container: AppContainer) = Unit
 
     @Suppress("UNUSED_PARAMETER")
     fun apply(intent: Intent) = Unit

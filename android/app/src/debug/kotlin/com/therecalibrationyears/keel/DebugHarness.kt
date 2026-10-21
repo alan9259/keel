@@ -16,6 +16,9 @@ import com.therecalibrationyears.keel.onboarding.OnboardingStep
  *   uitForceOnboarding true  show onboarding even when already onboarded (iOS -uitForceOnboarding)
  *   uitOnboardStep <step>    start onboarding at welcome, right_place, create_account,
  *                            pathway, health or ready (iOS -uitOnboardPathway etc.)
+ *   uitRoute <route>         push cycle, medications, patterns, more or gp_summary
+ *   uitReset true            soft-delete check-ins and stop medicines first
+ *   uitSeedCheckIn / uitSeedMed / uitSeedEnergyMix / uitSeedWeek true   sample records
  *
  * Never compiled into release builds (see src/release).
  */
@@ -34,6 +37,9 @@ object DebugHarness {
         private set
     var onboardingStartStep: OnboardingStep? = null
         private set
+    var initialRoute: MainRoute? = null
+        private set
+    private var seeds: List<String> = emptyList()
 
     fun apply(intent: Intent) {
         themeId = intent.getStringExtra("uitTheme")
@@ -48,6 +54,24 @@ object DebugHarness {
         onboardingStartStep = intent.getStringExtra("uitOnboardStep")?.let { raw ->
             OnboardingStep.entries.firstOrNull { it.name.equals(raw, ignoreCase = true) }
         }
+        initialRoute = MainRoute.fromDebugName(intent.getStringExtra("uitRoute"))
+        seeds = listOf("uitReset", "uitSeedMed", "uitSeedCheckIn", "uitSeedEnergyMix", "uitSeedWeek")
+            .filter { intent.getBooleanExtra(it, false) }
+    }
+
+    /** Writes the requested sample records (in this order: reset, medicines, then entries). */
+    suspend fun seed(container: AppContainer) {
+        val s = DebugSeeds(container)
+        seeds.forEach {
+            when (it) {
+                "uitReset" -> s.reset()
+                "uitSeedMed" -> s.medications()
+                "uitSeedCheckIn" -> s.checkIn()
+                "uitSeedEnergyMix" -> s.energyMix()
+                "uitSeedWeek" -> s.week()
+            }
+        }
+        seeds = emptyList() // once per launch, not again on recreation
     }
 
     /** Draws a debug screen if one was requested; returns whether it did. */

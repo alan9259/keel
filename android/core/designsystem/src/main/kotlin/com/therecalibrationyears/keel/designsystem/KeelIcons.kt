@@ -17,6 +17,14 @@ object KeelIcons {
             .addPath(PathParser().parsePathString(path).toNodes(), fill = SolidColor(Color.Black))
             .build()
 
+    /** Material Symbols path data: a 960-unit canvas whose y runs from -960 to 0. */
+    private fun symbol(name: String, path: String): ImageVector =
+        ImageVector.Builder(name, 24.dp, 24.dp, 960f, 960f)
+            .addGroup(translationY = 960f)
+            .addPath(PathParser().parsePathString(path).toNodes(), fill = SolidColor(Color.Black))
+            .clearGroup()
+            .build()
+
     /** SF "arrow.left". */
     val back = icon("back", "M20,11H7.83l5.59,-5.59L12,4l-8,8 8,8 1.41,-1.41L7.83,13H20v-2z")
 
@@ -45,6 +53,40 @@ object KeelIcons {
         "heart",
         "M12,21.35l-1.45,-1.32C5.4,15.36 2,12.28 2,8.5 2,5.42 4.42,3 7.5,3c1.74,0 3.41,0.81 4.5,2.09" +
             "C13.09,3.81 14.76,3 16.5,3 19.58,3 22,5.42 22,8.5c0,3.78 -3.4,6.86 -8.55,11.54L12,21.35z",
+    )
+
+    /** SF "chevron.left". */
+    val chevronLeft = icon("chevronLeft", "M15.41,7.41L14,6l-6,6 6,6 1.41,-1.41L10.83,12z")
+
+    /** SF "calendar" (Material "calendar_today"). */
+    val calendar = icon(
+        "calendar",
+        "M20,3h-1V1h-2v2H7V1H5v2H4c-1.1,0 -2,0.9 -2,2v16c0,1.1 0.9,2 2,2h16c1.1,0 2,-0.9 2,-2V5c0,-1.1 -0.9,-2 -2,-2z" +
+            "m0,18H4V8h16v13z",
+    )
+
+    /** SF "pills.fill" (Material Symbols "pill", filled). */
+    val pill = symbol(
+        "pill",
+        "m668-349 106-107q32-32 49-73t17-86q0-94-65.5-159.5T615-840q-45 0-86 17t-73 49L349-668l319 319Z " +
+            "M345-120q45 0 86-17t73-49l107-106-319-319-106 107q-32 32-49 73t-17 86q0 94 65.5 159.5T345-120Z",
+    )
+
+    /** SF "chart.line.uptrend.xyaxis" (Material "show_chart"). */
+    val chart = icon("chart", "M3.5,18.49l6,-6.01 4,4L22,6.92l-1.41,-1.41 -7.09,7.97 -4,-4L2,16.99z")
+
+    /** SF "ellipsis" (Material "more_horiz"). */
+    val more = icon(
+        "more",
+        "M6,10c-1.1,0 -2,0.9 -2,2s0.9,2 2,2 2,-0.9 2,-2 -0.9,-2 -2,-2zM18,10c-1.1,0 -2,0.9 -2,2s0.9,2 2,2 2,-0.9 2,-2" +
+            " -0.9,-2 -2,-2zM12,10c-1.1,0 -2,0.9 -2,2s0.9,2 2,2 2,-0.9 2,-2 -0.9,-2 -2,-2z",
+    )
+
+    /** SF "doc.text" (Material "description"). */
+    val document = icon(
+        "document",
+        "M14,2H6c-1.1,0 -1.99,0.9 -1.99,2L4,20c0,1.1 0.89,2 1.99,2H18c1.1,0 2,-0.9 2,-2V8l-6,-6z" +
+            "m2,16H8v-2h8v2zm0,-4H8v-2h8v2zm-3,-5V3.5L18.5,9H13z",
     )
 
     /** SF "chevron.right". */

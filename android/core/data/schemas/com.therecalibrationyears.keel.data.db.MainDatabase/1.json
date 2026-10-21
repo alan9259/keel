@@ -2,7 +2,7 @@
   "formatVersion": 1,
   "database": {
     "version": 1,
-    "identityHash": "7d78e012fcdd40cc44aae3691eb40f18",
+    "identityHash": "6f6761fb0f2910bf373a8f85eec4cb84",
     "entities": [
       {
         "tableName": "user_profile",
@@ -148,11 +148,673 @@
             "id"
           ]
         }
+      },
+      {
+        "tableName": "check_in",
+        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`id` TEXT NOT NULL, `date` INTEGER NOT NULL, `moodRaw` TEXT NOT NULL, `energy` INTEGER NOT NULL, `notes` TEXT, `alcoholCount` INTEGER, `ownerID` TEXT NOT NULL, `createdAt` INTEGER NOT NULL, `updatedAt` INTEGER NOT NULL, `deletedAt` INTEGER, `syncStatusRaw` TEXT NOT NULL, PRIMARY KEY(`id`))",
+        "fields": [
+          {
+            "fieldPath": "id",
+            "columnName": "id",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "date",
+            "columnName": "date",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "moodRaw",
+            "columnName": "moodRaw",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "energy",
+            "columnName": "energy",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "notes",
+            "columnName": "notes",
+            "affinity": "TEXT"
+          },
+          {
+            "fieldPath": "alcoholCount",
+            "columnName": "alcoholCount",
+            "affinity": "INTEGER"
+          },
+          {
+            "fieldPath": "ownerID",
+            "columnName": "ownerID",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "createdAt",
+            "columnName": "createdAt",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "updatedAt",
+            "columnName": "updatedAt",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "deletedAt",
+            "columnName": "deletedAt",
+            "affinity": "INTEGER"
+          },
+          {
+            "fieldPath": "syncStatusRaw",
+            "columnName": "syncStatusRaw",
+            "affinity": "TEXT",
+            "notNull": true
+          }
+        ],
+        "primaryKey": {
+          "autoGenerate": false,
+          "columnNames": [
+            "id"
+          ]
+        },
+        "indices": [
+          {
+            "name": "index_check_in_date",
+            "unique": false,
+            "columnNames": [
+              "date"
+            ],
+            "orders": [],
+            "createSql": "CREATE INDEX IF NOT EXISTS `index_check_in_date` ON `${TABLE_NAME}` (`date`)"
+          }
+        ]
+      },
+      {
+        "tableName": "symptom",
+        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`id` TEXT NOT NULL, `name` TEXT NOT NULL, `categoryRaw` TEXT NOT NULL, `isCustom` INTEGER NOT NULL, `isArchived` INTEGER NOT NULL, `isDefaultChip` INTEGER NOT NULL, `ownerID` TEXT NOT NULL, `createdAt` INTEGER NOT NULL, `updatedAt` INTEGER NOT NULL, `deletedAt` INTEGER, `syncStatusRaw` TEXT NOT NULL, PRIMARY KEY(`id`))",
+        "fields": [
+          {
+            "fieldPath": "id",
+            "columnName": "id",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "name",
+            "columnName": "name",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "categoryRaw",
+            "columnName": "categoryRaw",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "isCustom",
+            "columnName": "isCustom",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "isArchived",
+            "columnName": "isArchived",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "isDefaultChip",
+            "columnName": "isDefaultChip",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "ownerID",
+            "columnName": "ownerID",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "createdAt",
+            "columnName": "createdAt",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "updatedAt",
+            "columnName": "updatedAt",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "deletedAt",
+            "columnName": "deletedAt",
+            "affinity": "INTEGER"
+          },
+          {
+            "fieldPath": "syncStatusRaw",
+            "columnName": "syncStatusRaw",
+            "affinity": "TEXT",
+            "notNull": true
+          }
+        ],
+        "primaryKey": {
+          "autoGenerate": false,
+          "columnNames": [
+            "id"
+          ]
+        },
+        "indices": [
+          {
+            "name": "index_symptom_name",
+            "unique": false,
+            "columnNames": [
+              "name"
+            ],
+            "orders": [],
+            "createSql": "CREATE INDEX IF NOT EXISTS `index_symptom_name` ON `${TABLE_NAME}` (`name`)"
+          }
+        ]
+      },
+      {
+        "tableName": "check_in_symptom",
+        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`id` TEXT NOT NULL, `checkInID` TEXT NOT NULL, `symptomID` TEXT, `severity` INTEGER NOT NULL, `sourceRaw` TEXT NOT NULL, `ownerID` TEXT NOT NULL, `createdAt` INTEGER NOT NULL, `updatedAt` INTEGER NOT NULL, `deletedAt` INTEGER, `syncStatusRaw` TEXT NOT NULL, PRIMARY KEY(`id`), FOREIGN KEY(`checkInID`) REFERENCES `check_in`(`id`) ON UPDATE NO ACTION ON DELETE CASCADE , FOREIGN KEY(`symptomID`) REFERENCES `symptom`(`id`) ON UPDATE NO ACTION ON DELETE SET NULL )",
+        "fields": [
+          {
+            "fieldPath": "id",
+            "columnName": "id",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "checkInID",
+            "columnName": "checkInID",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "symptomID",
+            "columnName": "symptomID",
+            "affinity": "TEXT"
+          },
+          {
+            "fieldPath": "severity",
+            "columnName": "severity",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "sourceRaw",
+            "columnName": "sourceRaw",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "ownerID",
+            "columnName": "ownerID",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "createdAt",
+            "columnName": "createdAt",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "updatedAt",
+            "columnName": "updatedAt",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "deletedAt",
+            "columnName": "deletedAt",
+            "affinity": "INTEGER"
+          },
+          {
+            "fieldPath": "syncStatusRaw",
+            "columnName": "syncStatusRaw",
+            "affinity": "TEXT",
+            "notNull": true
+          }
+        ],
+        "primaryKey": {
+          "autoGenerate": false,
+          "columnNames": [
+            "id"
+          ]
+        },
+        "indices": [
+          {
+            "name": "index_check_in_symptom_checkInID",
+            "unique": false,
+            "columnNames": [
+              "checkInID"
+            ],
+            "orders": [],
+            "createSql": "CREATE INDEX IF NOT EXISTS `index_check_in_symptom_checkInID` ON `${TABLE_NAME}` (`checkInID`)"
+          },
+          {
+            "name": "index_check_in_symptom_symptomID",
+            "unique": false,
+            "columnNames": [
+              "symptomID"
+            ],
+            "orders": [],
+            "createSql": "CREATE INDEX IF NOT EXISTS `index_check_in_symptom_symptomID` ON `${TABLE_NAME}` (`symptomID`)"
+          }
+        ],
+        "foreignKeys": [
+          {
+            "table": "check_in",
+            "onDelete": "CASCADE",
+            "onUpdate": "NO ACTION",
+            "columns": [
+              "checkInID"
+            ],
+            "referencedColumns": [
+              "id"
+            ]
+          },
+          {
+            "table": "symptom",
+            "onDelete": "SET NULL",
+            "onUpdate": "NO ACTION",
+            "columns": [
+              "symptomID"
+            ],
+            "referencedColumns": [
+              "id"
+            ]
+          }
+        ]
+      },
+      {
+        "tableName": "medication",
+        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`id` TEXT NOT NULL, `name` TEXT NOT NULL, `dosage` TEXT NOT NULL, `doseAmount` REAL, `doseUnitRaw` TEXT, `timing` TEXT NOT NULL, `methodRaw` TEXT, `isActive` INTEGER NOT NULL, `isTracked` INTEGER NOT NULL, `autoLogDoses` INTEGER NOT NULL, `scheduleKindRaw` TEXT, `weekdaysMask` INTEGER NOT NULL, `cycleLength` INTEGER NOT NULL, `cyclePauseDays` INTEGER NOT NULL, `cycleAnchor` INTEGER, `doseTimesJSON` TEXT, `doseTime` INTEGER, `kindRaw` TEXT NOT NULL, `catalogGroupID` TEXT, `frequencyRaw` TEXT, `timeOfDayRaw` TEXT, `date` INTEGER, `doseChangedAt` INTEGER, `stoppedAt` INTEGER, `note` TEXT, `isOffLabel` INTEGER NOT NULL, `isCompounded` INTEGER NOT NULL, `ownerID` TEXT NOT NULL, `createdAt` INTEGER NOT NULL, `updatedAt` INTEGER NOT NULL, `deletedAt` INTEGER, `syncStatusRaw` TEXT NOT NULL, PRIMARY KEY(`id`))",
+        "fields": [
+          {
+            "fieldPath": "id",
+            "columnName": "id",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "name",
+            "columnName": "name",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "dosage",
+            "columnName": "dosage",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "doseAmount",
+            "columnName": "doseAmount",
+            "affinity": "REAL"
+          },
+          {
+            "fieldPath": "doseUnitRaw",
+            "columnName": "doseUnitRaw",
+            "affinity": "TEXT"
+          },
+          {
+            "fieldPath": "timing",
+            "columnName": "timing",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "methodRaw",
+            "columnName": "methodRaw",
+            "affinity": "TEXT"
+          },
+          {
+            "fieldPath": "isActive",
+            "columnName": "isActive",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "isTracked",
+            "columnName": "isTracked",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "autoLogDoses",
+            "columnName": "autoLogDoses",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "scheduleKindRaw",
+            "columnName": "scheduleKindRaw",
+            "affinity": "TEXT"
+          },
+          {
+            "fieldPath": "weekdaysMask",
+            "columnName": "weekdaysMask",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "cycleLength",
+            "columnName": "cycleLength",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "cyclePauseDays",
+            "columnName": "cyclePauseDays",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "cycleAnchor",
+            "columnName": "cycleAnchor",
+            "affinity": "INTEGER"
+          },
+          {
+            "fieldPath": "doseTimesJSON",
+            "columnName": "doseTimesJSON",
+            "affinity": "TEXT"
+          },
+          {
+            "fieldPath": "doseTime",
+            "columnName": "doseTime",
+            "affinity": "INTEGER"
+          },
+          {
+            "fieldPath": "kindRaw",
+            "columnName": "kindRaw",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "catalogGroupID",
+            "columnName": "catalogGroupID",
+            "affinity": "TEXT"
+          },
+          {
+            "fieldPath": "frequencyRaw",
+            "columnName": "frequencyRaw",
+            "affinity": "TEXT"
+          },
+          {
+            "fieldPath": "timeOfDayRaw",
+            "columnName": "timeOfDayRaw",
+            "affinity": "TEXT"
+          },
+          {
+            "fieldPath": "date",
+            "columnName": "date",
+            "affinity": "INTEGER"
+          },
+          {
+            "fieldPath": "doseChangedAt",
+            "columnName": "doseChangedAt",
+            "affinity": "INTEGER"
+          },
+          {
+            "fieldPath": "stoppedAt",
+            "columnName": "stoppedAt",
+            "affinity": "INTEGER"
+          },
+          {
+            "fieldPath": "note",
+            "columnName": "note",
+            "affinity": "TEXT"
+          },
+          {
+            "fieldPath": "isOffLabel",
+            "columnName": "isOffLabel",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "isCompounded",
+            "columnName": "isCompounded",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "ownerID",
+            "columnName": "ownerID",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "createdAt",
+            "columnName": "createdAt",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "updatedAt",
+            "columnName": "updatedAt",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "deletedAt",
+            "columnName": "deletedAt",
+            "affinity": "INTEGER"
+          },
+          {
+            "fieldPath": "syncStatusRaw",
+            "columnName": "syncStatusRaw",
+            "affinity": "TEXT",
+            "notNull": true
+          }
+        ],
+        "primaryKey": {
+          "autoGenerate": false,
+          "columnNames": [
+            "id"
+          ]
+        }
+      },
+      {
+        "tableName": "medication_log",
+        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`id` TEXT NOT NULL, `date` INTEGER NOT NULL, `slot` TEXT, `taken` INTEGER NOT NULL, `medicationID` TEXT, `ownerID` TEXT NOT NULL, `createdAt` INTEGER NOT NULL, `updatedAt` INTEGER NOT NULL, `deletedAt` INTEGER, `syncStatusRaw` TEXT NOT NULL, PRIMARY KEY(`id`), FOREIGN KEY(`medicationID`) REFERENCES `medication`(`id`) ON UPDATE NO ACTION ON DELETE CASCADE )",
+        "fields": [
+          {
+            "fieldPath": "id",
+            "columnName": "id",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "date",
+            "columnName": "date",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "slot",
+            "columnName": "slot",
+            "affinity": "TEXT"
+          },
+          {
+            "fieldPath": "taken",
+            "columnName": "taken",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "medicationID",
+            "columnName": "medicationID",
+            "affinity": "TEXT"
+          },
+          {
+            "fieldPath": "ownerID",
+            "columnName": "ownerID",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "createdAt",
+            "columnName": "createdAt",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "updatedAt",
+            "columnName": "updatedAt",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "deletedAt",
+            "columnName": "deletedAt",
+            "affinity": "INTEGER"
+          },
+          {
+            "fieldPath": "syncStatusRaw",
+            "columnName": "syncStatusRaw",
+            "affinity": "TEXT",
+            "notNull": true
+          }
+        ],
+        "primaryKey": {
+          "autoGenerate": false,
+          "columnNames": [
+            "id"
+          ]
+        },
+        "indices": [
+          {
+            "name": "index_medication_log_medicationID",
+            "unique": false,
+            "columnNames": [
+              "medicationID"
+            ],
+            "orders": [],
+            "createSql": "CREATE INDEX IF NOT EXISTS `index_medication_log_medicationID` ON `${TABLE_NAME}` (`medicationID`)"
+          },
+          {
+            "name": "index_medication_log_date",
+            "unique": false,
+            "columnNames": [
+              "date"
+            ],
+            "orders": [],
+            "createSql": "CREATE INDEX IF NOT EXISTS `index_medication_log_date` ON `${TABLE_NAME}` (`date`)"
+          }
+        ],
+        "foreignKeys": [
+          {
+            "table": "medication",
+            "onDelete": "CASCADE",
+            "onUpdate": "NO ACTION",
+            "columns": [
+              "medicationID"
+            ],
+            "referencedColumns": [
+              "id"
+            ]
+          }
+        ]
+      },
+      {
+        "tableName": "activity_log",
+        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`id` TEXT NOT NULL, `date` INTEGER NOT NULL, `activityID` TEXT NOT NULL, `amount` REAL NOT NULL, `sourceRaw` TEXT NOT NULL, `ownerID` TEXT NOT NULL, `createdAt` INTEGER NOT NULL, `updatedAt` INTEGER NOT NULL, `deletedAt` INTEGER, `syncStatusRaw` TEXT NOT NULL, PRIMARY KEY(`id`))",
+        "fields": [
+          {
+            "fieldPath": "id",
+            "columnName": "id",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "date",
+            "columnName": "date",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "activityID",
+            "columnName": "activityID",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "amount",
+            "columnName": "amount",
+            "affinity": "REAL",
+            "notNull": true
+          },
+          {
+            "fieldPath": "sourceRaw",
+            "columnName": "sourceRaw",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "ownerID",
+            "columnName": "ownerID",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "createdAt",
+            "columnName": "createdAt",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "updatedAt",
+            "columnName": "updatedAt",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "deletedAt",
+            "columnName": "deletedAt",
+            "affinity": "INTEGER"
+          },
+          {
+            "fieldPath": "syncStatusRaw",
+            "columnName": "syncStatusRaw",
+            "affinity": "TEXT",
+            "notNull": true
+          }
+        ],
+        "primaryKey": {
+          "autoGenerate": false,
+          "columnNames": [
+            "id"
+          ]
+        },
+        "indices": [
+          {
+            "name": "index_activity_log_activityID_date",
+            "unique": false,
+            "columnNames": [
+              "activityID",
+              "date"
+            ],
+            "orders": [],
+            "createSql": "CREATE INDEX IF NOT EXISTS `index_activity_log_activityID_date` ON `${TABLE_NAME}` (`activityID`, `date`)"
+          }
+        ]
       }
     ],
     "setupQueries": [
       "CREATE TABLE IF NOT EXISTS room_master_table (id INTEGER PRIMARY KEY,identity_hash TEXT)",
-      "INSERT OR REPLACE INTO room_master_table (id,identity_hash) VALUES(42, '7d78e012fcdd40cc44aae3691eb40f18')"
+      "INSERT OR REPLACE INTO room_master_table (id,identity_hash) VALUES(42, '6f6761fb0f2910bf373a8f85eec4cb84')"
     ]
   }
 }

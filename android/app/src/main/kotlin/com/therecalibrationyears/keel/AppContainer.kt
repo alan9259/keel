@@ -3,7 +3,10 @@ package com.therecalibrationyears.keel
 import android.content.Context
 import androidx.datastore.preferences.core.PreferenceDataStoreFactory
 import androidx.datastore.preferences.preferencesDataStoreFile
+import com.therecalibrationyears.keel.data.ActivityRepository
+import com.therecalibrationyears.keel.data.CheckInRepository
 import com.therecalibrationyears.keel.data.DeviceContext
+import com.therecalibrationyears.keel.data.MedicationRepository
 import com.therecalibrationyears.keel.data.LocalIdentity
 import com.therecalibrationyears.keel.data.SettingsStore
 import com.therecalibrationyears.keel.data.UserRepository
@@ -23,14 +26,19 @@ class AppContainer(context: Context) {
         scope = CoroutineScope(SupervisorJob() + Dispatchers.IO),
         produceFile = { context.preferencesDataStoreFile("keel") },
     )
-    private val database = MainDatabase.open(context)
+    /** Internal so debug seeds (src/debug) can write sample rows; features go through repositories. */
+    internal val database = MainDatabase.open(context)
+    val clock: KeelClock = KeelClock.System
 
     val settings = SettingsStore(preferences)
-    private val identity = LocalIdentity(preferences)
+    internal val identity = LocalIdentity(preferences)
     private val users = UserRepository(
-        database.userProfiles(), ownerId = identity::ownerId, clock = KeelClock.System,
+        database.userProfiles(), ownerId = identity::ownerId, clock = clock,
         device = DeviceContext.Android(context),
     )
+    private val checkIns = CheckInRepository(database.checkIns())
+    private val medications = MedicationRepository(database.medications(), identity::ownerId, clock)
+    private val activities = ActivityRepository(database.activityLogs(), clock)
 
-    val controller = KeelAppController(users, identity, settings, appScope)
+    val controller = KeelAppController(users, identity, settings, checkIns, medications, activities, clock, appScope)
 }

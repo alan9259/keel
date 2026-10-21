@@ -39,7 +39,11 @@ export ANDROID_HOME=~/Library/Android/sdk
 - JDK 17 (Temurin), Gradle via `./gradlew` (9.8.2), AGP 9.4.1 (built-in Kotlin 2.4.21).
 - compileSdk 37 (Compose BOM 2026.09.00 requires it), targetSdk 36, minSdk 28.
 - Emulators: `keel_api36` (Pixel 8, Play) and `keel_api28` (Pixel 3, Play). Start with
-  `$ANDROID_HOME/emulator/emulator -avd keel_api36 -no-snapshot-save -no-audio &`.
+  `$ANDROID_HOME/emulator/emulator -avd keel_api36 -gpu host -no-snapshot-save -no-audio &`.
+  **Always `-gpu host`:** without it the API 36 image can fall back to SwiftShader (software
+  rendering; check `adb shell dumpsys SurfaceFlinger | grep GLES`), which made Home take 10 s
+  to open with its emoji vectors (0.6 s on a GPU). Don't time anything on SwiftShader, or
+  right after boot, or while the Mac is heavily loaded (`uptime`).
 
 ## Commands (run from `android/`)
 
@@ -67,6 +71,8 @@ adb exec-out screencap -p > shot.png
   components, `KeelMark`, and the Twemoji vectors.
 - `feature/onboarding`: the six onboarding screens behind an `OnboardingActions`
   interface (the module never touches storage).
+- `feature/home`: Home (`HomeScreen`) and its pure rules (`HomeModel`, unit-tested), fed a
+  `HomeData` snapshot by the app; actions go back through `HomeActions`.
 - `app`: `AppContainer` (manual DI, built once in `KeelApplication`), `KeelAppController`
   (port of iOS `AppEnvironment`, same method names), `KeelRoot` (onboarding vs app),
   `MainActivity` (splash held until her saved state loads), `src/debug` harness and gallery,
@@ -111,8 +117,17 @@ create_account, pathway, health, ready). For a truly fresh start:
 - **Emulator typing:** Gboard on the API 36 image treats `adb` taps as a stylus and opens a
   "Try out your stylus" sheet that swallows typed text. Turn it off once per emulator:
   `adb shell settings put secure stylus_handwriting_enabled 0`.
-- **Stand-ins:** `grep -rn "// FAKE:" android/` lists them (currently the Home stand-in in
-  `KeelRoot.kt` and the Health Connect request in `KeelAppController.kt`).
+- **Stand-ins:** `grep -rn "// FAKE:" android/` lists them (currently: the title-only feature
+  screens and the inert check-in taps in `MainShell.kt`, and the Health Connect request in
+  `KeelAppController.kt`).
+- **Debug seeds:** `--ez uitSeedMed true --ez uitSeedWeek true --ez uitSeedCheckIn true`
+  (and `uitReset`, `uitSeedEnergyMix`) fill Home for screenshots; `--es uitRoute more` opens a
+  screen. They live in `app/src/debug` and never ship.
+- **Copy for new wording:** a user-facing string with no iOS original (e.g. a TalkBack label
+  iOS lacks) goes in `core/copy/src/test/resources/android-additions.json` for owner sign-off.
+- **Dates on screen** use `HomeFormats`-style skeletons (`DateFormat.getBestDateTimePattern`)
+  so they follow her locale like iOS `.dateTime` formats; one-decimal numbers use
+  `formatOneDecimal` (iOS `%.1f` rounds ties to even).
 - Tests that read files outside their module (iOS sources, `brand/`) declare them as Gradle
   inputs so a change there re-runs them.
 - The `applicationId` `com.therecalibrationyears.keel` is permanent once uploaded to Play;

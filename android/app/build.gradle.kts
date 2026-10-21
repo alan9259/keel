@@ -1,6 +1,7 @@
 plugins {
     alias(libs.plugins.android.application)
     alias(libs.plugins.kotlin.compose)
+    alias(libs.plugins.kotlin.serialization)
 }
 
 android {
@@ -39,6 +40,10 @@ dependencies {
     implementation(project(":core:designsystem"))
     implementation(project(":core:data"))
     implementation(project(":feature:onboarding"))
+    implementation(project(":feature:home"))
+    implementation(libs.navigation3.runtime)
+    implementation(libs.navigation3.ui)
+    implementation(libs.kotlinx.serialization.json)
     implementation(libs.androidx.core.splashscreen)
     implementation(libs.kotlinx.coroutines.android)
     implementation(libs.androidx.core.ktx)

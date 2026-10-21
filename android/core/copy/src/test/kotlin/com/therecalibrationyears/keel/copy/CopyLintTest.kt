@@ -10,12 +10,13 @@ import org.junit.Test
  */
 class CopyLintTest {
 
-    /** Shipping Android copy plus the Android side of every substitution. */
+    /** Shipping Android copy, the Android side of every substitution, and every addition. */
     private val copy: List<Pair<String, String>> by lazy {
         CopySources.androidShippingLiterals
             .filter { looksLikeCopy(it.text) && CopySources.NOT_COPY_MARKER !in it.sourceLine }
             .map { it.toString() to it.text } +
-            CopySources.substitutions.map { "platform-substitutions.json" to it.android }
+            CopySources.substitutions.map { "platform-substitutions.json" to it.android } +
+            CopySources.additions.map { "android-additions.json" to it.android }
     }
 
     private val allowed by lazy { CopySources.listResource("lint-allowlist.txt") }
