@@ -4,6 +4,7 @@ import android.app.Application
 import androidx.datastore.preferences.core.PreferenceDataStoreFactory
 import com.therecalibrationyears.keel.data.ActivityRepository
 import com.therecalibrationyears.keel.data.CheckInRepository
+import com.therecalibrationyears.keel.data.CycleRepository
 import com.therecalibrationyears.keel.data.DeviceContext
 import com.therecalibrationyears.keel.data.LocalIdentity
 import com.therecalibrationyears.keel.data.MedicationRepository
@@ -103,6 +104,7 @@ class KeelAppControllerTests {
             SymptomRepository(db.symptoms(), db.checkIns(), settings, identity::ownerId, clock),
             medications,
             ActivityRepository(db.activityLogs(), clock, identity::ownerId),
+            CycleRepository(db.cycle(), identity::ownerId, clock),
             com.therecalibrationyears.keel.platform.SpeechRecognitionService(RuntimeEnvironment.getApplication()),
             TreatmentCatalogStore(RuntimeEnvironment.getApplication()),
             KeelReminders(settings, medications, scheduler, clock, exactAlarmsAllowed = { exactAllowed }) { true }, clock, scope,

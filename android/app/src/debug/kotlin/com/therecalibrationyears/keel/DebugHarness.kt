@@ -1,6 +1,8 @@
 package com.therecalibrationyears.keel
 
 import android.content.Intent
+import com.therecalibrationyears.keel.domain.KeelClock
+import java.time.LocalDate
 import androidx.compose.runtime.Composable
 import com.therecalibrationyears.keel.designsystem.ColourMode
 import com.therecalibrationyears.keel.onboarding.OnboardingStep
@@ -42,6 +44,11 @@ object DebugHarness {
     var initialRoute: MainRoute? = null
         private set
     private var seeds: List<String> = emptyList()
+    /** `--ez uitCycleSheet true`: the Cycle screen opens the log sheet for two days ago. */
+    private var cycleSheet = false
+
+    fun cycleSheetDay(clock: KeelClock): LocalDate? =
+        if (cycleSheet) clock.now().atZone(clock.zone()).toLocalDate().minusDays(2) else null
 
     fun apply(intent: Intent) {
         themeId = intent.getStringExtra("uitTheme")
@@ -57,7 +64,8 @@ object DebugHarness {
             OnboardingStep.entries.firstOrNull { it.name.equals(raw, ignoreCase = true) }
         }
         initialRoute = MainRoute.fromDebugName(intent.getStringExtra("uitRoute"))
-        seeds = listOf("uitReset", "uitSeedMed", "uitSeedCheckIn", "uitSeedEnergyMix", "uitSeedWeek", "uitReminderExplainer", "uitExactTimingAgain", "uitRemindSoon")
+        cycleSheet = intent.getBooleanExtra("uitCycleSheet", false)
+        seeds = listOf("uitReset", "uitSeedMed", "uitSeedCheckIn", "uitSeedEnergyMix", "uitSeedWeek", "uitReminderExplainer", "uitExactTimingAgain", "uitRemindSoon", "uitSeedCycle")
             .filter { intent.getBooleanExtra(it, false) }
     }
 
@@ -74,6 +82,7 @@ object DebugHarness {
                 "uitReminderExplainer" -> container.settings.setNotificationExplainerPending(true)
                 "uitExactTimingAgain" -> container.settings.setExactTimingOffered(false) // "Reminders on time" can show again
                 "uitRemindSoon" -> s.remindSoon()
+                "uitSeedCycle" -> s.cycle()
             }
         }
         seeds = emptyList() // once per launch, not again on recreation

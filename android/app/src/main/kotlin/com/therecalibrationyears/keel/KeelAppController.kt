@@ -2,6 +2,12 @@ package com.therecalibrationyears.keel
 
 import com.therecalibrationyears.keel.data.ActivityRepository
 import com.therecalibrationyears.keel.data.CheckInRepository
+import com.therecalibrationyears.keel.data.CycleRepository
+import com.therecalibrationyears.keel.cycle.CycleActions
+import com.therecalibrationyears.keel.cycle.CycleData
+import com.therecalibrationyears.keel.domain.FlowLevel
+import com.therecalibrationyears.keel.domain.PatternEngine
+import com.therecalibrationyears.keel.domain.PatternFinding
 import com.therecalibrationyears.keel.data.LocalIdentity
 import com.therecalibrationyears.keel.data.LoggedDose
 import com.therecalibrationyears.keel.data.MedicationRepository
@@ -61,6 +67,7 @@ class KeelAppController(
     private val symptoms: SymptomRepository,
     private val medications: MedicationRepository,
     private val activities: ActivityRepository,
+    private val cycle: CycleRepository,
     private val speech: SpeechRecognitionService,
     private val treatments: TreatmentCatalogStore,
     val reminders: KeelReminders,
@@ -283,6 +290,24 @@ class KeelAppController(
             reminders.cancelMedicationReminders(id)
         }
         override suspend fun setTracked(id: String, tracked: Boolean) = medications.setTracked(id, tracked)
+    }
+
+    /**
+     * The Cycle screen's view of the app: her period days, live, and the cycle-length finding
+     * from the pattern engine (iOS reads it from the same records). Imported period days are
+     * empty until Health Connect is integrated (M7): nothing is imported yet, so none show.
+     */
+    val cycleActions: CycleActions = object : CycleActions {
+        override val data: Flow<CycleData> = combine(cycle.observeDays(), checkIns.observeLive()) { days, entries ->
+            val zone = clock.zone()
+            val today = clock.now().atZone(zone).toLocalDate()
+            val finding = PatternEngine.build(entries.map { it.date.atZone(zone).toLocalDate() }, days, today)
+                .findings().firstOrNull { it.kind == PatternFinding.Kind.CYCLE_VARIABILITY }
+            CycleData(days = days, imported = emptyMap(), finding = finding)
+        }
+        override val zone: ZoneId get() = clock.zone()
+        override fun now(): Instant = clock.now()
+        override suspend fun setFlow(level: FlowLevel?, day: LocalDate) = cycle.setFlow(level, day)
     }
 
     /** The Reminders screen's view of the app. */

@@ -2,7 +2,7 @@
   "formatVersion": 1,
   "database": {
     "version": 1,
-    "identityHash": "6f6761fb0f2910bf373a8f85eec4cb84",
+    "identityHash": "1e3a56fa4290c21ae8267e67528c4748",
     "entities": [
       {
         "tableName": "user_profile",
@@ -810,11 +810,92 @@
             "createSql": "CREATE INDEX IF NOT EXISTS `index_activity_log_activityID_date` ON `${TABLE_NAME}` (`activityID`, `date`)"
           }
         ]
+      },
+      {
+        "tableName": "cycle_entry",
+        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`id` TEXT NOT NULL, `date` INTEGER NOT NULL, `typeRaw` TEXT NOT NULL, `flowLevelRaw` TEXT, `sourceRaw` TEXT NOT NULL, `ownerID` TEXT NOT NULL, `createdAt` INTEGER NOT NULL, `updatedAt` INTEGER NOT NULL, `deletedAt` INTEGER, `syncStatusRaw` TEXT NOT NULL, PRIMARY KEY(`id`))",
+        "fields": [
+          {
+            "fieldPath": "id",
+            "columnName": "id",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "date",
+            "columnName": "date",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "typeRaw",
+            "columnName": "typeRaw",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "flowLevelRaw",
+            "columnName": "flowLevelRaw",
+            "affinity": "TEXT"
+          },
+          {
+            "fieldPath": "sourceRaw",
+            "columnName": "sourceRaw",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "ownerID",
+            "columnName": "ownerID",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "createdAt",
+            "columnName": "createdAt",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "updatedAt",
+            "columnName": "updatedAt",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "deletedAt",
+            "columnName": "deletedAt",
+            "affinity": "INTEGER"
+          },
+          {
+            "fieldPath": "syncStatusRaw",
+            "columnName": "syncStatusRaw",
+            "affinity": "TEXT",
+            "notNull": true
+          }
+        ],
+        "primaryKey": {
+          "autoGenerate": false,
+          "columnNames": [
+            "id"
+          ]
+        },
+        "indices": [
+          {
+            "name": "index_cycle_entry_date",
+            "unique": false,
+            "columnNames": [
+              "date"
+            ],
+            "orders": [],
+            "createSql": "CREATE INDEX IF NOT EXISTS `index_cycle_entry_date` ON `${TABLE_NAME}` (`date`)"
+          }
+        ]
       }
     ],
     "setupQueries": [
       "CREATE TABLE IF NOT EXISTS room_master_table (id INTEGER PRIMARY KEY,identity_hash TEXT)",
-      "INSERT OR REPLACE INTO room_master_table (id,identity_hash) VALUES(42, '6f6761fb0f2910bf373a8f85eec4cb84')"
+      "INSERT OR REPLACE INTO room_master_table (id,identity_hash) VALUES(42, '1e3a56fa4290c21ae8267e67528c4748')"
     ]
   }
 }

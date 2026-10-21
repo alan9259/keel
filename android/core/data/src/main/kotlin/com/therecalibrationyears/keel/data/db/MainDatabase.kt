@@ -14,7 +14,7 @@ import androidx.room.TypeConverters
 @Database(
     entities = [
         UserProfileEntity::class, CheckInEntity::class, SymptomEntity::class, CheckInSymptomEntity::class,
-        MedicationEntity::class, MedicationLogEntity::class, ActivityLogEntity::class,
+        MedicationEntity::class, MedicationLogEntity::class, ActivityLogEntity::class, CycleEntryEntity::class,
     ],
     version = 1,
     exportSchema = true,
@@ -26,6 +26,7 @@ abstract class MainDatabase : RoomDatabase() {
     abstract fun symptoms(): SymptomDao
     abstract fun medications(): MedicationDao
     abstract fun activityLogs(): ActivityLogDao
+    abstract fun cycle(): CycleDao
 
     companion object {
         private const val FILE_NAME = "keel-main.db"

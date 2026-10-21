@@ -27,6 +27,7 @@ class KeelDateFormats(context: Context, private val zone: ZoneId, private val lo
     private val monthYear = skeleton("MMMMy")
     private val fullDate = skeleton("EEEEMMMMd")
     private val dayMonthYear = skeleton("yMMMd")
+    private val monthDay = skeleton("MMMd")
     /** Hours and minutes in her 12/24-hour setting, as iOS `.hour().minute()`. */
     private val time = skeleton(if (DateFormat.is24HourFormat(context)) "Hm" else "hm")
 
@@ -42,6 +43,9 @@ class KeelDateFormats(context: Context, private val zone: ZoneId, private val lo
     fun time(at: Instant): String = time.format(at.atZone(zone))
     /** iOS `.dateTime.day().month(.abbreviated).year()`, e.g. "12 Oct 2026". */
     fun dayMonthYear(day: LocalDate): String = dayMonthYear.format(day)
+
+    /** "21 Oct" (iOS `.dateTime.month(.abbreviated).day()`). */
+    fun monthDay(day: LocalDate): String = monthDay.format(day)
 
     /** A dose's time, or "Any time" when she hasn't set one (iOS `DoseSlot.label`). */
     override fun time(slot: DoseSlot): String {

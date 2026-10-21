@@ -3,9 +3,12 @@ package com.therecalibrationyears.keel
 import com.therecalibrationyears.keel.data.db.ActivityLogEntity
 import com.therecalibrationyears.keel.data.db.CheckInEntity
 import com.therecalibrationyears.keel.data.db.CheckInSymptomEntity
+import com.therecalibrationyears.keel.data.db.CycleEntryEntity
 import com.therecalibrationyears.keel.data.db.MedicationEntity
 import com.therecalibrationyears.keel.data.db.MedicationLogEntity
 import com.therecalibrationyears.keel.data.db.SymptomEntity
+import com.therecalibrationyears.keel.domain.CycleEntryType
+import com.therecalibrationyears.keel.domain.FlowLevel
 import com.therecalibrationyears.keel.domain.Mood
 import java.time.Duration
 import java.time.Instant
@@ -28,6 +31,24 @@ internal class DebugSeeds(private val container: AppContainer) {
         db.checkIns().observeLive().first().forEach { db.checkIns().upsert(it.copy(deletedAt = now, updatedAt = now)) }
         // Removed from her list (iOS archives them), so nothing lingers under "No longer taking".
         db.medications().live().forEach { db.medications().upsert(it.copy(isActive = false, deletedAt = now, updatedAt = now)) }
+        db.cycle().observeLive().first().forEach { db.cycle().upsert(it.copy(deletedAt = now, updatedAt = now)) }
+    }
+
+    /**
+     * Regular-ish recent cycles (28, 29, 27 days) and a current period with varying flow
+     * (iOS -uitSeedCycle), so the timeline shows a cycle in progress and an estimate.
+     */
+    suspend fun cycle() {
+        val owner = container.identity.continueLocally()
+        val now = clock.now()
+        val today = now.atZone(clock.zone()).toLocalDate()
+        fun entry(offset: Long, level: FlowLevel) = CycleEntryEntity(
+            id(), today.plusDays(offset).atStartOfDay(clock.zone()).toInstant(), CycleEntryType.PERIOD_START.raw, level.raw,
+            ownerID = owner, createdAt = now, updatedAt = now,
+        )
+        listOf(-84L, -56L, -27L).forEach { db.cycle().upsert(entry(it, FlowLevel.MEDIUM)) }
+        listOf(FlowLevel.HEAVY, FlowLevel.MEDIUM, FlowLevel.LIGHT, FlowLevel.SPOTTING)
+            .forEachIndexed { i, level -> db.cycle().upsert(entry(-3L + i, level)) }
     }
 
     /** One representative check-in (iOS -uitSeedCheckIn). */

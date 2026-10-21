@@ -12,7 +12,8 @@
 > under §5. **Home is built** on the check-in, symptom, medicine and activity tables (see
 > "Home slice"). **The check-in flow is built** (see "Check-in slice"). **M3 medications are
 > built** (see "M3 medications") **and so are reminders** (see "M3 reminders"), with
-> "Reminders on time" for exact alarms (D25). Open: the daily top-up (D11). Next: M4.
+> "Reminders on time" for exact alarms (D25). Open: the daily top-up (D11). **M4 is under
+> way:** Cycle is built (see "M4 Cycle"); next Looking back, Activities, Stats.
 
 ## Context
 
@@ -544,6 +545,23 @@ and is gone on return once allowed; a second medicine after being told once show
 API 28: no dialog, no note, all exact. Release (R8) build on API 36: onboarding's "Gentle
 reminders" came alone; editing a timed medicine showed the dialog and Continue opened the page.
 Not verified: real phones, whose "Alarms & reminders" pages can differ from Pixel's; TalkBack.
+
+### M4 Cycle (21 Oct 2026)
+Built: `FlowLevel`, `CycleEntryType`, `CyclePhase`, `CycleStats` (on `LocalDate`s), the
+timeline window, `CycleDayMark.merge`, `InsightAccent`, `PatternFinding` and `PatternEngine`
+(cycle-length range only, per the no-AI rule) in `core/domain`; the `cycle_entry` table (schema
+v1 edited, pre-release) and `CycleRepository` (`setFlow`, `togglePeriodDay`, `stats(400)`,
+`cycleStart`, `estimatedPhase`); `feature/cycle` with `CycleModel` and the screen: timeline
+centred on today with flow fills, today ring and dashed estimate, legend, history, estimated
+phase, the real cycle-length insight, the month grid for past days, the Profile link (Profile is
+a title-only stand-in until M6), and the log sheet. Imported period days are empty until M7 (the
+screen already shows and labels them; the five "Apple Health" lines are Health Connect
+substitutions for owner sign-off). Tests: domain +23, data +13, cycle +15. Verified on the API
+36 emulator: seeded cycles show day 4 and the estimated window; logging a past day through the
+sheet wrote a `manual` row at the start of her local day and the screen updated live (new
+start, history, and the insight once the gaps varied by 7+ days). API 28: dark mode and the
+sheet. Finding for M8: in dark mode the default theme keeps rosewood as the accent, so accent
+text on tinted chips is about 1.9:1 (iOS identical). Not verified: TalkBack reading order.
 
 ## 6. Decisions (recommendation; "owner" = needs Mischa's sign-off before release)
 | # | Topic | Recommendation |

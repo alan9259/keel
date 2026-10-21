@@ -1,6 +1,8 @@
 package com.therecalibrationyears.keel
 
 import android.content.Intent
+import com.therecalibrationyears.keel.domain.KeelClock
+import java.time.LocalDate
 import androidx.compose.runtime.Composable
 import com.therecalibrationyears.keel.designsystem.ColourMode
 import com.therecalibrationyears.keel.onboarding.OnboardingStep
@@ -13,6 +15,9 @@ object DebugHarness {
     const val forceOnboarding = false
     val onboardingStartStep: OnboardingStep? = null
     val initialRoute: MainRoute? = null
+
+    @Suppress("UNUSED_PARAMETER")
+    fun cycleSheetDay(clock: KeelClock): LocalDate? = null
 
     @Suppress("UNUSED_PARAMETER")
     suspend fun seed(container: AppContainer) = Unit

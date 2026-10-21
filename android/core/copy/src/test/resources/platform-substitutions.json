@@ -10,5 +10,35 @@
     "android": "Voice notes need microphone access. You can type instead, or allow access in Settings.",
     "approvedByOwner": false,
     "note": "Check-in diary voice notes. Plan D15: Android asks for the microphone only (no separate speech permission)."
+  },
+  {
+    "ios": "Days outlined are from Apple Health. They're shown here, but Keel's estimates only use the periods you log in Keel.",
+    "android": "Days outlined are from Health Connect. They're shown here, but Keel's estimates only use the periods you log in Keel.",
+    "approvedByOwner": false,
+    "note": "Cycle screen (iOS CycleTrackingView). Plan §3.8 / D12: Apple Health -> Health Connect, otherwise verbatim. Shown only once period days are imported (M7). Timeline note."
+  },
+  {
+    "ios": "Apple Health",
+    "android": "Health Connect",
+    "approvedByOwner": false,
+    "note": "Cycle screen (iOS CycleTrackingView). Plan §3.8 / D12: Apple Health -> Health Connect, otherwise verbatim. Shown only once period days are imported (M7). Timeline legend item."
+  },
+  {
+    "ios": ", from Apple Health",
+    "android": ", from Health Connect",
+    "approvedByOwner": false,
+    "note": "Cycle screen (iOS CycleTrackingView). Plan §3.8 / D12: Apple Health -> Health Connect, otherwise verbatim. Shown only once period days are imported (M7). TalkBack suffix on an imported day."
+  },
+  {
+    "ios": "Apple Health has this as a period day.",
+    "android": "Health Connect has this as a period day.",
+    "approvedByOwner": false,
+    "note": "Cycle screen (iOS CycleTrackingView). Plan §3.8 / D12: Apple Health -> Health Connect, otherwise verbatim. Shown only once period days are imported (M7). Log sheet, for a day only imported."
+  },
+  {
+    "ios": "Apple Health has this as a period day, {} flow.",
+    "android": "Health Connect has this as a period day, {} flow.",
+    "approvedByOwner": false,
+    "note": "Cycle screen (iOS CycleTrackingView). Plan §3.8 / D12: Apple Health -> Health Connect, otherwise verbatim. Shown only once period days are imported (M7). Log sheet, for a day only imported, with its level."
   }
 ]

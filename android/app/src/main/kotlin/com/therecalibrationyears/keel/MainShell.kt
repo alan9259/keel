@@ -14,6 +14,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.unit.dp
 import com.therecalibrationyears.keel.checkin.CheckInRequest
 import com.therecalibrationyears.keel.checkin.CheckInScreen
+import com.therecalibrationyears.keel.cycle.CycleScreen
 import com.therecalibrationyears.keel.checkin.EntrySheetContent
 import com.therecalibrationyears.keel.designsystem.components.KeelToast
 import com.therecalibrationyears.keel.designsystem.components.ToastData
@@ -72,6 +73,8 @@ sealed interface MainRoute : NavKey {
     @Serializable data object GpSummary : MainRoute
     /** Reached from Settings on iOS; Settings is ported in M6, so for now only by debug route. */
     @Serializable data object Reminders : MainRoute
+    /** Profile (M6); the Cycle screen links to it. */
+    @Serializable data object Profile : MainRoute
 
     companion object {
         /** Debug launch routes (`--es uitRoute cycle`). */
@@ -82,6 +85,7 @@ sealed interface MainRoute : NavKey {
             "more" -> More
             "gp_summary" -> GpSummary
             "reminders" -> Reminders
+            "profile" -> Profile
             else -> null
         }
     }
@@ -130,12 +134,19 @@ fun MainShell(controller: KeelAppController) {
                 onBack = back,
                 entryProvider = entryProvider {
                     entry<MainRoute.Home> { HomeRoute(controller, flow) { backStack.add(it) } }
-                    entry<MainRoute.Cycle> { StandInScreen("Cycle", back) }
+                    entry<MainRoute.Cycle> {
+                        CycleScreen(
+                            controller.cycleActions, back,
+                            onOpenProfile = { backStack.add(MainRoute.Profile) },
+                            initialEditing = DebugHarness.cycleSheetDay(controller.clock),
+                        )
+                    }
                     entry<MainRoute.Medications> { MedicationsScreen(controller.medicationsActions, back) }
                     entry<MainRoute.Patterns> { StandInScreen("Looking back", back) }
                     entry<MainRoute.More> { StandInScreen("More", back) }
                     entry<MainRoute.GpSummary> { StandInScreen("GP Visit Summary", back) }
                     entry<MainRoute.Reminders> { RemindersScreen(controller.remindersActions, back) }
+                    entry<MainRoute.Profile> { StandInScreen("Profile", back) }
                 },
             )
 

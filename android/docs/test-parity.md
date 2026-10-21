@@ -44,3 +44,13 @@ test classes keep the iOS name. Suites not listed yet are ported with their mile
 | ReminderExplainerTests: finishingOnboardingQueuesTheExplanationNotThePrompt | app `KeelAppControllerTests` | ported |
 | ReminderExplainerTests: notNowTurnsRemindersOffWithoutAsking, continueLeavesRemindersOn | app `KeelRemindersTests` | ported (the explanation has only Continue; "not now" stays tested as the record step) |
 | (Android) reminder scheduling, ids, everyday plans | core/domain `ReminderRulesTests`, core/platform `ReminderSchedulerTests`, app `KeelRemindersTests`, `ReminderPosterTests`, feature/settings `RemindersScreenTests` | new: alarm service, registry, receivers and channels have no iOS counterpart |
+| (Android) exact alarms (D25) | core/domain `ReminderRulesTests`, app `KeelRemindersTests`, `KeelAppControllerTests`, feature/settings `ExactTimingTests` | new: iOS delivers on time, so has no counterpart |
+| CycleStatsTests (11) | core/domain `CycleStatsTests` | ported on `LocalDate`s (+ phase boundaries on one start, spotting and period-end never start a cycle, iOS raw values) |
+| CycleTimelineTests (3) | core/domain `CycleTimelineTests` | ported |
+| CycleRepositoryTests (7) | core/data `CycleRepositoryTests` | ported with a fixed clock |
+| CycleRepositoryFlowTests: setFlowUpsertsAndClears, togglePeriodDayLogsUnspecified, statsFromLoggedStarts, spottingDayDoesNotReanchorThePhase, catchingUpTheLatestPeriodReanchorsThePhase | core/data `CycleRepositoryTests` | ported (+ one entry per day, days follow her zone) |
+| CycleRepositoryFlowTests: healthFlowImportsApartFromHerCycleEntries | | with Health Connect (M7) |
+| AppleHealthPeriodsTests: herOwnEntryWinsAndTheDayIsShownOnce | core/domain `CycleTimelineTests.herOwnEntryWinsAndTheDayIsShownOnce` | ported |
+| AppleHealthPeriodsTests: the rest | | with Health Connect (M7) |
+| PatternEngineTests (4) | core/domain `PatternEngineTests` | ported on the pure engine (the store-building tests feed it cycle days directly) (+ 120-day window) |
+| (Android) Cycle screen | feature/cycle `CycleModelTests`, `CycleScreenTests` | new: the iOS view's derived values are untested there |

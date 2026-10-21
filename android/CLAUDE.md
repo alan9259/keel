@@ -60,7 +60,8 @@ adb exec-out screencap -p > shot.png
 
 - `core/domain` (JVM): pure rules and value types (`Pathway`, `RootRouting`, `KeelClock`,
   `SyncStatus`), ported with their tests.
-- `core/data` (Android library): Room `MainDatabase` (`user_profile` so far),
+- `core/data` (Android library): Room `MainDatabase` (profile, check-ins, symptoms, medicines,
+  activity, cycle),
   repositories (`UserRepository`), `SettingsStore` and `LocalIdentity` on one DataStore
   file, `DeviceContext`. Same keys, raw values and rules as iOS.
 - `core/copy` (JVM): the copy tests, which read the iOS Swift sources and all shipping
@@ -77,6 +78,8 @@ adb exec-out screencap -p > shot.png
   the "more" picker (`SymptomPickerSheet`) and voice button, behind `CheckInActions`.
 - `feature/medications`: Medications screen, catalog picker and details form, with their
   pure rules (`TreatmentForm`, `TreatmentPicker`), behind `MedicationsActions`.
+- `feature/cycle`: the Cycle screen (timeline, history, phase, insight, month grid, log sheet)
+  and its pure rules (`CycleModel`), behind `CycleActions`.
 - `feature/settings`: settings screens (so far Reminders) and `rememberNotificationAccess`,
   the notification permission gate shared with Home's "Gentle reminders".
 - `core/platform`: device services: `SpeechRecognitionService` (on-device only),
@@ -139,7 +142,8 @@ create_account, pathway, health, ready). For a truly fresh start:
 - **uiautomator on API 28** can return a stale tree for Compose overlays after scrolling; drive
   those screens by coordinates from screenshots, or test on API 36.
 - **Debug seeds:** `--ez uitSeedMed true --ez uitSeedWeek true --ez uitSeedCheckIn true`
-  (and `uitReset`, `uitSeedEnergyMix`) fill Home for screenshots; `--es uitRoute more` opens a
+  (and `uitReset`, `uitSeedEnergyMix`) fill Home for screenshots; `uitSeedCycle` seeds cycles
+  and a current period, `uitCycleSheet` opens the Cycle log sheet; `--es uitRoute more` opens a
   screen. They live in `app/src/debug` and never ship.
 - **Copy for new wording:** a user-facing string with no iOS original (e.g. a TalkBack label
   iOS lacks) goes in `core/copy/src/test/resources/android-additions.json` for owner sign-off.

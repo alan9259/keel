@@ -5,6 +5,7 @@ import androidx.datastore.preferences.core.PreferenceDataStoreFactory
 import androidx.datastore.preferences.preferencesDataStoreFile
 import com.therecalibrationyears.keel.data.ActivityRepository
 import com.therecalibrationyears.keel.data.CheckInRepository
+import com.therecalibrationyears.keel.data.CycleRepository
 import com.therecalibrationyears.keel.data.DeviceContext
 import com.therecalibrationyears.keel.data.MedicationRepository
 import com.therecalibrationyears.keel.data.LocalIdentity
@@ -51,6 +52,7 @@ class AppContainer(context: Context) {
     }
     private val treatments = TreatmentCatalogStore(context)
     private val activities = ActivityRepository(database.activityLogs(), clock, identity::ownerId)
+    private val cycle = CycleRepository(database.cycle(), identity::ownerId, clock)
 
     private val speech = SpeechRecognitionService(context)
 
@@ -74,6 +76,6 @@ class AppContainer(context: Context) {
     }
 
     val controller = KeelAppController(
-        users, identity, settings, checkIns, symptoms, medications, activities, speech, treatments, reminders, clock, appScope,
+        users, identity, settings, checkIns, symptoms, medications, activities, cycle, speech, treatments, reminders, clock, appScope,
     )
 }
