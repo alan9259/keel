@@ -17,7 +17,9 @@
 > fills them in M7, and Activities and Stats are reached from More in M6. **M5 is done:** the
 > GP Visit Summary (see "M5 GP Visit Summary"). **M6 is under way:** More, Settings (with
 > "Delete all my data"), Themes, Colour mode and Mood icons are built (see "M6 More and
-> Settings"); next Profile, About, Connect, Get support, Your privacy, Backup & Restore, App lock.
+> Settings"), then Profile, About, Connect and Get support (see "M6 Profile, About, Connect,
+> Get support"); Your privacy waits on the owner's Android wording (D3). Next: Backup & Restore,
+> App lock.
 
 ## Context
 
@@ -554,6 +556,29 @@ keyboard. Not verified: a mail draft's contents in a signed-in mail app (the emu
 has no account; the draft is unit-tested). Title-only stand-ins until their slices: Profile,
 App lock, Backup & Restore, Get Support, Connect with Us, About Keel, Your privacy (and Health
 Connect, M7). The Play link in `ShareInvite` is `// FAKE:` until the listing is live (D24).
+
+### M6 Profile, About, Connect, Get support (22 Oct 2026)
+
+Built in `feature/settings`: Profile with My background (iOS `ProfileView`, `MyBackgroundFields`;
+the pure form rules are core/domain `ProfileForm`), About (owner's text, `AboutCopy`), Connect
+with Us (Instagram and Facebook glyphs single-sourced from the iOS asset catalog and drawn black
+or white, never themed; links open the app or browser; email draft), and Get support
+(`CrisisResources`, region by time zone then locale, both countries elsewhere; a line opens the
+dialler with the number filled in, `ACTION_DIAL`, no permission). Two small Android-side
+improvements, same wording: "Changes saved" scrolls into view (it appears below the button), and
+a long placeholder stays on one line (as iOS) so a field doesn't change height as she types.
+**Your privacy is built but not shown:** `YourPrivacyScreen` renders a `PrivacySummary` (short
+version, the sideways-scrolling table with each row read by TalkBack as one sentence with its
+headings, the policy and Support links), tested on sample text. `PrivacySummary.android` is null
+until the owner supplies the Android wording (D3), so the route still shows the title-only
+stand-in. The iOS text can't be reused: it says records "may also be included in your iPhone's
+own backups" (Android backup is off, D9), names iCloud or computer backups, "Speech recognition
+and supported Apple AI features" (Keel on Android has no AI; speech is on-device, D15), and
+"Imported Apple Health readings" (Health Connect, M7). Verified on the API 36 emulator: Profile
+filled, saved and reloaded (age 49 stored as 1977, answer, year, note), About, Connect, Get
+support (Australia from the emulator's Brisbane zone); Connect and Get support on API 28 in dark
+mode. Not verified: dialling on a real phone, Instagram or Facebook apps (not installed on the
+emulators; the links are unit-tested).
 
 ### Reminders on time (21 Oct 2026, D25)
 Built: `ExactTiming` rules (`core/domain`); `ExactAlarms` (`core/platform`: whether Android

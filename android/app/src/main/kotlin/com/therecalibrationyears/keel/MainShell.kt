@@ -52,7 +52,13 @@ import com.therecalibrationyears.keel.designsystem.LocalKeelTheme
 import com.therecalibrationyears.keel.designsystem.components.KeelScreen
 import com.therecalibrationyears.keel.medications.MedicationsScreen
 import com.therecalibrationyears.keel.settings.ExactTimingDialog
+import com.therecalibrationyears.keel.settings.AboutScreen
 import com.therecalibrationyears.keel.settings.ColourModeScreen
+import com.therecalibrationyears.keel.settings.ConnectScreen
+import com.therecalibrationyears.keel.settings.ProfileScreen
+import com.therecalibrationyears.keel.settings.SupportScreen
+import com.therecalibrationyears.keel.settings.YourPrivacyScreen
+import com.therecalibrationyears.keel.domain.PrivacySummary
 import com.therecalibrationyears.keel.settings.MoodIconsScreen
 import com.therecalibrationyears.keel.settings.MoreDestination
 import com.therecalibrationyears.keel.settings.MoreScreen
@@ -232,15 +238,20 @@ fun MainShell(controller: KeelAppController) {
                     entry<MainRoute.MoodIcons> { MoodIconsScreen(controller.appearanceActions, back) }
                     entry<MainRoute.AppLock> { StandInScreen("App lock", back) }
                     entry<MainRoute.Backup> { StandInScreen("Backup & Restore", back) }
-                    entry<MainRoute.Support> { StandInScreen("Get Support", back) }
-                    entry<MainRoute.Connect> { StandInScreen("Connect with Us", back) }
-                    entry<MainRoute.About> { StandInScreen("About Keel", back) }
-                    entry<MainRoute.Privacy> { StandInScreen("Your privacy", back) }
+                    entry<MainRoute.Support> { SupportScreen(back) }
+                    entry<MainRoute.Connect> { ConnectScreen(controller.appInfo, back) }
+                    entry<MainRoute.About> {
+                        AboutScreen(controller.appInfo, onOpenPrivacy = { backStack.add(MainRoute.Privacy) }, onBack = back)
+                    }
+                    entry<MainRoute.Privacy> {
+                        // The owner's Android wording is still to come (plan D3); until then only the title shows.
+                        PrivacySummary.android?.let { YourPrivacyScreen(it, controller.appInfo, back) } ?: StandInScreen("Your privacy", back)
+                    }
                     entry<MainRoute.GpSummary> {
                         GPSummaryScreen(controller.gpSummaryActions, back, initialStep = DebugHarness.gpInitialStep ?: GPSummaryStep.PERIOD)
                     }
                     entry<MainRoute.Reminders> { RemindersScreen(controller.remindersActions, back) }
-                    entry<MainRoute.Profile> { StandInScreen("Profile", back) }
+                    entry<MainRoute.Profile> { ProfileScreen(controller.profileActions, back) }
                 },
             )
 

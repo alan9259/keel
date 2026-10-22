@@ -51,6 +51,8 @@ import com.therecalibrationyears.keel.home.HomeData
 import com.therecalibrationyears.keel.medications.MedicationsActions
 import com.therecalibrationyears.keel.settings.AppInfo
 import com.therecalibrationyears.keel.settings.AppearanceActions
+import com.therecalibrationyears.keel.settings.ProfileActions
+import com.therecalibrationyears.keel.domain.ProfileForm
 import com.therecalibrationyears.keel.settings.RemindersActions
 import com.therecalibrationyears.keel.settings.SettingsActions
 import com.therecalibrationyears.keel.designsystem.ColourMode
@@ -456,6 +458,26 @@ class KeelAppController(
         }
         override suspend fun setNotesAlcohol(on: Boolean) { settings.setNotesAlcohol(on) }
         override fun eraseAllData() { scope.launch { this@KeelAppController.eraseAllData() } }
+    }
+
+    /** The Profile screen's view of the app: her details and background, read and saved together. */
+    val profileActions: ProfileActions = object : ProfileActions {
+        private fun today() = clock.now().atZone(clock.zone()).toLocalDate()
+
+        override suspend fun load(): ProfileForm {
+            val p = users.currentProfile() ?: return ProfileForm()
+            return ProfileForm.from(
+                p.firstName, p.lastName, p.birthYear, p.mobile, p.email, p.hysterectomy, p.hysterectomyYear,
+                p.periodsNotApplicableReason, today(),
+            )
+        }
+
+        override suspend fun save(form: ProfileForm) {
+            val saved = form.saved(today())
+            users.updateBasicInfo(saved.firstName, saved.lastName, saved.birthYear, saved.mobile, saved.email)
+            users.setHysterectomy(saved.hysterectomy, saved.hysterectomyYear)
+            users.setPeriodsNotApplicableReason(saved.periodsNote)
+        }
     }
 
     /** Themes, Colour mode and Mood icons. */

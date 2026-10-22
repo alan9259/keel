@@ -31,6 +31,7 @@ import androidx.compose.ui.semantics.contentType
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.Dp
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import com.therecalibrationyears.keel.designsystem.KeelFont
 import com.therecalibrationyears.keel.designsystem.LocalKeelTheme
@@ -79,7 +80,8 @@ fun KeelTextField(
                 .padding(16.dp),
             decorationBox = { inner ->
                 Box {
-                    if (value.isEmpty()) Text(placeholder, style = KeelFont.bodyLarge, color = theme.muted)
+                    // One line, like the iOS placeholder, so the field doesn't change height as she types.
+                    if (value.isEmpty()) Text(placeholder, style = KeelFont.bodyLarge, color = theme.muted, maxLines = 1, overflow = TextOverflow.Ellipsis)
                     inner()
                 }
             },

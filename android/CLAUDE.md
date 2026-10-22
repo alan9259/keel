@@ -92,7 +92,8 @@ adb exec-out screencap -p > shot.png
   builds the document is `core/data` `GPSummaryService`.
 - `feature/settings`: More (`MoreScreen`, with the mail draft and share), Settings
   (`SettingsScreen`, with "Delete all my data"), Themes, Colour mode and Mood icons
-  (`AppearanceScreens.kt`), Reminders, and `rememberNotificationAccess`, the notification
+  (`AppearanceScreens.kt`), Profile, About, Connect and Get support (`InfoScreens.kt`), Your
+  privacy (`YourPrivacyScreen`, shown once `PrivacySummary.android` has the owner's text), Reminders, and `rememberNotificationAccess`, the notification
   permission gate shared with Home's "Gentle reminders" and the push switch.
 - `core/platform`: device services: `SpeechRecognitionService` (on-device only),
   `AlarmReminderScheduler` (alarms plus a device-only registry of armed ids, since Android
@@ -144,8 +145,8 @@ create_account, pathway, health, ready). For a truly fresh start:
   "Try out your stylus" sheet that swallows typed text. Turn it off once per emulator:
   `adb shell settings put secure stylus_handwriting_enabled 0`.
 - **Stand-ins:** `grep -rn "// FAKE:" android/` lists them (currently: the title-only feature
-  screens in `MainShell.kt` (Profile, App lock, Backup & Restore, Get Support, Connect with Us,
-  About Keel, Your privacy, Health Connect), the Health Connect request in
+  screens in `MainShell.kt` (App lock, Backup & Restore, Your privacy until the owner's Android
+  wording, Health Connect), the Health Connect request in
   `KeelAppController.kt`, and the Play link in `ShareInvite`).
 - **"Delete all my data"** (`KeelAppController.eraseAllData`) wipes every table with
   `clearAllTables`, so a new table is covered automatically; anything Keel keeps outside the

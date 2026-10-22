@@ -66,6 +66,8 @@ tasks.withType<Test>().configureEach {
         repoRoot.file("Keel/Models/Mood.swift"), repoRoot.file("Keel/Models/MoodPack.swift"),
         repoRoot.file("brand/keel-icon-1024.png"),
         repoRoot.file("android/app/src/main/res/drawable/ic_launcher_foreground.xml"),
+        repoRoot.dir("Keel/Resources/Assets.xcassets/SocialInstagram.imageset"),
+        repoRoot.dir("Keel/Resources/Assets.xcassets/SocialFacebook.imageset"),
     ).withPropertyName("repoSources").withPathSensitivity(PathSensitivity.RELATIVE)
     // ThemeColourTests scans every module's shipping Kotlin for raw colours.
     inputs.files(

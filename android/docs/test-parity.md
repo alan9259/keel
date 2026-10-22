@@ -16,7 +16,7 @@ test classes keep the iOS name. Suites not listed yet are ported with their mile
 | OnboardingStateTests: deleteAllMyDataReturnsToOnboarding | | with "Delete all my data" (M6) |
 | OnboardingStateTests: restoreKeepsThisPhonesOnboardedRecord, restoreOfAnArchiveWithoutAProfileStaysOnboarded | | with backup and restore (M1 backup / M6 screen) |
 | ProfileTests: updateBasicInfoRoundTripsAndClears, updateBasicInfoCreatesAProfileIfNoneExists | core/data `UserRepositoryTests` | ported |
-| ProfileTests: ageAndBirthYearAreInverse, derivedAgeUsesStoredBirthYear | | with the Profile screen (M6) |
+| ProfileTests: ageAndBirthYearAreInverse, derivedAgeUsesStoredBirthYear | core/domain `ProfileFormTests` | ported on the pure form (+ placeholder name loads blank, trimming, implausible ages, background year) |
 | ProfileTests: reassignOwnership* | | N/A: no account upgrade on Android (plan D21) |
 | LookingBackTests: labelNeedsThreeEntries, mostlyIsTheMostFrequentLevelNotAnAverage, tieGoesToTheMostRecentlyPickedLevel | core/domain `EnergySummaryTests` | ported |
 | LookingBackTests: countsDaysSymptomsAndNotesForThisMonthOnly, emptyMonthHasHonestWording, oneDayIsSingular, topSymptomsCappedAtFive, monthBoundaryFirstAndLastDay | core/domain `LookingBackTests` | ported (+ the month follows her zone) |
@@ -86,3 +86,8 @@ test classes keep the iOS name. Suites not listed yet are ported with their mile
 | EraseAllDataTests: deletesEverythingAndResetsTheRest | app `KeelAppControllerTests.deletesEverythingAndResetsTheRest` | ported (+ every row counted, soft-deleted ones included; posted notifications and the shared GP summary cleared); the app lock and imported health data join it when they exist on Android |
 | (Android) EraseAllData run repeatedly | app `KeelAppControllerTests.deletingTwentyTimesLeavesNothingBehind` | new: iOS ran its test repeatedly by hand after a profile survived |
 | (Android) More, Settings, Themes, Colour mode, Mood icons | feature/settings `SettingsScreensTests` | new: the iOS views are untested there (rows, mail draft and no-mail fallback, share, toggles, typed DELETE) |
+| CrisisResourcesTests (7) | core/domain `CrisisResourcesTests` | ported (+ the footer wording and the digits dialled) |
+| PrivacySummaryTests: fullPolicyLinkIsTheCompanySite | core/domain `CrisisResourcesTests.thePolicyLinkIsTheCompanySite` | ported |
+| PrivacySummaryTests: the rest | | with the owner's Android wording (plan D3); the screen is tested on sample text in feature/settings `InfoScreensTests` |
+| AboutCopyTests (4), SocialLinkTests (1) | core/domain `AboutCopyTests` | ported |
+| (Android) Profile, About, Connect, Get support, Your privacy | feature/settings `InfoScreensTests`, app `KeelAppControllerTests.profileSavesHerDetailsAndBackgroundTogether`, core/designsystem `SocialGlyphTests` | new: the iOS views are untested there (dialling, links, saving her background, the confirmation's two seconds, table rows read as sentences, glyphs single-sourced from the iOS assets) |

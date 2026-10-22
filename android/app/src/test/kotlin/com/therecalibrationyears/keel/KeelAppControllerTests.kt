@@ -516,4 +516,31 @@ class KeelAppControllerTests {
             assertEquals(0, rows("check_in"))
         }
     }
+
+    // M6: Profile.
+
+    /** Port of the Profile screen's save (iOS `ProfileView.save`): details and background together. */
+    @Test fun profileSavesHerDetailsAndBackgroundTogether() = runBlocking {
+        val app = launch()
+        app.saveFirstName("") // skipped her name during onboarding
+        assertEquals("", app.profileActions.load().firstName) // the placeholder isn't shown as her name
+        app.profileActions.save(
+            com.therecalibrationyears.keel.domain.ProfileForm(
+                firstName = " Mischa ", lastName = "Wang", age = "49", email = " m@example.com ",
+                hysterectomy = com.therecalibrationyears.keel.domain.Hysterectomy.YES_ONE_OVARY_REMOVED, hysterectomyYear = "2019",
+                periodsNote = " after a hysterectomy ",
+            ),
+        )
+        val p = db.userProfiles().current()!!
+        assertEquals("Mischa", p.firstName)
+        assertEquals(1977, p.birthYear) // the clock is in 2026
+        assertEquals("m@example.com", p.email)
+        assertEquals(null, p.mobile)
+        assertEquals(2019, p.hysterectomyYear)
+        assertEquals("after a hysterectomy", p.periodsNotApplicableReason)
+        val reloaded = launch().profileActions.load()
+        assertEquals("49", reloaded.age)
+        assertEquals(com.therecalibrationyears.keel.domain.Hysterectomy.YES_ONE_OVARY_REMOVED, reloaded.hysterectomy)
+        assertEquals("2019", reloaded.hysterectomyYear)
+    }
 }
