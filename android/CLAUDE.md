@@ -90,8 +90,10 @@ adb exec-out screencap -p > shot.png
   `connectedDebugAndroidTest`), and the preview and share (`GPSummaryFiles`, a `FileProvider`
   over `cache/gp-summary/`). Reads her records through `GPSummaryActions`; the service that
   builds the document is `core/data` `GPSummaryService`.
-- `feature/settings`: settings screens (so far Reminders) and `rememberNotificationAccess`,
-  the notification permission gate shared with Home's "Gentle reminders".
+- `feature/settings`: More (`MoreScreen`, with the mail draft and share), Settings
+  (`SettingsScreen`, with "Delete all my data"), Themes, Colour mode and Mood icons
+  (`AppearanceScreens.kt`), Reminders, and `rememberNotificationAccess`, the notification
+  permission gate shared with Home's "Gentle reminders" and the push switch.
 - `core/platform`: device services: `SpeechRecognitionService` (on-device only),
   `AlarmReminderScheduler` (alarms plus a device-only registry of armed ids, since Android
   can't list pending alarms), `ExactAlarms`, `ReminderChannels`, the reminder status icon.
@@ -142,8 +144,14 @@ create_account, pathway, health, ready). For a truly fresh start:
   "Try out your stylus" sheet that swallows typed text. Turn it off once per emulator:
   `adb shell settings put secure stylus_handwriting_enabled 0`.
 - **Stand-ins:** `grep -rn "// FAKE:" android/` lists them (currently: the title-only feature
-  screens in `MainShell.kt` (More, Profile, Health Connect), and the Health Connect request in
-  `KeelAppController.kt`).
+  screens in `MainShell.kt` (Profile, App lock, Backup & Restore, Get Support, Connect with Us,
+  About Keel, Your privacy, Health Connect), the Health Connect request in
+  `KeelAppController.kt`, and the Play link in `ShareInvite`).
+- **"Delete all my data"** (`KeelAppController.eraseAllData`) wipes every table with
+  `clearAllTables`, so a new table is covered automatically; anything Keel keeps outside the
+  database (a DataStore key, a file, an alarm, a Keystore key) must be added to it by hand, with
+  a line in `deletesEverythingAndResetsTheRest`. To try it on an emulator, launch without
+  `uitOnboarded` (that flag keeps the app past onboarding even with no profile).
 - **Drag and drop from a bottom sheet:** start it (`View.startDragAndDrop`) with the view from
   *inside* the sheet's content (the sheet is its own window; the activity's view fails with
   "from window is not being touched"), and from the chip's own long press (Compose's default
@@ -156,8 +164,8 @@ create_account, pathway, health, ready). For a truly fresh start:
   (and `uitReset`, `uitSeedEnergyMix`) fill Home for screenshots; `uitSeedCycle` seeds cycles
   and a current period, `uitCycleSheet` opens the Cycle log sheet, `--es uitActivitiesPeriod
   week` opens Activities on a week (or month); `--es uitRoute` also takes `activities`,
-  `stats`, `notes`, `profile` and `health` (the last two are stand-ins until M6/M7); `--es uitRoute more` opens a
-  screen. They live in `app/src/debug` and never ship.
+  `stats`, `notes`, `more`, `settings`, `themes`, `colour_mode`, `mood_icons`, `app_lock`,
+  `backup`, `support`, `connect`, `about`, `privacy`, `profile` and `health`. They live in `app/src/debug` and never ship.
 - **GP summary on an emulator:** `--es uitRoute gp_summary` opens the flow, `--es uitGPStep
   review` (or details, preview) at a step; `--ez uitGPSummary true` seeds the same 12-week
   picture as the iOS `-uitGPSummary` probe (replacing her records) and writes the PDF to

@@ -81,3 +81,8 @@ test classes keep the iOS name. Suites not listed yet are ported with their mile
 | GPSummaryLeaveTests (HealthSyncBehaviourTests.swift) | feature/gpsummary `GPSummaryDraftTests.homeConfirmsBeforeDiscardingADraftPastTheFirstStep` | ported |
 | GPSummaryPDFRendererTests (4) | feature/gpsummary androidTest `GPSummaryPdfRendererTests` | ported on a device (PdfDocument is native) (+ text drawn to the foot of the page off the main thread, the Android 9 regression) |
 | (Android) GP summary flow | feature/gpsummary `GPSummaryDraftTests`, `GPSummaryScreenTests`, `GPSummaryMetadataTests` | new: the flow's rules, saved state, the review list (D26), each step starting at its top, metadata blanking on bytes |
+| FeedbackMailTests (6) | core/domain `FeedbackMailTests` | ported (+ non-ASCII encoded as UTF-8, the stricter form of the iOS rule) |
+| ShareInviteTests (3) | core/domain `ShareInviteTests` | ported; the link is the Google Play listing (plan D24) |
+| EraseAllDataTests: deletesEverythingAndResetsTheRest | app `KeelAppControllerTests.deletesEverythingAndResetsTheRest` | ported (+ every row counted, soft-deleted ones included; posted notifications and the shared GP summary cleared); the app lock and imported health data join it when they exist on Android |
+| (Android) EraseAllData run repeatedly | app `KeelAppControllerTests.deletingTwentyTimesLeavesNothingBehind` | new: iOS ran its test repeatedly by hand after a profile survived |
+| (Android) More, Settings, Themes, Colour mode, Mood icons | feature/settings `SettingsScreensTests` | new: the iOS views are untested there (rows, mail draft and no-mail fallback, share, toggles, typed DELETE) |

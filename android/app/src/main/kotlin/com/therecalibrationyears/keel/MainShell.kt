@@ -52,7 +52,13 @@ import com.therecalibrationyears.keel.designsystem.LocalKeelTheme
 import com.therecalibrationyears.keel.designsystem.components.KeelScreen
 import com.therecalibrationyears.keel.medications.MedicationsScreen
 import com.therecalibrationyears.keel.settings.ExactTimingDialog
+import com.therecalibrationyears.keel.settings.ColourModeScreen
+import com.therecalibrationyears.keel.settings.MoodIconsScreen
+import com.therecalibrationyears.keel.settings.MoreDestination
+import com.therecalibrationyears.keel.settings.MoreScreen
 import com.therecalibrationyears.keel.settings.RemindersScreen
+import com.therecalibrationyears.keel.settings.SettingsScreen
+import com.therecalibrationyears.keel.settings.ThemesScreen
 import com.therecalibrationyears.keel.settings.rememberNotificationAccess
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Text
@@ -78,18 +84,29 @@ sealed interface MainRoute : NavKey {
     @Serializable data object Patterns : MainRoute
     @Serializable data object More : MainRoute
     @Serializable data object GpSummary : MainRoute
-    /** Reached from Settings on iOS; Settings is ported in M6, so for now only by debug route. */
     @Serializable data object Reminders : MainRoute
-    /** Profile (M6); the Cycle screen links to it. */
+    /** Profile; More and the Cycle screen link to it. */
     @Serializable data object Profile : MainRoute
     /** Every note she has written (Looking back's "See all notes"). */
     @Serializable data object Notes : MainRoute
-    /** Reached from More on iOS; More is ported in M6, so for now only by debug route. */
     @Serializable data object Activities : MainRoute
-    /** Stats (iOS `reports`): reached from More, so for now only by debug route. */
+    /** Stats (iOS `reports`). */
     @Serializable data object Stats : MainRoute
-    /** The Health Connect screen (iOS `appleHealth`, M6/M7). */
+    /** The Health Connect screen (iOS `appleHealth`, M7). */
     @Serializable data object HealthConnect : MainRoute
+    @Serializable data object Settings : MainRoute
+    @Serializable data object AppLock : MainRoute
+    @Serializable data object Themes : MainRoute
+    @Serializable data object ColourMode : MainRoute
+    @Serializable data object MoodIcons : MainRoute
+    /** Backup & Restore (iOS `backup`). */
+    @Serializable data object Backup : MainRoute
+    /** Get support (iOS `support`). */
+    @Serializable data object Support : MainRoute
+    @Serializable data object Connect : MainRoute
+    @Serializable data object About : MainRoute
+    /** Your privacy (iOS `privacy`), from Settings. */
+    @Serializable data object Privacy : MainRoute
 
     companion object {
         /** Debug launch routes (`--es uitRoute cycle`). */
@@ -105,7 +122,35 @@ sealed interface MainRoute : NavKey {
             "activities" -> Activities
             "health" -> HealthConnect
             "stats" -> Stats
+            "settings" -> Settings
+            "app_lock" -> AppLock
+            "themes" -> Themes
+            "colour_mode" -> ColourMode
+            "mood_icons" -> MoodIcons
+            "backup" -> Backup
+            "support" -> Support
+            "connect" -> Connect
+            "about" -> About
+            "privacy" -> Privacy
             else -> null
+        }
+
+        /** Where a row on More leads. */
+        fun of(destination: MoreDestination): MainRoute = when (destination) {
+            MoreDestination.PROFILE -> Profile
+            MoreDestination.APP_LOCK -> AppLock
+            MoreDestination.SETTINGS -> Settings
+            MoreDestination.ACTIVITIES -> Activities
+            MoreDestination.REMINDERS -> Reminders
+            MoreDestination.STATS -> Stats
+            MoreDestination.MOOD_ICONS -> MoodIcons
+            MoreDestination.THEMES -> Themes
+            MoreDestination.COLOUR_MODE -> ColourMode
+            MoreDestination.BACKUP -> Backup
+            MoreDestination.HEALTH -> HealthConnect
+            MoreDestination.SUPPORT -> Support
+            MoreDestination.CONNECT -> Connect
+            MoreDestination.ABOUT -> About
         }
     }
 }
@@ -178,7 +223,19 @@ fun MainShell(controller: KeelAppController) {
                     }
                     entry<MainRoute.HealthConnect> { StandInScreen("Health Connect", back) }
                     entry<MainRoute.Stats> { StatsScreen(controller.statsActions, back) }
-                    entry<MainRoute.More> { StandInScreen("More", back) }
+                    entry<MainRoute.More> { MoreScreen(controller.appInfo, onOpen = { backStack.add(MainRoute.of(it)) }, onBack = back) }
+                    entry<MainRoute.Settings> {
+                        SettingsScreen(controller.settingsActions, onOpenPrivacy = { backStack.add(MainRoute.Privacy) }, onBack = back)
+                    }
+                    entry<MainRoute.Themes> { ThemesScreen(controller.appearanceActions, back) }
+                    entry<MainRoute.ColourMode> { ColourModeScreen(controller.appearanceActions, back) }
+                    entry<MainRoute.MoodIcons> { MoodIconsScreen(controller.appearanceActions, back) }
+                    entry<MainRoute.AppLock> { StandInScreen("App lock", back) }
+                    entry<MainRoute.Backup> { StandInScreen("Backup & Restore", back) }
+                    entry<MainRoute.Support> { StandInScreen("Get Support", back) }
+                    entry<MainRoute.Connect> { StandInScreen("Connect with Us", back) }
+                    entry<MainRoute.About> { StandInScreen("About Keel", back) }
+                    entry<MainRoute.Privacy> { StandInScreen("Your privacy", back) }
                     entry<MainRoute.GpSummary> {
                         GPSummaryScreen(controller.gpSummaryActions, back, initialStep = DebugHarness.gpInitialStep ?: GPSummaryStep.PERIOD)
                     }

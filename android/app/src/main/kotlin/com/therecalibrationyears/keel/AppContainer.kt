@@ -1,6 +1,7 @@
 package com.therecalibrationyears.keel
 
 import android.content.Context
+import androidx.core.app.NotificationManagerCompat
 import androidx.datastore.preferences.core.PreferenceDataStoreFactory
 import androidx.datastore.preferences.preferencesDataStoreFile
 import com.therecalibrationyears.keel.data.ActivityRepository
@@ -11,7 +12,10 @@ import com.therecalibrationyears.keel.data.GPSummaryService
 import com.therecalibrationyears.keel.data.InsightRepository
 import com.therecalibrationyears.keel.data.MedicationRepository
 import com.therecalibrationyears.keel.data.LocalIdentity
+import com.therecalibrationyears.keel.data.RecordEraser
 import com.therecalibrationyears.keel.data.SettingsStore
+import com.therecalibrationyears.keel.gpsummary.GPSummaryFiles
+import com.therecalibrationyears.keel.settings.AppInfo
 import com.therecalibrationyears.keel.data.SymptomRepository
 import com.therecalibrationyears.keel.data.TreatmentCatalogStore
 import com.therecalibrationyears.keel.designsystem.KeelDateFormats
@@ -76,6 +80,7 @@ class AppContainer(context: Context) {
     private val reminders = KeelReminders(
         settings, medications, scheduler, clock,
         exactAlarmsAllowed = { ExactAlarms.allowed(context) },
+        clearPosted = { NotificationManagerCompat.from(context).cancelAll() },
         notificationsAllowed = { ReminderChannels.enabled(context) },
     )
 
@@ -83,7 +88,14 @@ class AppContainer(context: Context) {
         ReminderChannels.ensure(context)
     }
 
+    private val appInfo: AppInfo = DeviceContext.Android(context).current().let { device ->
+        val info = context.packageManager.getPackageInfo(context.packageName, 0)
+        AppInfo(shortVersion = info.versionName.orEmpty(), appVersion = device.appVersion, osVersion = device.osVersion, deviceModel = device.deviceModel)
+    }
+
     val controller = KeelAppController(
         users, identity, settings, checkIns, symptoms, medications, activities, cycle, insights, gpSummary, speech, treatments, reminders, clock, appScope,
+        records = RecordEraser(database), appInfo = appInfo,
+        clearSharedFiles = { GPSummaryFiles.clearShared(context) },
     )
 }

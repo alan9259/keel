@@ -2,6 +2,8 @@ package com.therecalibrationyears.keel.designsystem.components
 
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.heightIn
@@ -33,6 +35,11 @@ fun KeelToggleRow(
     modifier: Modifier = Modifier,
     detail: String? = null,
     titleStyle: TextStyle = KeelFont.body,
+    detailStyle: TextStyle = KeelFont.sans(12.sp),
+    /** An icon before the title (Settings rows); part of the control, so a tap on it toggles too. */
+    leading: (@Composable () -> Unit)? = null,
+    /** Space inside the tappable row (a settings card's row padding). */
+    contentPadding: PaddingValues = PaddingValues(0.dp),
 ) {
     val theme = LocalKeelTheme.current
     val haptic = KeelHaptics.rememberPerformer()
@@ -40,13 +47,15 @@ fun KeelToggleRow(
         modifier
             .fillMaxWidth()
             .heightIn(min = 48.dp)
-            .toggleable(value = checked, role = Role.Switch) { haptic(KeelHapticKind.SELECTION); onCheckedChange(it) },
+            .toggleable(value = checked, role = Role.Switch) { haptic(KeelHapticKind.SELECTION); onCheckedChange(it) }
+            .padding(contentPadding),
         horizontalArrangement = Arrangement.spacedBy(12.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
+        leading?.invoke()
         Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
             Text(title, style = titleStyle, color = theme.text)
-            if (detail != null) Text(detail, style = KeelFont.sans(12.sp), color = theme.muted)
+            if (detail != null) Text(detail, style = detailStyle, color = theme.muted)
         }
         Switch(
             checked = checked,

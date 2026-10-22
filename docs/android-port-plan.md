@@ -15,7 +15,9 @@
 > "Reminders on time" for exact alarms (D25). Open: the daily top-up (D11). **M4 is done:**
 > Cycle, Looking back, Activities and Stats (see the "M4" sections); imported health data
 > fills them in M7, and Activities and Stats are reached from More in M6. **M5 is done:** the
-> GP Visit Summary (see "M5 GP Visit Summary"). Next: M6.
+> GP Visit Summary (see "M5 GP Visit Summary"). **M6 is under way:** More, Settings (with
+> "Delete all my data"), Themes, Colour mode and Mood icons are built (see "M6 More and
+> Settings"); next Profile, About, Connect, Get support, Your privacy, Backup & Restore, App lock.
 
 ## Context
 
@@ -528,6 +530,30 @@ alarms. **Finding for the owner:** on Android 14+ exact alarms aren't granted by
 reminders are topped up whenever Keel opens, as iOS); the Settings master switch and
 "Medicine names in reminders" (with Settings, M6; the logic is in place and tested). Not verified: a real phone (OEM battery savers can delay
 or drop alarms), the lock-screen look with names hidden, TalkBack.
+
+### M6 More and Settings (22 Oct 2026)
+
+Built in `feature/settings`: More (iOS `MoreView`: every section and row, the version footer,
+"Share feedback" and "Request a feature" as a mailto draft in her own mail app with the iOS
+"No email app set up" fallback, "Tell your friends" through the share sheet), Settings (the
+three notification toggles, the master switch behind the same permission gate as Reminders,
+Alcohol, Your privacy, and "Delete all my data" behind typed DELETE), Themes, Colour mode and
+Mood icons. Activities, Reminders and Stats are now reached from More rather than only by debug
+route. Pure ports: `FeedbackMail`, `ShareInvite` (core/domain). "Delete all my data"
+(`KeelAppController.eraseAllData`, iOS order): every database row in one transaction
+(`RecordEraser`), built-in symptoms re-seeded, every armed reminder and every posted
+notification cleared, her preferences reset (kept: the symptom catalog version, and whether
+Keel has asked Android for notification permission, which is the phone's state), the local
+identity forgotten, and, Android only, the GP summary PDF left in the share cache. It runs in
+the app's scope, since the Settings screen is gone as soon as her profile is. The app lock
+(this milestone) and imported health data (M7) join it when they exist. Verified on the API 36
+emulator, debug and release: delete from a seeded phone (184 entries, 22 medicines) left 0 rows
+but the 54 built-in symptoms, 0 alarms, 0 notifications, no shared PDF, then onboarding again
+as a new person; on API 28 in dark mode, the personalisation screens and the dialog above the
+keyboard. Not verified: a mail draft's contents in a signed-in mail app (the emulator's Gmail
+has no account; the draft is unit-tested). Title-only stand-ins until their slices: Profile,
+App lock, Backup & Restore, Get Support, Connect with Us, About Keel, Your privacy (and Health
+Connect, M7). The Play link in `ShareInvite` is `// FAKE:` until the listing is live (D24).
 
 ### Reminders on time (21 Oct 2026, D25)
 Built: `ExactTiming` rules (`core/domain`); `ExactAlarms` (`core/platform`: whether Android

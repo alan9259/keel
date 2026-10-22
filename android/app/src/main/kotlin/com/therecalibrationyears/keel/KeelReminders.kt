@@ -32,6 +32,8 @@ class KeelReminders(
     private val clock: KeelClock,
     /** Whether Android delivers reminders on time (exact alarms); see [shouldOfferExactTiming]. */
     private val exactAlarmsAllowed: () -> Boolean = { true },
+    /** Clears Keel's notifications already showing. */
+    private val clearPosted: () -> Unit = {},
     /** Whether Android will show Keel's notifications (permission and app switch). */
     private val notificationsAllowed: () -> Boolean,
 ) {
@@ -120,6 +122,15 @@ class KeelReminders(
         } else {
             scheduler.cancelAll()
         }
+    }
+
+    /**
+     * "Delete all my data" (iOS `removeEverything`): every armed reminder and every one
+     * showing, so none naming a deleted medicine can appear.
+     */
+    suspend fun removeEverything() {
+        scheduler.cancelAll()
+        clearPosted()
     }
 
     /**

@@ -93,6 +93,20 @@ class SettingsStore(private val store: DataStore<Preferences>) {
     suspend fun setExactTimingOffered(offered: Boolean) = store.edit { it[EXACT_TIMING_OFFERED] = offered }
     suspend fun setDisabledHealthItemIds(ids: Set<String>) = store.edit { it[DISABLED_HEALTH_ITEMS] = ids }
 
+    /**
+     * Back to a fresh install's preferences ("Delete all my data"; iOS `resetToDefaults`).
+     * Each setting is cleared, so its default applies. Kept: the symptom catalog version (the
+     * built-ins are re-seeded straight after) and whether Keel has asked Android for
+     * notification permission, which is the phone's state, not hers.
+     */
+    suspend fun resetToDefaults() = store.edit { prefs ->
+        listOf(
+            COLOUR_MODE, THEME_ID, MOOD_PACK_ID, HAPTICS, PUSH_NOTIFICATIONS, REMINDERS, DISABLED_HEALTH_ITEMS,
+            REMINDER_CONFIG, SENSITIVE_SYMPTOMS, NOTES_ALCOHOL, MED_NAMES_IN_REMINDERS, NOTIFICATION_EXPLAINER_PENDING,
+            EXACT_TIMING_OFFERED,
+        ).forEach { prefs.remove(it) }
+    }
+
     companion object {
         /** iOS: the daily check-in and medication reminders start on. */
         val DEFAULT_REMINDERS = setOf("dailyCheckIn", "medication")

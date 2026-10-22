@@ -49,7 +49,12 @@ import com.therecalibrationyears.keel.domain.TreatmentCatalog
 import com.therecalibrationyears.keel.domain.TreatmentDraft
 import com.therecalibrationyears.keel.home.HomeData
 import com.therecalibrationyears.keel.medications.MedicationsActions
+import com.therecalibrationyears.keel.settings.AppInfo
+import com.therecalibrationyears.keel.settings.AppearanceActions
 import com.therecalibrationyears.keel.settings.RemindersActions
+import com.therecalibrationyears.keel.settings.SettingsActions
+import com.therecalibrationyears.keel.designsystem.ColourMode
+import com.therecalibrationyears.keel.data.RecordEraser
 import com.therecalibrationyears.keel.domain.ReminderConfig
 import com.therecalibrationyears.keel.domain.ReminderKinds
 import java.time.Instant
@@ -91,6 +96,11 @@ class KeelAppController(
     val reminders: KeelReminders,
     val clock: KeelClock,
     private val scope: CoroutineScope,
+    private val records: RecordEraser,
+    /** The app's version and support context, for More and feedback drafts. */
+    val appInfo: AppInfo,
+    /** Removes files Keel made for sharing (the GP summary PDF in its cache). */
+    private val clearSharedFiles: () -> Unit = {},
 ) : OnboardingActions {
 
     /**
@@ -428,6 +438,50 @@ class KeelAppController(
             val enabled = settings.enabledReminderIds.first()
             ReminderKinds.LIFESTYLE.filter { it in enabled }.forEach { reminders.rescheduleLifestyleReminder(it) }
         }
+    }
+
+    /** The Settings screen's view of the app. */
+    val settingsActions: SettingsActions = object : SettingsActions {
+        override val pushNotifications = settings.pushNotifications
+        override val haptics = settings.haptics
+        override val medicineNamesInReminders = settings.medicineNamesInReminders
+        override val notesAlcohol = settings.notesAlcohol
+        override val notificationPermissionAsked = settings.notificationPermissionAsked
+        override suspend fun markNotificationPermissionAsked() { settings.setNotificationPermissionAsked(true) }
+        override suspend fun setPushNotificationsEnabled(on: Boolean) = reminders.setPushNotificationsEnabled(on)
+        override suspend fun setHaptics(on: Boolean) { settings.setHaptics(on) }
+        override suspend fun setMedicineNamesInReminders(on: Boolean) {
+            settings.setMedicineNamesInReminders(on)
+            reminders.refreshMedicationReminders()
+        }
+        override suspend fun setNotesAlcohol(on: Boolean) { settings.setNotesAlcohol(on) }
+        override fun eraseAllData() { scope.launch { this@KeelAppController.eraseAllData() } }
+    }
+
+    /** Themes, Colour mode and Mood icons. */
+    val appearanceActions: AppearanceActions = object : AppearanceActions {
+        override val themeId = settings.themeId
+        override val colourModeRaw = settings.colourModeRaw
+        override val moodPackId = settings.moodPackId
+        override suspend fun setThemeId(id: String) { settings.setThemeId(id) }
+        override suspend fun setColourMode(mode: ColourMode) { settings.setColourModeRaw(mode.raw) }
+        override suspend fun setMoodPackId(id: String) { settings.setMoodPackId(id) }
+    }
+
+    /**
+     * "Delete all my data" (iOS `eraseAllData`, in its order): every record, then the built-in
+     * symptoms re-seeded for the next person, every reminder (armed or showing), her
+     * preferences, and the local identity. Without her profile she is back at onboarding.
+     * Android also clears the GP summary it last made for sharing, held in Keel's cache.
+     */
+    suspend fun eraseAllData() {
+        records.deleteEverything()
+        symptoms.syncBuiltIns()
+        reminders.removeEverything() // no reminder naming a deleted medicine fires
+        settings.resetToDefaults()
+        identity.signOut()
+        clearSharedFiles()
+        exactTimingOffer.value = false
     }
 
     /** Everything the first frame depends on has loaded (the launch screen waits for this). */

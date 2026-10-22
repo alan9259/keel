@@ -23,6 +23,9 @@ class LocalIdentity(private val store: DataStore<Preferences>) {
         return ownerId()
     }
 
+    /** Forget the local identity ("Delete all my data"; iOS `signOut`). */
+    suspend fun signOut() { store.edit { it.remove(OWNER_ID) } }
+
     private companion object {
         val OWNER_ID = stringPreferencesKey("keel.ownerID")
     }

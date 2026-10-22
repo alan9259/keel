@@ -13,6 +13,8 @@ import com.therecalibrationyears.keel.data.LocalIdentity
 import com.therecalibrationyears.keel.data.MedicationRepository
 import com.therecalibrationyears.keel.data.SettingsStore
 import com.therecalibrationyears.keel.data.SymptomRepository
+import com.therecalibrationyears.keel.data.RecordEraser
+import com.therecalibrationyears.keel.settings.AppInfo
 import com.therecalibrationyears.keel.checkin.CheckInDraft
 import com.therecalibrationyears.keel.checkin.CheckInRequest
 import com.therecalibrationyears.keel.domain.EnergyLevel
@@ -95,6 +97,8 @@ class KeelAppControllerTests {
     /** Reminders armed by the app under test (no alarm service needed). */
     private val scheduler = FakeScheduler()
     private var exactAllowed = true
+    private var postedCleared = 0
+    private var sharedFilesCleared = 0
 
     private fun launch(): KeelAppController {
         val identity = LocalIdentity(prefs)
@@ -114,7 +118,11 @@ class KeelAppControllerTests {
             GPSummaryService(checkIns, medications, cycle, users, clock) { KeelDateFormats(RuntimeEnvironment.getApplication(), zone = clock.zone()) },
             com.therecalibrationyears.keel.platform.SpeechRecognitionService(RuntimeEnvironment.getApplication()),
             TreatmentCatalogStore(RuntimeEnvironment.getApplication()),
-            KeelReminders(settings, medications, scheduler, clock, exactAlarmsAllowed = { exactAllowed }) { true }, clock, scope,
+            KeelReminders(settings, medications, scheduler, clock, exactAlarmsAllowed = { exactAllowed }, clearPosted = { postedCleared++ }) { true },
+            clock, scope,
+            records = RecordEraser(db),
+            appInfo = AppInfo("1.0.0", "1.0.0 (1)", "Android 16 (API 36)", "Google Pixel 8"),
+            clearSharedFiles = { sharedFilesCleared++ },
         )
     }
 
@@ -445,5 +453,67 @@ class KeelAppControllerTests {
         assertFalse(data.healthConnected)
         app.activitiesActions.setEating("eat.protein", today, null) // cleared: not answered
         assertEquals(listOf("water"), app.activitiesActions.data.first { it.manual.size == 1 }.manual.map { it.activityId })
+    }
+
+    // M6: Delete all my data.
+
+    private fun rows(table: String): Int =
+        db.openHelper.readableDatabase.query("SELECT COUNT(*) FROM $table").use { it.moveToFirst(); it.getInt(0) }
+
+    /**
+     * Port of KeelTests/EraseAllDataTests.swift `testDeletesEverythingAndResetsTheRest`:
+     * everything Keel holds on the phone goes, including reminders and her preferences. (The
+     * app lock and imported health data are erased too once they exist on Android.)
+     */
+    @Test fun deletesEverythingAndResetsTheRest() = runBlocking {
+        val app = launch()
+        app.saveFirstName("Mischa")
+        app.markOnboarded()
+        app.awaitOnboarded(true)
+        app.bootstrap()
+        withTimeout(5_000) { while (db.symptoms().count() == 0) delay(20) }
+        app.saveCheckIn(CheckInRequest(Mood.LOW, java.time.LocalDate.of(2026, 10, 21)), CheckInDraft(energy = EnergyLevel.LOW, notes = "rough", sleepHours = 5.0))
+        app.medicationsActions.add(TreatmentDraft(name = "Oestrogel", kind = TreatmentKind.TREATMENT, schedule = DoseSchedule(slots = listOf(DoseSlot(hour = 20)))))
+        app.cycleActions.setFlow(com.therecalibrationyears.keel.domain.FlowLevel.MEDIUM, java.time.LocalDate.of(2026, 10, 20))
+        val store = SettingsStore(prefs)
+        store.setNotesAlcohol(false) // she had turned it off
+        store.setDisabledHealthItemIds(setOf("steps"))
+        store.setReminderEnabled("hydration", true)
+        store.setThemeId("forest")
+        store.setNotificationPermissionAsked(true)
+        assertTrue(scheduler.armed.isNotEmpty())
+
+        app.eraseAllData()
+
+        // Every row, soft-deleted ones included.
+        listOf("user_profile", "check_in", "check_in_symptom", "medication", "medication_log", "cycle_entry", "insight", "activity_log")
+            .forEach { assertEquals(it, 0, rows(it)) }
+        assertTrue("built-ins re-seeded for the next person", db.symptoms().count() >= 54)
+        assertTrue(db.symptoms().observeActive().first().none { it.isCustom })
+
+        // Regression (iOS): reminders and her preferences survived "delete everything".
+        assertTrue(scheduler.armed.isEmpty())
+        assertEquals(1, postedCleared)
+        assertTrue(store.notesAlcohol.first()) // back to the default (on)
+        assertTrue(store.disabledHealthItemIds.first().isEmpty())
+        assertEquals(setOf("dailyCheckIn", "medication"), store.enabledReminderIds.first())
+        assertEquals(null, store.themeId.first())
+        assertTrue("the phone's permission state is kept", store.notificationPermissionAsked.first())
+
+        assertTrue(LocalIdentity(prefs).ownerId().isEmpty()) // local identity cleared
+        app.awaitOnboarded(false)
+        assertEquals(1, sharedFilesCleared) // the GP summary made for sharing
+    }
+
+    /** iOS ran EraseAllDataTests repeatedly after a profile survived a bulk delete; so does this. */
+    @Test fun deletingTwentyTimesLeavesNothingBehind() = runBlocking {
+        repeat(20) {
+            val app = launch()
+            app.saveFirstName("Mischa")
+            app.saveCheckIn(CheckInRequest(Mood.GOOD, java.time.LocalDate.of(2026, 10, 21)), CheckInDraft())
+            app.eraseAllData()
+            assertEquals(0, rows("user_profile"))
+            assertEquals(0, rows("check_in"))
+        }
     }
 }

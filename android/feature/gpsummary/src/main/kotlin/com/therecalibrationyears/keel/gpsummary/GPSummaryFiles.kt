@@ -33,6 +33,11 @@ object GPSummaryFiles {
         return FileProvider.getUriForFile(context, authority(context), file)
     }
 
+    /** Remove the summary last made for sharing ("Delete all my data"). */
+    fun clearShared(context: Context) {
+        File(context.cacheDir, SHARED_DIR).deleteRecursively()
+    }
+
     /** The system share sheet for the PDF, with read access granted for this share only. */
     fun shareIntent(uri: Uri): Intent {
         val send = Intent(Intent.ACTION_SEND).apply {
