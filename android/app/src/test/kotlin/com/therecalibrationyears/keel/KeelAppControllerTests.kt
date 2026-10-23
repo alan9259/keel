@@ -552,6 +552,65 @@ class KeelAppControllerTests {
         assertEquals(1, sharedFilesCleared) // the GP summary made for sharing
     }
 
+    private suspend fun importIntoHealthStore(snapshot: com.therecalibrationyears.keel.domain.HealthSnapshot) {
+        com.therecalibrationyears.keel.data.HealthIngestor(health, db, { "o" }, clock).ingest(snapshot)
+    }
+
+    /** What Health Connect brought in reaches the screens that show it: Home's sleep, Cycle, Activities and Stats. */
+    @Test fun importedHealthDataReachesTheScreensThatShowIt() = runBlocking {
+        val app = launch()
+        app.saveFirstName("Mischa")
+        val day = java.time.LocalDate.of(2026, 10, 20)
+        importIntoHealthStore(
+            com.therecalibrationyears.keel.domain.HealthSnapshot(
+                sleepByDay = mapOf(day to 6.5),
+                activityAmounts = mapOf("steps" to mapOf(day to 8000.0)),
+                vitals = listOf(com.therecalibrationyears.keel.domain.HealthSnapshot.VitalSeries("restingHeartRate", "bpm", mapOf(day to 60.0))),
+                menstrualFlow = mapOf(day to com.therecalibrationyears.keel.domain.FlowLevel.LIGHT),
+            ),
+        )
+        val sleep = com.therecalibrationyears.keel.domain.DayAmount("sleep", day, 6.5)
+        val reading = com.therecalibrationyears.keel.insights.HealthReading("restingHeartRate", day, 60.0)
+
+        assertEquals(listOf(sleep), app.homeData.first().importedSleep)
+        assertEquals(mapOf(day to com.therecalibrationyears.keel.domain.FlowLevel.LIGHT), app.cycleActions.data.first().imported)
+        val activities = app.activitiesActions.data.first()
+        assertEquals(setOf(sleep, com.therecalibrationyears.keel.domain.DayAmount("steps", day, 8000.0)), activities.imported.toSet())
+        assertEquals(listOf(reading), activities.readings)
+        val stats = app.statsActions.data.first()
+        assertEquals(listOf(sleep), stats.importedSleep)
+        assertEquals(listOf(reading), stats.readings)
+        assertTrue("her own cycle entries stay hers alone", db.cycle().observeLive().first().isEmpty())
+    }
+
+    /**
+     * Port of the iOS check-in's `loadSleep`: her own night is editable and wins; a night only
+     * Health Connect has shows read-only, and saving never writes it into her entries.
+     */
+    @Test fun checkInSleepIsHersOrHealthConnectsReadOnly() = runBlocking {
+        val app = launch()
+        app.saveFirstName("Mischa")
+        val hers = java.time.LocalDate.of(2026, 10, 19)
+        val imported = java.time.LocalDate.of(2026, 10, 20)
+        importIntoHealthStore(com.therecalibrationyears.keel.domain.HealthSnapshot(sleepByDay = mapOf(hers to 6.0, imported to 6.5)))
+        app.saveCheckIn(CheckInRequest(Mood.GOOD, hers), CheckInDraft(sleepHours = 8.0))
+
+        val own = app.checkInActions.loadDraft(CheckInRequest(Mood.GOOD, hers))
+        assertEquals(8.0, own.sleepHours!!, 0.0)
+        assertFalse(own.sleepFromHealth)
+
+        val fromHealth = app.checkInActions.loadDraft(CheckInRequest(Mood.GOOD, imported))
+        assertEquals(6.5, fromHealth.sleepHours!!, 0.0)
+        assertTrue(fromHealth.sleepFromHealth)
+        app.saveCheckIn(CheckInRequest(Mood.GOOD, imported), fromHealth)
+        val manualNights = app.activitiesActions.data.first().manual.filter { it.activityId == "sleep" }
+        assertEquals("only her own night is in her entries", listOf(hers), manualNights.map { it.day })
+
+        val none = app.checkInActions.loadDraft(CheckInRequest(Mood.GOOD, java.time.LocalDate.of(2026, 10, 21)))
+        assertEquals(null, none.sleepHours)
+        assertFalse(none.sleepFromHealth)
+    }
+
     /** Port of HealthAccessOfferTests.testNothingOfferedBeforeOnboardingWhichHasItsOwnConnectStep, through the controller. */
     @Test fun healthOfferWaitsForOnboarding() = runBlocking {
         val app = launch()

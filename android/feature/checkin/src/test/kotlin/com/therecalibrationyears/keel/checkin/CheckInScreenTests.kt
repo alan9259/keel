@@ -105,6 +105,19 @@ class CheckInScreenTests {
         assertEquals(true, closed)
     }
 
+    /** A night Health Connect has is shown, labelled, and can't be changed here (iOS `sleepFromHealth`). */
+    @Test fun aNightFromHealthConnectIsReadOnly() {
+        val fake = Fake(CheckInDraft(sleepHours = 6.5, sleepFromHealth = true))
+        show(fake)
+        compose.onNodeWithText("Health Connect").performScrollTo().assertIsDisplayed()
+        compose.onNodeWithText("6.5 hrs").assertIsDisplayed()
+        compose.onNodeWithText("Add hours").assertDoesNotExist()
+        compose.onAllNodesWithText("Clear").fetchSemanticsNodes().let { assertEquals("no stepper for an imported night", 0, it.size) }
+        compose.onNodeWithText("Save entry").performClick()
+        compose.waitForIdle()
+        assertEquals(true, fake.saved!!.second.sleepFromHealth)
+    }
+
     @Test fun alcoholIsHiddenWhenSheTurnedItOff() {
         show(Fake(alcohol = false))
         compose.onNodeWithText("Alcohol").assertDoesNotExist()

@@ -226,10 +226,22 @@ fun CheckInScreen(
                 }
             }
 
-            // Sleep: her own value for the night (imported nights arrive with Health Connect, M7).
-            Section("Sleep last night", trailing = { Optional() }) {
+            // Sleep: read-only when Health Connect has this night (it's the source of truth for
+            // nights it covers); otherwise she can add or adjust her own.
+            Section("Sleep last night", trailing = { if (draft.sleepFromHealth) FromHealthConnect() else Optional() }) {
                 val hours = draft.sleepHours
-                if (hours != null) {
+                if (draft.sleepFromHealth && hours != null) {
+                    val shape = RoundedCornerShape(Radius.card)
+                    Row(
+                        Modifier.fillMaxWidth().clip(shape).background(theme.card).border(1.dp, theme.border, shape)
+                            .padding(horizontal = 14.dp, vertical = 12.dp),
+                        horizontalArrangement = Arrangement.spacedBy(14.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                    ) {
+                        Icon(KeelIcons.moon, null, tint = theme.sage, modifier = Modifier.size(15.dp))
+                        Text(CheckInRules.sleepLabel(hours), style = KeelFont.sans(16.sp, FontWeight.Medium), color = theme.text)
+                    }
+                } else if (hours != null) {
                     StepperRow(
                         leading = { Icon(KeelIcons.moon, null, tint = theme.sage, modifier = Modifier.size(15.dp)) },
                         value = CheckInRules.sleepLabel(hours), valueMinWidth = 68,
@@ -380,6 +392,16 @@ private fun Section(title: String, trailing: @Composable () -> Unit = {}, conten
 @Composable
 private fun Optional() {
     Text("Optional", style = KeelFont.sans(12.sp), color = LocalKeelTheme.current.muted)
+}
+
+/** Where a night's sleep came from, when it isn't hers to edit (iOS Label "Apple Health" with heart.fill). */
+@Composable
+private fun FromHealthConnect() {
+    val muted = LocalKeelTheme.current.muted
+    Row(Modifier.semantics(mergeDescendants = true) {}, horizontalArrangement = Arrangement.spacedBy(4.dp), verticalAlignment = Alignment.CenterVertically) {
+        Icon(KeelIcons.heart, null, tint = muted, modifier = Modifier.size(12.dp))
+        Text("Health Connect", style = KeelFont.sans(12.sp), color = muted)
+    }
 }
 
 /** A dashed "add" pill (Add hours, Add a number, More). */

@@ -54,9 +54,9 @@ test classes keep the iOS name. Suites not listed yet are ported with their mile
 | CycleTimelineTests (3) | core/domain `CycleTimelineTests` | ported |
 | CycleRepositoryTests (7) | core/data `CycleRepositoryTests` | ported with a fixed clock |
 | CycleRepositoryFlowTests: setFlowUpsertsAndClears, togglePeriodDayLogsUnspecified, statsFromLoggedStarts, spottingDayDoesNotReanchorThePhase, catchingUpTheLatestPeriodReanchorsThePhase | core/data `CycleRepositoryTests` | ported (+ one entry per day, days follow her zone) |
-| CycleRepositoryFlowTests: healthFlowImportsApartFromHerCycleEntries | | with Health Connect (M7) |
+| CycleRepositoryFlowTests: healthFlowImportsApartFromHerCycleEntries | core/data `CycleRepositoryTests.healthFlowImportsApartFromHerCycleEntries` | ported |
 | AppleHealthPeriodsTests: herOwnEntryWinsAndTheDayIsShownOnce | core/domain `CycleTimelineTests.herOwnEntryWinsAndTheDayIsShownOnce` | ported |
-| AppleHealthPeriodsTests: the rest | | with Health Connect (M7) |
+| AppleHealthPeriodsTests: syncRemovesDeletedDaysOnlyOnceSheHasAnsweredForPeriods | app `HealthConnectFlowTests.syncRemovesDeletedDaysOnlyOnceSheHasAnsweredForPeriods` | ported (the rest of the suite is in the rows for `HealthFlowTests` and `HealthConnectPeriodsTests`) |
 | PatternEngineTests (4) | core/domain `PatternEngineTests` | ported on the pure engine (the store-building tests feed it cycle days directly) (+ 120-day window) |
 | (Android) Cycle screen | feature/cycle `CycleModelTests`, `CycleScreenTests` | new: the iOS view's derived values are untested there |
 | (Android) Looking back cards | core/data `InsightRepositoryTests` | new: iOS has no `InsightRepository` test (five-day minimum, rewritten each launch, spotting store path) |
@@ -73,7 +73,7 @@ test classes keep the iOS name. Suites not listed yet are ported with their mile
 | (Android) GP period windows | core/domain `GPPeriodTests` | new: the preset and custom windows iOS covers only through the service |
 | GPSummaryServiceTests: resolvesCountsSymptomsCycleAndMeds, autoSectionsIncludedByDefaultAndRemovable, stoppedTreatmentsShowInMHTAndChangesButNotOtherTables, periodsNotApplicableReasonFlowsIntoCycleBlock, energyAverageSkipsCheckInsWithoutAnEnergyPick, stopOutsideWindowIsNotShown, nameAndAgeOffByDefaultAndPrioritiesDropSymptomRow, emptyStoreGivesHonestEmptyStates | core/data `GPSummaryServiceTests` | ported (+ the exact last period start and period label, which iOS left loose because its cycle repository used the machine calendar) |
 | GPSummaryServiceTests: pdfFileNameIsDateBasedNotHex | feature/gpsummary `GPSummaryMetadataTests.fileNameIsTheDateSheMadeIt`, androidTest `GPSummaryPdfRendererTests.fileNameIsTheDateSheMadeIt` | ported (exact name) |
-| GPSummaryServiceTests: importedAppleHealthPeriodsAreNotInTheSummary | | with Health Connect (M7): Android has no imported periods yet |
+| GPSummaryServiceTests: importedAppleHealthPeriodsAreNotInTheSummary | core/data `GPSummaryServiceTests.importedHealthConnectPeriodsAreNotInTheSummary` | ported |
 | (Android) GP summary service | core/data `GPSummaryServiceTests`: ageAndOptInsComeFromHerProfile, thePlaceholderNameIsNeverOfferedOrPrinted (D26), thePreviousColumnCountsTheWindowJustBefore, aScheduledMedicineReadsAsItsScheduleInHerWords | new |
 | HysterectomyTests: theSixOptionsMatchTheSpec, summaryLineMatchesHerAnswer, yearMustBePlausible | core/domain `HysterectomyTests` (+ raw values match iOS) | ported |
 | HysterectomyTests: recordsTheAnswerAndKeepsAYearOnlyForYes, offByDefaultOnTheSummary, includedOnlyWhenSheTurnsItOn, ratherNotSayIsNeverOfferedOrPrinted | core/data `HysterectomyTests` | ported |
@@ -120,3 +120,4 @@ test classes keep the iOS name. Suites not listed yet are ported with their mile
 | (Android) Connecting to Health Connect | app `HealthConnectFlowTests` | new: what's asked, connected when anything is allowed (D4), refused counts as asked, the Play Store on Android 9 to 13, no screen to ask from, retries after an empty first read, the periods window with and without history, Disconnect revokes (D4), item switches, removing imports |
 | (Android) Opening Health Connect | core/platform `HealthConnectPermissionsTests` | new: regressions for two "Manage access" crashes (no new task from the app; the system-only per-app page), the Play Store link, no request without an activity |
 | EraseAllDataTests: Health Connect | app `KeelAppControllerTests.deletesEverythingAndResetsTheRest` | Android only: access revoked and the asked set cleared (D4) |
+| (Android) Imported data on the screens | app `KeelAppControllerTests.importedHealthDataReachesTheScreensThatShowIt`, `checkInSleepIsHersOrHealthConnectsReadOnly`; feature/checkin `CheckInScreenTests.aNightFromHealthConnectIsReadOnly` | new: Home sleep, Cycle, Activities, Stats get the imports; the check-in's night is hers (editable) or Health Connect's (read-only, never saved into her entries), as iOS `loadSleep` |

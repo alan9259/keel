@@ -59,7 +59,8 @@ internal class FakeHealthSource : HealthDataSource {
             holdNextRead = false
             CompletableDeferred<Unit>().also { held = it }.await()
         }
-        return snapshotToReturn
+        // As the real source: the periods window only when periods are allowed.
+        return snapshotToReturn.copy(flowWindowStart = flowWindowStart.takeIf { HealthConnectReads.MENSTRUATION in granted })
     }
 
     val isHoldingRead: Boolean get() = held != null

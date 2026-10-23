@@ -22,6 +22,10 @@ class HealthRepository(private val health: HealthDatabase, private val clock: Ke
     fun observeActivity(activityId: String): Flow<List<DayAmount>> =
         health.activity().observeLiveOf(activityId).map { rows -> rows.map { DayAmount(it.activityID, day(it.date), it.amount) } }
 
+    /** One imported amount for a day (the check-in's night of sleep), or null. */
+    suspend fun amount(activityId: String, on: LocalDate): Double? =
+        health.activity().liveOf(activityId).firstOrNull { day(it.date) == on }?.amount
+
     /** Imported readings (vitals, energy, distance, flights), live. */
     fun observeReadings(): Flow<List<Pair<HealthSampleEntity, LocalDate>>> =
         health.samples().observeLive().map { rows -> rows.map { it to day(it.day) } }

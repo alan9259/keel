@@ -105,6 +105,26 @@ class GPSummaryServiceTests {
 
     private suspend fun doc(inputs: GPSummaryInputs = GPSummaryInputs()) = s.service.makeDocument(inputs, s.clock.now())
 
+    /**
+     * Port of testImportedAppleHealthPeriodsAreNotInTheSummary: periods imported from Health
+     * Connect never reach the GP Visit Summary, whose cycle block reads only the periods she
+     * logged in Keel (the service can't even see the health store).
+     */
+    @Test fun importedHealthConnectPeriodsAreNotInTheSummary() = runBlocking {
+        val health = com.therecalibrationyears.keel.data.db.HealthDatabase.inMemory(org.robolectric.RuntimeEnvironment.getApplication())
+        try {
+            HealthIngestor(health, s.db, { "test-owner" }, s.clock).ingest(
+                com.therecalibrationyears.keel.domain.HealthSnapshot(menstrualFlow = listOf(-40, -39, -12, -11).associate { s.d(it) to FlowLevel.MEDIUM }),
+            )
+            val doc = doc(GPSummaryInputs(period = GPPeriod.TwelveWeeks))
+            assertEquals(0, doc.cycle.periodsRecorded)
+            assertNull(doc.cycle.lastPeriodStart)
+            assertNull(doc.cycle.flow)
+        } finally {
+            health.close()
+        }
+    }
+
     @Test fun resolvesCountsSymptomsCycleAndMeds() = runBlocking {
         s.seedFullPicture()
         val doc = doc(GPSummaryInputs(period = GPPeriod.FourWeeks, includeName = true))

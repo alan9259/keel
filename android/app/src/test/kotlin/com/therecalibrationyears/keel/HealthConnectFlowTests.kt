@@ -140,6 +140,26 @@ class HealthConnectFlowTests {
         assertNull(source.lastWindow)
     }
 
+    /**
+     * Port of AppleHealthPeriodsTests.testSyncRemovesDeletedDaysOnlyOnceSheHasAnsweredForPeriods:
+     * until she has answered for everything Keel reads, an empty read means "not shared yet".
+     */
+    @Test fun syncRemovesDeletedDaysOnlyOnceSheHasAnsweredForPeriods() = runBlocking {
+        bed.users.setHealthConnected(true)
+        source.granted = HealthConnectReads.all.toSet()
+        source.snapshotToReturn = HealthSnapshot(sleepByDay = mapOf(bed.today to 7.0)) // no periods returned
+        bed.health.removeImported()
+        com.therecalibrationyears.keel.data.HealthIngestor(bed.healthDb, bed.main, { "o" }, bed.clock)
+            .ingest(HealthSnapshot(menstrualFlow = mapOf(bed.today.minusDays(2) to com.therecalibrationyears.keel.domain.FlowLevel.MEDIUM)))
+
+        health.runSync(force = true) // not answered for everything yet
+        assertEquals(1, bed.healthDb.flow().live().size)
+
+        bed.everythingAsked() // answered: an empty read now means none
+        health.runSync(force = true)
+        assertTrue(bed.healthDb.flow().live().isEmpty())
+    }
+
     /** Disconnect (D4): access revoked, no more reads, imports kept, and no offer next launch. */
     @Test fun disconnectRevokesAndStopsReading() = runBlocking {
         bed.connectAndSettle()

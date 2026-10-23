@@ -22,7 +22,7 @@ import org.robolectric.annotation.Config
 /**
  * Port of KeelTests/CycleRepositoryTests.swift and CycleRepositoryFlowTests.swift: period
  * logging, flow levels and the gentle phase estimate, on an in-memory store. "Today" is a
- * fixed day (iOS used the wall clock). The Apple Health import test arrives with M7.
+ * fixed day (iOS used the wall clock).
  */
 @RunWith(RobolectricTestRunner::class)
 @Config(sdk = [34])
@@ -121,6 +121,27 @@ class CycleRepositoryTests {
         repo.setFlow(FlowLevel.MEDIUM, today.minusDays(3)) // she backfills the one she had
         assertEquals(today.minusDays(3), repo.cycleStart(before = today))
         assertEquals(CyclePhase.MENSTRUAL, repo.estimatedPhase(today))
+    }
+
+    /**
+     * Port of testHealthFlowImportsApartFromHerCycleEntries: Health Connect periods go to the
+     * health store, never into her own cycle entries, so a day she typed keeps her value and an
+     * imported-only day is no `CycleEntry` (which estimates read).
+     */
+    @Test fun healthFlowImportsApartFromHerCycleEntries() = runBlocking {
+        val health = com.therecalibrationyears.keel.data.db.HealthDatabase.inMemory(org.robolectric.RuntimeEnvironment.getApplication())
+        try {
+            val manualDay = today.minusDays(1)
+            repo.setFlow(FlowLevel.HEAVY, manualDay) // she logged this by hand
+            HealthIngestor(health, db, { "test-owner" }, clock).ingest(
+                com.therecalibrationyears.keel.domain.HealthSnapshot(menstrualFlow = mapOf(manualDay to FlowLevel.LIGHT, today.minusDays(3) to FlowLevel.MEDIUM)),
+            )
+            assertEquals(FlowLevel.HEAVY, repo.flow(manualDay)) // her value stands
+            assertNull(repo.flow(today.minusDays(3))) // not written into her entries
+            assertEquals(mapOf(manualDay to FlowLevel.LIGHT, today.minusDays(3) to FlowLevel.MEDIUM), HealthRepository(health, clock).observeFlow().first())
+        } finally {
+            health.close()
+        }
     }
 
     /** Days are her local days: a period logged in Sydney stays on that day. */

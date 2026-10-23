@@ -35,7 +35,8 @@ class KeelHealth(
     private val source: HealthDataSource,
     private val permissions: HealthPermissionRequesting,
     private val ingestor: HealthIngestor,
-    private val repository: HealthRepository,
+    /** What has been imported, for the screens that show it beside her own record. */
+    val imported: HealthRepository,
     private val users: UserRepository,
     private val settings: SettingsStore,
     private val clock: KeelClock,
@@ -57,8 +58,8 @@ class KeelHealth(
     /** Whether she has connected (her profile's flag), re-read at each step so a Disconnect mid-sync counts. */
     suspend fun isConnected(): Boolean = users.currentProfile()?.healthConnected == true
 
-    val hasImportedData: Flow<Boolean> = repository.observeHasImportedData()
-    suspend fun hasImportedData(): Boolean = repository.hasImportedData()
+    val hasImportedData: Flow<Boolean> = imported.observeHasImportedData()
+    suspend fun hasImportedData(): Boolean = imported.hasImportedData()
 
     suspend fun availability(): HealthAvailability = source.availability()
 
@@ -95,7 +96,7 @@ class KeelHealth(
             scope.launch {
                 for (wait in retryDelays) {
                     delay(wait.toMillis())
-                    if (repository.hasImportedData() || !isConnected()) return@launch
+                    if (imported.hasImportedData() || !isConnected()) return@launch
                     sync(force = true)
                 }
             }

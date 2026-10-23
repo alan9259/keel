@@ -14,6 +14,7 @@ import com.therecalibrationyears.keel.domain.MonthSummary
 import com.therecalibrationyears.keel.insights.ActivitiesActions
 import com.therecalibrationyears.keel.insights.ActivitiesData
 import com.therecalibrationyears.keel.insights.DayFeeling
+import com.therecalibrationyears.keel.insights.HealthReading
 import com.therecalibrationyears.keel.insights.LookingBackActions
 import com.therecalibrationyears.keel.insights.StatsActions
 import com.therecalibrationyears.keel.insights.StatsData
@@ -175,6 +176,10 @@ class KeelAppController(
     /** She answered the offer (Continue): not made again on this install. */
     suspend fun answerHealthOffer(offer: HealthOffer) = health.answerOffer(offer)
 
+    /** Readings imported from Health Connect (vitals, energy, distance, flights), as Activities and Stats show them. */
+    private val importedReadings: Flow<List<HealthReading>> =
+        health.imported.observeReadings().map { rows -> rows.map { (row, day) -> HealthReading(row.typeID, day, row.value) } }
+
     /** The Health Connect screen's view of the app. */
     val healthConnectActions: HealthConnectActions = object : HealthConnectActions {
         override val connected: Flow<Boolean> = users.observeCurrentProfile().map { it?.healthConnected == true }
@@ -270,14 +275,16 @@ class KeelAppController(
             .stateIn(scope, SharingStarted.Eagerly, null)
 
     /**
-     * Everything Home reads, live from the database. Imported sleep is empty until Health
-     * Connect is integrated (M7): nothing is imported yet, so nothing is shown for it.
+     * Everything Home reads, live from the database: her records, and nights imported from
+     * Health Connect (her own entry wins for a night she logged).
      */
     val homeData: Flow<HomeData> = combine(
         checkIns.observeLive(), checkIns.observeLoggedSymptoms(), medications.observeActive(), medications.observeLogs(),
-        combine(activities.observeAmounts("sleep"), settings.moodPackId) { sleep, pack -> sleep to pack },
-    ) { checkInList, symptoms, meds, logs, (sleep, pack) ->
-        HomeData(checkInList, symptoms, meds, logs, manualSleep = sleep, importedSleep = emptyList(), moodPackId = pack)
+        combine(activities.observeAmounts("sleep"), health.imported.observeActivity("sleep"), settings.moodPackId) { sleep, imported, pack ->
+            Triple(sleep, imported, pack)
+        },
+    ) { checkInList, symptoms, meds, logs, (sleep, imported, pack) ->
+        HomeData(checkInList, symptoms, meds, logs, manualSleep = sleep, importedSleep = imported, moodPackId = pack)
     }
 
     /**
@@ -328,10 +335,13 @@ class KeelAppController(
         override suspend fun quickChipIds(): List<String> = symptoms.defaultChips().map { it.id }
 
         override suspend fun loadDraft(request: CheckInRequest): CheckInDraft {
-            val sleep = activities.manualSleep(request.day)
-            val entry = request.editingId?.let { checkIns.entry(it) } ?: return CheckInDraft(sleepHours = sleep)
-            return CheckInDraft(
-                energy = entry.energyLevel, notes = entry.notes.orEmpty(), sleepHours = sleep, alcohol = entry.alcoholCount,
+            // Her own entry for the night (editable) comes first; otherwise Health Connect's, read-only (iOS `loadSleep`).
+            val manual = activities.manualSleep(request.day)
+            val imported = if (manual == null) health.imported.amount("sleep", request.day) else null
+            val sleep = CheckInDraft(sleepHours = manual ?: imported, sleepFromHealth = imported != null)
+            val entry = request.editingId?.let { checkIns.entry(it) } ?: return sleep
+            return sleep.copy(
+                energy = entry.energyLevel, notes = entry.notes.orEmpty(), alcohol = entry.alcoholCount,
                 selected = checkIns.picks(entry.id).associate { it.symptomId to it.severity },
             )
         }
@@ -381,17 +391,17 @@ class KeelAppController(
     }
 
     /**
-     * The Cycle screen's view of the app: her period days, live, and the cycle-length finding
-     * from the pattern engine (iOS reads it from the same records). Imported period days are
-     * empty until Health Connect is integrated (M7): nothing is imported yet, so none show.
+     * The Cycle screen's view of the app: her period days, live, the days imported from Health
+     * Connect (shown outlined, never used for an estimate), and the cycle-length finding from
+     * the pattern engine, which reads only her own days (iOS reads it from the same records).
      */
     val cycleActions: CycleActions = object : CycleActions {
-        override val data: Flow<CycleData> = combine(cycle.observeDays(), checkIns.observeLive()) { days, entries ->
+        override val data: Flow<CycleData> = combine(cycle.observeDays(), checkIns.observeLive(), health.imported.observeFlow()) { days, entries, imported ->
             val zone = clock.zone()
             val today = clock.now().atZone(zone).toLocalDate()
             val finding = PatternEngine.build(entries.map { it.date.atZone(zone).toLocalDate() }, days, today)
                 .findings().firstOrNull { it.kind == PatternFinding.Kind.CYCLE_VARIABILITY }
-            CycleData(days = days, imported = emptyMap(), finding = finding)
+            CycleData(days = days, imported = imported, finding = finding)
         }
         override val zone: ZoneId get() = clock.zone()
         override fun now(): Instant = clock.now()
@@ -419,19 +429,21 @@ class KeelAppController(
     }
 
     /**
-     * The Activities screen's view of the app (iOS `ActivitiesView`): her own entries, her
-     * check-ins, the Health Connect items she has on, and whether it's connected. Imported
-     * amounts and readings are empty until Health Connect is integrated (M7): nothing is
-     * imported yet, so those tiles say "No data yet".
+     * The Activities screen's view of the app (iOS `ActivitiesView`): her own entries, what
+     * Health Connect brought in (amounts and readings), her check-ins, the Health Connect items
+     * she has on, and whether it's connected.
      */
     val activitiesActions: ActivitiesActions = object : ActivitiesActions {
         override val data: Flow<ActivitiesData> = combine(
-            activities.observeAll(), checkIns.observeLive(), settings.disabledHealthItemIds,
+            combine(activities.observeAll(), health.imported.observeActivity(), importedReadings) { manual, imported, readings ->
+                Triple(manual, imported, readings)
+            },
+            checkIns.observeLive(), settings.disabledHealthItemIds,
             users.observeCurrentProfile(), moodPack,
-        ) { manual, entries, disabled, profile, pack ->
+        ) { (manual, imported, readings), entries, disabled, profile, pack ->
             val zone = clock.zone()
             ActivitiesData(
-                manual = manual, imported = emptyList(), readings = emptyList(),
+                manual = manual, imported = imported, readings = readings,
                 feelings = entries.map { DayFeeling(it.date.atZone(zone).toLocalDate(), it.mood, it.energyLevel) },
                 disabledItems = disabled, healthConnected = profile?.healthConnected == true, moodPack = pack,
             )
@@ -444,14 +456,16 @@ class KeelAppController(
 
     /**
      * The Stats screen's view of the app (iOS `ReportsView`): her check-ins with their
-     * symptoms, her medicines and the days one was recorded as taken, and her sleep.
-     * Imported nights and readings are empty until Health Connect is integrated (M7).
+     * symptoms, her medicines and the days one was recorded as taken, her sleep (with nights
+     * from Health Connect where she logged none) and the readings Health Connect brought in.
      */
     val statsActions: StatsActions = object : StatsActions {
         override val data: Flow<StatsData> = combine(
             checkIns.observeLive(), checkIns.observeLoggedSymptoms(), medications.observeActive(), medications.observeLogs(),
-            activities.observeAmounts("sleep"),
-        ) { entries, logged, meds, logs, sleep ->
+            combine(activities.observeAmounts("sleep"), health.imported.observeActivity("sleep"), importedReadings) { sleep, imported, readings ->
+                Triple(sleep, imported, readings)
+            },
+        ) { entries, logged, meds, logs, (sleep, importedSleep, readings) ->
             val zone = clock.zone()
             val names = logged.groupBy({ it.checkInID }, { it.name })
             StatsData(
@@ -459,7 +473,7 @@ class KeelAppController(
                 activeMedicineCount = meds.size,
                 anyAutoLogged = meds.any { it.autoLogDoses },
                 takenDays = logs.filter { it.taken }.map { it.date.atZone(zone).toLocalDate() },
-                manualSleep = sleep, importedSleep = emptyList(), readings = emptyList(),
+                manualSleep = sleep, importedSleep = importedSleep, readings = readings,
             )
         }
         override val zone: ZoneId get() = clock.zone()
