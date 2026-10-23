@@ -19,7 +19,9 @@
 > More, Settings and "Delete all my data", Themes, Colour mode, Mood icons, Profile, About,
 > Connect, Get support, Backup & Restore (with the shared backup fixtures) and the app lock. Your
 > privacy is built but shows its title only until the owner's Android wording arrives (D3).
-> Next: M7 (Health Connect).
+> **M7 is done** (see "M7 Health Connect"): reader, permissions, connect, launch offer, sync,
+> the Health Connect screen, and imported data on Home, check-in, Cycle, Activities and Stats.
+> Next: M8 (polish and release).
 
 ## Context
 
@@ -641,6 +643,43 @@ fingerprint unlock, "Enter PIN instead" to the pad, forgot PIN through the scree
 PIN. API 28: set, cold launch locked, PIN unlock, the window secure while on and not after. Not
 verified: real fingerprint or face hardware, biometrics or the screen-lock prompt on Android 9
 and 10 (the API 28 emulator has no fingerprint set up), OEM screen-lock screens.
+
+### M7 Health Connect (23 to 24 Oct 2026)
+Built in five slices: the import rules and separate health store (`HealthImport.kt`,
+`HealthIngestor`, `HealthDatabase`); the reader (`core/platform` `HealthConnectSource`:
+aggregates in 90-day pieces for totals and averages, paged records for sleep stages, HRV,
+breathing, blood oxygen, temperatures and periods, skin temperature only with a baseline); the
+manifest (exactly `HealthConnectReads.all`, the package query, the privacy rationale activity and
+permission-usage alias, all checked by `HealthConnectManifestTests`); `KeelHealth` in `app` (port
+of the health part of `AppEnvironment`: connect, launch offer, sync, disconnect, item switches,
+remove imports) behind `HealthDataSource` and `HealthPermissionRequesting`, so the iOS sync and
+offer tests port against fakes (the `connect-testing` library pins pre-release client versions,
+so it isn't used); the Health Connect screen (`feature/settings`); and the imported data on Home's
+sleep strip, the check-in (her night editable, Health Connect's read-only), Cycle (outlined, never
+estimated from), Activities and Stats. Never the GP summary.
+
+Found on the emulator and fixed: "Manage access" crashed twice, first starting from the app
+context without a new task, then with `ACTION_MANAGE_HEALTH_PERMISSIONS`, which Android refuses to
+apps (it now opens Health Connect's home, whose App permissions the note's wording names).
+Platform behaviour worth knowing: Health Connect asks for past data (history) on a second screen;
+`revokeAllPermissions` is applied only after Keel's process ends; on a fresh emulator daily totals
+read empty until Health Connect's own screens have been opened once (its source list). Wording:
+18 sentences in `platform-substitutions.json` and one Android addition ("Health Connect isn't
+available on this phone.") wait for the owner (D12); the Update offer's message can't name a new
+read as iOS's does ("periods"), so it says "Keel can now read more from Health Connect."
+
+Verified on the API 36 emulator (debug and R8 release) with a seeded week (`uitHealthSeed`,
+`uitHealthProbe`): every value read back as seeded; onboarding Continue to Health Connect's dialog,
+its privacy link to Keel's screen, Allow, the import; the screen (sync now, remove, the no-data
+note, Manage access, Disconnect revoking); the launch offer and refusing; Home, check-in, Cycle,
+Activities and Stats showing the imports. API 28: "update required", Continue opens the Play Store.
+Not verified: a real phone with real sources (a wearable, two apps writing steps for the
+de-duplication, Health Connect's own app-priority choices), installing Health Connect from Play on
+Android 9 to 13 (needs a Google sign-in), the 30-day limit without history on a real install,
+Health Connect's rationale and permission-usage entry on Android 14+ beyond the emulator, and
+large real data volumes (a year of minute-level heart rate). Once, during the emulator run, the
+Flights switch was found off after scroll gestures were sent while the screen was still loading;
+the switch itself works, and the cause wasn't pinned down.
 
 ### Reminders on time (21 Oct 2026, D25)
 Built: `ExactTiming` rules (`core/domain`); `ExactAlarms` (`core/platform`: whether Android
