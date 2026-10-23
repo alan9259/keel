@@ -61,3 +61,10 @@ tasks.withType<Test>().configureEach {
     systemProperty("keel.repoRoot", repoRoot.asFile.absolutePath)
     inputs.file(repoRoot.file("Keel/Resources/treatment-catalog.json")).withPropertyName("iosCatalog").withPathSensitivity(PathSensitivity.RELATIVE)
 }
+
+// The backup tests read the shared fixtures (repo-root fixtures/, written by Swift's encoder from
+// the iOS backup structs; see tools/ios-backup), so a change there re-runs them.
+tasks.withType<Test>().configureEach {
+    inputs.dir(rootProject.layout.projectDirectory.dir("../fixtures")).withPropertyName("sharedFixtures")
+        .withPathSensitivity(PathSensitivity.RELATIVE)
+}

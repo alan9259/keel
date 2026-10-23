@@ -19,7 +19,7 @@
 > "Delete all my data"), Themes, Colour mode and Mood icons are built (see "M6 More and
 > Settings"), then Profile, About, Connect and Get support (see "M6 Profile, About, Connect,
 > Get support"); Your privacy waits on the owner's Android wording (D3). Next: Backup & Restore,
-> App lock.
+> App lock. **Backup & Restore is built** (see "M6 Backup & Restore"). Next: App lock.
 
 ## Context
 
@@ -579,6 +579,39 @@ filled, saved and reloaded (age 49 stored as 1977, answer, year, note), About, C
 support (Australia from the emulator's Brisbane zone); Connect and Get support on API 28 in dark
 mode. Not verified: dialling on a real phone, Instagram or Facebook apps (not installed on the
 emulators; the links are unit-tested).
+
+### M6 Backup & Restore (23 Oct 2026)
+
+The backup format (plan §1.5, which M1 had left for later) is ported in core/data `backup/`:
+`BackupCodec` writes and reads the iOS `KeelBackup` JSON by hand (kotlinx's tree API, no plugin),
+with the same keys, every top-level key iOS requires (`chatMessages` and `dailySummaries` as
+`[]`), dates in whole seconds UTC (Swift's `.iso8601` rejects fractions), empty optionals left
+out, keys sorted, whole numbers without a fraction (as Swift writes a Double), ids upper case,
+and the iOS DTOs' fallbacks on reading (startDate, severity, source, isDefaultChip, the schedule
+columns only beside a schedule kind, activity logs without the envelope). Medicines carry
+`isTracked`, `autoLogDoses`, `stoppedAt` as extra keys (D1; iOS ignores them). `BackupService`
+exports every row (removed ones too), refuses a newer format with the iOS message, and restores
+in one Room transaction, keeping this phone's Health Connect state and onboarding, skipping
+links to missing rows. Imported readings (`HealthSample`) now have the separate health database
+the plan describes (`keel-health.db`, M7 adds the other imported tables), so an iPhone backup's
+readings survive, and "Delete all my data" clears it. After a restore Android also runs the two
+legacy medicine tidy-ups and lays reminders out again (iOS waits for the next launch). Screen:
+`BackupRestoreScreen`, Export through Android's "Save to" picker and Restore through its file
+picker (D17); one Android-only sentence, "That file isn't a valid Keel backup." (iOS appends the
+system's error text), is in `android-additions.json`. **Cross-platform proof without changing
+iOS:** `android/tools/ios-backup/run.sh` compiles the iOS backup structs (extracted from
+`KeelBackup.swift` without their model methods) with Swift: `fixture` writes
+`fixtures/backup/v1-ios-sample.keelbackup` with Swift's own `JSONEncoder` (legacy shapes, a
+dangling link, a custom category, a two-slot schedule, Unicode notes, doubles 7.5/58/0.1,
+Sydney days either side of the 4 Oct DST change), and `read` decodes any file with Swift's
+`JSONDecoder` as iOS does. Verified on the API 36 emulator (debug and release): the iPhone file
+restored through the file picker (3 check-ins, links rebuilt and the dangling one skipped,
+Magnesium carried onto a schedule, the example brand removed, readings restored, 32 medicine
+reminders armed, not connected, still onboarded); Export saved `Keel-backup-…-2204.keelbackup`
+and Swift decoded it; export, uninstall, reinstall, restore brought everything back. On API 28 a
+real 100-check-in store exported (175 kB) and Swift decoded it. Not verified: the iOS app itself
+restoring an Android file (Swift's decoder reads it; the iOS restore code wasn't run), cloud
+providers in the picker (Drive), and very large archives.
 
 ### Reminders on time (21 Oct 2026, D25)
 Built: `ExactTiming` rules (`core/domain`); `ExactAlarms` (`core/platform`: whether Android

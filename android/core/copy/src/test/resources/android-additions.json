@@ -38,5 +38,10 @@
     "android": "Android can hold them back by up to an hour to save battery. To get them on time, allow Keel to set alarms and reminders.",
     "approvedByOwner": false,
     "note": "Android only (plan D25): note at the top of the Reminders screen while exact alarms are off and a reminder is on. Tapping it (\"Open Settings\", iOS wording) opens Android's Alarms & reminders page. Message."
+  },
+  {
+    "android": "That file isn't a valid Keel backup.",
+    "approvedByOwner": false,
+    "note": "Backup & Restore, when the chosen file can't be read. iOS shows \"That file isn't a valid Keel backup.\" followed by the system's own error description (e.g. \"The data couldn't be read because it is missing.\"); Android has no equivalent user-facing text, so the first sentence stands alone."
   }
 ]

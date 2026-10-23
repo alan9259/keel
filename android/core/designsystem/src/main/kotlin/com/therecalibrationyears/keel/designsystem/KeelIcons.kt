@@ -385,6 +385,21 @@ object KeelIcons {
         "M20 4H4c-1.1 0-1.99.9-1.99 2L2 18c0 1.1.9 2 2 2h16c1.1 0 2-.9 2-2V6c0-1.1-.9-2-2-2zm0 14H4V8l8 5 8-5v10zm-8-7L4 6h16l-8 5z",
     )
 
+    /** SF "iphone" (this phone, on Backup & Restore). */
+    val smartphone = icon(
+        "smartphone",
+        "M17 1.01L7 1c-1.1 0-2 .9-2 2v18c0 1.1.9 2 2 2h10c1.1 0 2-.9 2-2V3c0-1.1-.9-1.99-2-1.99zM17 19H7V5h10v14z",
+    )
+
+    /** SF "arrow.down.to.line" (Export data). */
+    val download = icon("download", "M5,20h14v-2H5V20z M19,9h-4V3H9v6H5l7,7L19,9z")
+
+    /** SF "arrow.up.doc" (Restore from a file). */
+    val uploadFile = icon(
+        "uploadFile",
+        "M14 2H6c-1.1 0-1.99.9-1.99 2L4 20c0 1.1.89 2 1.99 2H18c1.1 0 2-.9 2-2V8l-6-6zm4 18H6V4h7v5h5v11zM8 15.01l1.41 1.41L11 14.84V19h2v-4.16l1.59 1.59L16 15.01 12.01 11z",
+    )
+
     /**
      * Instagram's and Facebook's official single-colour glyphs (Connect with Us), the same path
      * data as the iOS asset catalog (`SocialInstagram`, `SocialFacebook`; checked by

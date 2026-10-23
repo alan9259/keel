@@ -62,7 +62,8 @@ adb exec-out screencap -p > shot.png
 - `core/domain` (JVM): pure rules and value types (`Pathway`, `RootRouting`, `KeelClock`,
   `SyncStatus`), ported with their tests.
 - `core/data` (Android library): Room `MainDatabase` (profile, check-ins, symptoms, medicines,
-  activity, cycle),
+  activity, cycle), `HealthDatabase` (imported readings, kept apart), the backup format and
+  service (`backup/`, the iOS `.keelbackup` JSON),
   repositories (`UserRepository`), `SettingsStore` and `LocalIdentity` on one DataStore
   file, `DeviceContext`. Same keys, raw values and rules as iOS.
 - `core/copy` (JVM): the copy tests, which read the iOS Swift sources and all shipping
@@ -145,11 +146,20 @@ create_account, pathway, health, ready). For a truly fresh start:
   "Try out your stylus" sheet that swallows typed text. Turn it off once per emulator:
   `adb shell settings put secure stylus_handwriting_enabled 0`.
 - **Stand-ins:** `grep -rn "// FAKE:" android/` lists them (currently: the title-only feature
-  screens in `MainShell.kt` (App lock, Backup & Restore, Your privacy until the owner's Android
-  wording, Health Connect), the Health Connect request in
+  screens in `MainShell.kt` (App lock, Your privacy until the owner's Android wording, Health
+  Connect), the Health Connect request in
   `KeelAppController.kt`, and the Play link in `ShareInvite`).
+- **Backup format:** iOS reads it with Swift's `JSONDecoder` (`.iso8601`, no fractions, every
+  top-level key required). After changing `BackupCodec`, re-run the Android tests (the committed
+  `fixtures/backup/v1-android-export.keelbackup` must be refreshed from
+  `core/data/build/backup/`) and check iOS can still read it:
+  `tools/ios-backup/run.sh read ../fixtures/backup/v1-android-export.keelbackup`. If the iOS
+  `KeelBackup.swift` changes, `tools/ios-backup/run.sh fixture` rewrites the iPhone sample.
+- **Files on an emulator:** `adb push` into `/sdcard/Download/` doesn't index the file; the
+  picker shows it under its side menu's Downloads (or run
+  `adb shell content call --method scan_volume --uri content://media --arg external_primary`).
 - **"Delete all my data"** (`KeelAppController.eraseAllData`) wipes every table with
-  `clearAllTables`, so a new table is covered automatically; anything Keel keeps outside the
+  `clearAllTables` (both databases), so a new table is covered automatically; anything Keel keeps outside the
   database (a DataStore key, a file, an alarm, a Keystore key) must be added to it by hand, with
   a line in `deletesEverythingAndResetsTheRest`. To try it on an emulator, launch without
   `uitOnboarded` (that flag keeps the app past onboarding even with no profile).

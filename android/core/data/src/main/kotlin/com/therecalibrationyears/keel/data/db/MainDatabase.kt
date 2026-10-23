@@ -29,6 +29,7 @@ abstract class MainDatabase : RoomDatabase() {
     abstract fun activityLogs(): ActivityLogDao
     abstract fun cycle(): CycleDao
     abstract fun insights(): InsightDao
+    abstract fun backup(): BackupDao
 
     companion object {
         private const val FILE_NAME = "keel-main.db"

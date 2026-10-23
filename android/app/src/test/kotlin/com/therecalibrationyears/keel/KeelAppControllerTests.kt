@@ -14,6 +14,8 @@ import com.therecalibrationyears.keel.data.MedicationRepository
 import com.therecalibrationyears.keel.data.SettingsStore
 import com.therecalibrationyears.keel.data.SymptomRepository
 import com.therecalibrationyears.keel.data.RecordEraser
+import com.therecalibrationyears.keel.data.backup.BackupService
+import com.therecalibrationyears.keel.data.db.HealthDatabase
 import com.therecalibrationyears.keel.settings.AppInfo
 import com.therecalibrationyears.keel.checkin.CheckInDraft
 import com.therecalibrationyears.keel.checkin.CheckInRequest
@@ -73,14 +75,18 @@ class KeelAppControllerTests {
 
     private val device = DeviceContext("AU", "en_AU", "Australia/Sydney", "1.0.0 (1)", "Google Pixel 8", "Android 16 (API 36)")
 
+    private lateinit var health: HealthDatabase
+
     @Before fun setUp() {
         db = MainDatabase.inMemory(RuntimeEnvironment.getApplication())
+        health = HealthDatabase.inMemory(RuntimeEnvironment.getApplication())
         prefsFile = File(tmp.root, "keel.preferences_pb")
     }
 
     @After fun tearDown() {
         scopes.forEach { it.cancel() }
         db.close()
+        health.close()
     }
 
     private val prefs by lazy {
@@ -120,7 +126,8 @@ class KeelAppControllerTests {
             TreatmentCatalogStore(RuntimeEnvironment.getApplication()),
             KeelReminders(settings, medications, scheduler, clock, exactAlarmsAllowed = { exactAllowed }, clearPosted = { postedCleared++ }) { true },
             clock, scope,
-            records = RecordEraser(db),
+            records = RecordEraser(db, health),
+            backup = BackupService(db, health, clock) { "1.0.0" },
             appInfo = AppInfo("1.0.0", "1.0.0 (1)", "Android 16 (API 36)", "Google Pixel 8"),
             clearSharedFiles = { sharedFilesCleared++ },
         )
@@ -481,9 +488,14 @@ class KeelAppControllerTests {
         store.setReminderEnabled("hydration", true)
         store.setThemeId("forest")
         store.setNotificationPermissionAsked(true)
+        health.samples().insertAll(
+            listOf(com.therecalibrationyears.keel.data.db.HealthSampleEntity("H1", "heartRate", clock.now(), 70.0, "bpm", ownerID = "o", createdAt = clock.now(), updatedAt = clock.now())),
+        )
         assertTrue(scheduler.armed.isNotEmpty())
 
         app.eraseAllData()
+
+        assertTrue("imported readings go too", health.samples().all().isEmpty())
 
         // Every row, soft-deleted ones included.
         listOf("user_profile", "check_in", "check_in_symptom", "medication", "medication_log", "cycle_entry", "insight", "activity_log")
@@ -542,5 +554,49 @@ class KeelAppControllerTests {
         assertEquals("49", reloaded.age)
         assertEquals(com.therecalibrationyears.keel.domain.Hysterectomy.YES_ONE_OVARY_REMOVED, reloaded.hysterectomy)
         assertEquals("2019", reloaded.hysterectomyYear)
+    }
+
+    // M6: Backup & Restore.
+
+    private fun iphoneBackup(): ByteArray {
+        val root = generateSequence(java.io.File("").absoluteFile) { it.parentFile }.first { java.io.File(it, "fixtures").isDirectory }
+        return java.io.File(root, "fixtures/backup/v1-ios-sample.keelbackup").readBytes()
+    }
+
+    /**
+     * Restoring from inside the app (iOS `performRestore`): she stays onboarded here, older iOS
+     * medicine entries are carried onto schedules, and the restored medicines' reminders are laid
+     * out while those of the medicines it replaced are gone.
+     */
+    @Test fun restoringAnIphoneBackupKeepsHerHereAndReArmsReminders() = runBlocking {
+        val app = launch()
+        app.saveFirstName("Rose")
+        app.markOnboarded()
+        app.medicationsActions.add(TreatmentDraft(name = "Iron", kind = TreatmentKind.SUPPLEMENT, schedule = DoseSchedule(slots = listOf(DoseSlot(hour = 9)))))
+        val ironId = db.medications().observeActive().first().single().id
+        assertTrue(scheduler.ids("keel.med.$ironId").isNotEmpty())
+
+        val preview = app.backupActions.read(iphoneBackup())!!
+        assertEquals(3, preview.checkIns)
+        val outcome = app.backupActions.restorePending()
+        assertTrue(outcome is com.therecalibrationyears.keel.settings.RestoreOutcome.Done)
+
+        app.awaitOnboarded(true)
+        assertEquals("Mischa", db.userProfiles().current()!!.firstName)
+        assertTrue("the replaced medicine's reminders are gone", scheduler.ids("keel.med.$ironId").isEmpty())
+        val gel = db.medications().observeActive().first().single { it.name == "Estradiol gel" }
+        assertTrue("the restored one's are armed", scheduler.ids("keel.med.${gel.id}").isNotEmpty())
+        val magnesium = db.medications().observeActive().first().single { it.name == "Magnesium" }
+        assertTrue("an older entry is carried onto a schedule", magnesium.scheduleKindRaw != null)
+        assertTrue(db.medications().observeActive().first().any { it.name == "Progesterone" }) // example brand tidied away
+        assertEquals(2, health.samples().all().size)
+    }
+
+    @Test fun somethingElseIsNotRestored() = runBlocking {
+        val app = launch()
+        app.saveFirstName("Rose")
+        assertEquals(null, app.backupActions.read("not a backup".toByteArray()))
+        assertEquals(com.therecalibrationyears.keel.settings.RestoreOutcome.Refused(null), app.backupActions.restorePending())
+        assertEquals("Rose", db.userProfiles().current()!!.firstName)
     }
 }

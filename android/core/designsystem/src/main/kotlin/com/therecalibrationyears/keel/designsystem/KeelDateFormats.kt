@@ -31,6 +31,7 @@ class KeelDateFormats(context: Context, private val zone: ZoneId, private val lo
     private val weekdayMonthDayYear = skeleton("yEEEMMMd")
     /** Hours and minutes in her 12/24-hour setting, as iOS `.hour().minute()`. */
     private val time = skeleton(if (DateFormat.is24HourFormat(context)) "Hm" else "hm")
+    private val dateAndTime = skeleton(if (DateFormat.is24HourFormat(context)) "yMMMdHm" else "yMMMdhm")
 
     val firstDayOfWeek: DayOfWeek = WeekFields.of(locale).firstDayOfWeek
 
@@ -44,6 +45,9 @@ class KeelDateFormats(context: Context, private val zone: ZoneId, private val lo
     fun time(at: Instant): String = time.format(at.atZone(zone))
     /** iOS `.dateTime.day().month(.abbreviated).year()`, e.g. "12 Oct 2026". */
     fun dayMonthYear(day: LocalDate): String = dayMonthYear.format(day)
+
+    /** "22 Oct 2026, 10:45 am" (iOS `.formatted(date: .abbreviated, time: .shortened)`). */
+    fun dateAndTime(at: Instant): String = dateAndTime.format(at.atZone(zone))
 
     /** "21 Oct" (iOS `.dateTime.month(.abbreviated).day()`). */
     fun monthDay(day: LocalDate): String = monthDay.format(day)

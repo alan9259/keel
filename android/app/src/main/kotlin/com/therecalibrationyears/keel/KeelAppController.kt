@@ -57,6 +57,13 @@ import com.therecalibrationyears.keel.settings.RemindersActions
 import com.therecalibrationyears.keel.settings.SettingsActions
 import com.therecalibrationyears.keel.designsystem.ColourMode
 import com.therecalibrationyears.keel.data.RecordEraser
+import com.therecalibrationyears.keel.data.backup.BackupService
+import com.therecalibrationyears.keel.data.backup.KeelBackup
+import com.therecalibrationyears.keel.data.backup.UnsupportedBackupVersionException
+import com.therecalibrationyears.keel.settings.BackupActions
+import com.therecalibrationyears.keel.settings.BackupPreview
+import com.therecalibrationyears.keel.settings.RestoreOutcome
+import com.therecalibrationyears.keel.settings.RestoreSummary
 import com.therecalibrationyears.keel.domain.ReminderConfig
 import com.therecalibrationyears.keel.domain.ReminderKinds
 import java.time.Instant
@@ -99,6 +106,7 @@ class KeelAppController(
     val clock: KeelClock,
     private val scope: CoroutineScope,
     private val records: RecordEraser,
+    private val backup: BackupService,
     /** The app's version and support context, for More and feedback drafts. */
     val appInfo: AppInfo,
     /** Removes files Keel made for sharing (the GP summary PDF in its cache). */
@@ -478,6 +486,50 @@ class KeelAppController(
             users.setHysterectomy(saved.hysterectomy, saved.hysterectomyYear)
             users.setPeriodsNotApplicableReason(saved.periodsNote)
         }
+    }
+
+    /** A backup file she chose, kept until she confirms or cancels the restore. */
+    private var pendingBackup: KeelBackup? = null
+
+    /** Backup & Restore's view of the app (iOS `BackupRestoreView` actions). */
+    val backupActions: BackupActions = object : BackupActions {
+        override val zone: ZoneId get() = clock.zone()
+        override fun fileName(): String = backup.fileName()
+        override suspend fun exportData(): ByteArray = backup.exportData()
+
+        override suspend fun read(bytes: ByteArray): BackupPreview? {
+            val b = runCatching { backup.decode(bytes) }.getOrNull() ?: return null
+            pendingBackup = b
+            return BackupPreview(b.checkIns.size, b.symptoms.size, b.medications.size, b.exportedAt)
+        }
+
+        override suspend fun restorePending(): RestoreOutcome {
+            val b = pendingBackup ?: return RestoreOutcome.Refused(null)
+            return try {
+                val s = restoreBackup(b)
+                pendingBackup = null
+                RestoreOutcome.Done(RestoreSummary(s.checkIns, s.medications, s.cycleEntries))
+            } catch (e: UnsupportedBackupVersionException) {
+                RestoreOutcome.Refused(e.message)
+            }
+        }
+
+        override fun discardPending() { pendingBackup = null }
+    }
+
+    /**
+     * Replace her data with a backup (iOS `performRestore`). She stays onboarded here, even if the
+     * archive held no profile. Android also brings older iOS records up to date straight away
+     * (iOS does it at the next launch) and lays reminders out for the restored medicines, so
+     * none for a replaced one can fire.
+     */
+    suspend fun restoreBackup(archive: KeelBackup): BackupService.Summary {
+        val summary = backup.restore(archive)
+        markOnboarded()
+        medications.migrateLegacySchedules()
+        medications.stripExampleBrandsFromNames()
+        reminders.refreshAll(::autoLogTodaysDoses)
+        return summary
     }
 
     /** Themes, Colour mode and Mood icons. */

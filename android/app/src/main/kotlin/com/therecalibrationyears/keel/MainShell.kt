@@ -53,6 +53,7 @@ import com.therecalibrationyears.keel.designsystem.components.KeelScreen
 import com.therecalibrationyears.keel.medications.MedicationsScreen
 import com.therecalibrationyears.keel.settings.ExactTimingDialog
 import com.therecalibrationyears.keel.settings.AboutScreen
+import com.therecalibrationyears.keel.settings.BackupRestoreScreen
 import com.therecalibrationyears.keel.settings.ColourModeScreen
 import com.therecalibrationyears.keel.settings.ConnectScreen
 import com.therecalibrationyears.keel.settings.ProfileScreen
@@ -237,7 +238,7 @@ fun MainShell(controller: KeelAppController) {
                     entry<MainRoute.ColourMode> { ColourModeScreen(controller.appearanceActions, back) }
                     entry<MainRoute.MoodIcons> { MoodIconsScreen(controller.appearanceActions, back) }
                     entry<MainRoute.AppLock> { StandInScreen("App lock", back) }
-                    entry<MainRoute.Backup> { StandInScreen("Backup & Restore", back) }
+                    entry<MainRoute.Backup> { BackupRestoreScreen(controller.backupActions, back) }
                     entry<MainRoute.Support> { SupportScreen(back) }
                     entry<MainRoute.Connect> { ConnectScreen(controller.appInfo, back) }
                     entry<MainRoute.About> {

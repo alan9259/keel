@@ -20,6 +20,8 @@ import com.therecalibrationyears.keel.data.SymptomRepository
 import com.therecalibrationyears.keel.data.TreatmentCatalogStore
 import com.therecalibrationyears.keel.designsystem.KeelDateFormats
 import com.therecalibrationyears.keel.data.UserRepository
+import com.therecalibrationyears.keel.data.backup.BackupService
+import com.therecalibrationyears.keel.data.db.HealthDatabase
 import com.therecalibrationyears.keel.data.db.MainDatabase
 import com.therecalibrationyears.keel.domain.KeelClock
 import com.therecalibrationyears.keel.platform.AlarmReminderScheduler
@@ -42,6 +44,8 @@ class AppContainer(context: Context) {
     )
     /** Internal so debug seeds (src/debug) can write sample rows; features go through repositories. */
     internal val database = MainDatabase.open(context)
+    /** Imported health readings, kept apart from her records (plan §1.4). */
+    private val health = HealthDatabase.open(context)
     val clock: KeelClock = KeelClock.System
 
     val settings = SettingsStore(preferences)
@@ -95,7 +99,9 @@ class AppContainer(context: Context) {
 
     val controller = KeelAppController(
         users, identity, settings, checkIns, symptoms, medications, activities, cycle, insights, gpSummary, speech, treatments, reminders, clock, appScope,
-        records = RecordEraser(database), appInfo = appInfo,
+        records = RecordEraser(database, health),
+        backup = BackupService(database, health, clock) { appInfo.shortVersion },
+        appInfo = appInfo,
         clearSharedFiles = { GPSummaryFiles.clearShared(context) },
     )
 }
