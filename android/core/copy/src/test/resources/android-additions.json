@@ -43,5 +43,10 @@
     "android": "That file isn't a valid Keel backup.",
     "approvedByOwner": false,
     "note": "Backup & Restore, when the chosen file can't be read. iOS shows \"That file isn't a valid Keel backup.\" followed by the system's own error description (e.g. \"The data couldn't be read because it is missing.\"); Android has no equivalent user-facing text, so the first sentence stands alone."
+  },
+  {
+    "android": "Health Connect isn't available on this phone.",
+    "approvedByOwner": false,
+    "note": "Health Connect screen, Android only: under a disabled Connect button when Health Connect can't run on this phone (for example a work profile or a phone without Google Play). iOS has no such case."
   }
 ]

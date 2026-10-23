@@ -99,11 +99,14 @@ adb exec-out screencap -p > shot.png
   permission gate shared with Home's "Gentle reminders" and the push switch.
 - `core/platform`: device services: `HealthConnectSource` (the read-only Health Connect reader
   behind the domain's `HealthDataSource`; `HealthConnectReads` is the permission list the
-  manifest must match), `SpeechRecognitionService` (on-device only),
+  manifest must match), `HealthConnectPermissions` (Health Connect's permission screen and
+  pages, opened from the activity on screen), `SpeechRecognitionService` (on-device only),
   `AlarmReminderScheduler` (alarms plus a device-only registry of armed ids, since Android
   can't list pending alarms), `ExactAlarms`, `ReminderChannels`, the reminder status icon.
 - `app`: `AppContainer` (manual DI, built once in `KeelApplication`), `KeelAppController`
-  (port of iOS `AppEnvironment`, same method names), `KeelRoot` (onboarding vs app),
+  (port of iOS `AppEnvironment`, same method names; its Health Connect part is `KeelHealth`:
+  connect, the launch offer, the sync), `HealthPermissionsRationaleActivity` (what Health
+  Connect opens for Keel's privacy policy), `KeelRoot` (onboarding vs app),
   `MainActivity` (splash held until her saved state loads), `src/debug` harness and gallery,
   `src/release` no-op harness. `KeelReminders` lays out and answers reminders (port of the
   iOS reminder methods); the receivers (`ReminderReceivers.kt`) post them, handle "Mark taken"
@@ -148,9 +151,9 @@ create_account, pathway, health, ready). For a truly fresh start:
 - **Emulator typing:** Gboard on the API 36 image treats `adb` taps as a stylus and opens a
   "Try out your stylus" sheet that swallows typed text. Turn it off once per emulator:
   `adb shell settings put secure stylus_handwriting_enabled 0`.
-- **Stand-ins:** `grep -rn "// FAKE:" android/` lists them (currently: the title-only feature
-  screens in `MainShell.kt` (Your privacy until the owner's Android wording, Health Connect), the Health Connect request in
-  `KeelAppController.kt`, and the Play link in `ShareInvite`).
+- **Stand-ins:** `grep -rn "// FAKE:" android/` lists them (currently: the title-only Your
+  privacy screen in `MainShell.kt`, until the owner's Android wording, and the Play link in
+  `ShareInvite`).
 - **Backup format:** iOS reads it with Swift's `JSONDecoder` (`.iso8601`, no fractions, every
   top-level key required). After changing `BackupCodec`, re-run the Android tests (the committed
   `fixtures/backup/v1-android-export.keelbackup` must be refreshed from
@@ -192,6 +195,15 @@ create_account, pathway, health, ready). For a truly fresh start:
   (finish its "Get started" and visit Manage data, Data sources and priority): until then Keel
   isn't on its source list and daily totals (steps, exercise, energy, flights, distance) read
   empty while averages and records read fine.
+- **Health Connect revokes late:** Disconnect and "Delete all my data" revoke Keel's access
+  through Android's revoke-on-kill, so `dumpsys package` still shows the grants until Keel's
+  process has ended (seconds after `am force-stop`). A reconnect in that same session is undone
+  when it ends. Health Connect's per-app page (`ACTION_MANAGE_HEALTH_PERMISSIONS`) is for the
+  system only: Android refuses it to apps, so "Manage access" opens Health Connect's home.
+- **Health Connect's dialog** on an emulator: revoke Keel's reads first
+  (`adb shell pm revoke com.therecalibrationyears.keel android.permission.health.READ_STEPS`
+  etc., or `pm clear`), then Continue on the onboarding step (`--es uitOnboardStep health`),
+  the offer (`--ez uitHealthOffer true`) or the Health Connect screen.
 - **Debug seeds:** `--ez uitSeedMed true --ez uitSeedWeek true --ez uitSeedCheckIn true`
   (and `uitReset`, `uitSeedEnergyMix`) fill Home for screenshots; `uitSeedCycle` seeds cycles
   and a current period, `uitCycleSheet` opens the Cycle log sheet, `--es uitActivitiesPeriod

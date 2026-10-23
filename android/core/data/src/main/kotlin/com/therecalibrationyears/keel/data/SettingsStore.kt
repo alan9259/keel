@@ -111,7 +111,11 @@ class SettingsStore(private val store: DataStore<Preferences>) {
     suspend fun setHealthConnectOfferDeclined(on: Boolean) = store.edit { it[HEALTH_OFFER_DECLINED] = on }
     suspend fun setHealthReconnectOfferAnswered(on: Boolean) = store.edit { it[HEALTH_RECONNECT_ANSWERED] = on }
     suspend fun addHealthAskedPermissions(permissions: Set<String>) = store.edit { it[HC_ASKED] = (it[HC_ASKED] ?: emptySet()) + permissions }
-    suspend fun clearHealthAskedPermissions() = store.edit { it.remove(HC_ASKED); it.remove(HC_FIRST_MENSTRUATION_GRANT) }
+    /**
+     * She disconnected (Keel's access revoked): when periods were first allowed is forgotten, so
+     * after a reconnect Keel never reaches further back than Health Connect will then let it.
+     */
+    suspend fun clearHealthFirstMenstruationGrantDay() = store.edit { it.remove(HC_FIRST_MENSTRUATION_GRANT) }
     suspend fun setHealthFirstMenstruationGrantDay(epochDay: Long) = store.edit { if (it[HC_FIRST_MENSTRUATION_GRANT] == null) it[HC_FIRST_MENSTRUATION_GRANT] = epochDay }
 
     /**

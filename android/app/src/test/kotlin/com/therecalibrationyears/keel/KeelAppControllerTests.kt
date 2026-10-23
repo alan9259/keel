@@ -120,6 +120,9 @@ class KeelAppControllerTests {
         override suspend fun authenticateOwner(reason: String) = false
     }
     private var sharedFilesCleared = 0
+    /** Health Connect as a fake, shared across launches like the real one. */
+    private val healthSource = FakeHealthSource()
+    private val healthPermissions = FakeHealthPermissions(healthSource)
 
     private fun launch(): KeelAppController {
         val identity = LocalIdentity(prefs)
@@ -146,6 +149,12 @@ class KeelAppControllerTests {
             lock = AppLockService(pinStore, biometricsFake, prefs, clock).also { runBlocking { it.load() } },
             appInfo = AppInfo("1.0.0", "1.0.0 (1)", "Android 16 (API 36)", "Google Pixel 8"),
             clearSharedFiles = { sharedFilesCleared++ },
+            health = KeelHealth(
+                healthSource, healthPermissions,
+                com.therecalibrationyears.keel.data.HealthIngestor(health, db, identity::ownerId, clock),
+                com.therecalibrationyears.keel.data.HealthRepository(health, clock),
+                users, settings, clock, scope, retryDelays = emptyList(),
+            ),
         )
     }
 
@@ -509,6 +518,8 @@ class KeelAppControllerTests {
         )
         assertTrue(app.lock.setPIN("2468"))
         assertTrue(scheduler.armed.isNotEmpty())
+        assertTrue(app.connectHealth())
+        assertTrue(store.healthAskedPermissions.first().isNotEmpty())
 
         app.eraseAllData()
 
@@ -518,6 +529,7 @@ class KeelAppControllerTests {
         assertFalse("off after a relaunch too", launch().lock.state.value!!.isEnabled)
 
         assertTrue("imported readings go too", health.samples().all().isEmpty())
+        assertEquals("Keel's Health Connect access is revoked (plan D4)", 1, healthSource.revokes.get())
 
         // Every row, soft-deleted ones included.
         listOf("user_profile", "check_in", "check_in_symptom", "medication", "medication_log", "cycle_entry", "insight", "activity_log")
@@ -533,10 +545,22 @@ class KeelAppControllerTests {
         assertEquals(setOf("dailyCheckIn", "medication"), store.enabledReminderIds.first())
         assertEquals(null, store.themeId.first())
         assertTrue("the phone's permission state is kept", store.notificationPermissionAsked.first())
+        assertTrue("Health Connect's asked set goes with her answers", store.healthAskedPermissions.first().isEmpty())
 
         assertTrue(LocalIdentity(prefs).ownerId().isEmpty()) // local identity cleared
         app.awaitOnboarded(false)
         assertEquals(1, sharedFilesCleared) // the GP summary made for sharing
+    }
+
+    /** Port of HealthAccessOfferTests.testNothingOfferedBeforeOnboardingWhichHasItsOwnConnectStep, through the controller. */
+    @Test fun healthOfferWaitsForOnboarding() = runBlocking {
+        val app = launch()
+        app.saveFirstName("Mischa")
+        assertEquals(com.therecalibrationyears.keel.domain.HealthOffer.NONE, app.checkHealthAccessOnLaunch())
+        app.markOnboarded()
+        assertEquals(com.therecalibrationyears.keel.domain.HealthOffer.CONNECT, app.checkHealthAccessOnLaunch())
+        assertTrue("once per launch", app.claimHealthOfferCheck())
+        assertFalse(app.claimHealthOfferCheck())
     }
 
     /** iOS ran EraseAllDataTests repeatedly after a profile survived a bulk delete; so does this. */

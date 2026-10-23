@@ -166,5 +166,107 @@
     "android": "Body temperature and overnight skin temperature",
     "approvedByOwner": false,
     "note": "Health Connect screen, the per-item switches (iOS HealthSyncCatalog). Plan §3.8 / D12. Body temperature item: Health Connect's measure is skin temperature (plan §3.2)."
+  },
+  {
+    "ios": "Connect Apple Health?",
+    "android": "Connect to Health Connect?",
+    "approvedByOwner": false,
+    "note": "Launch offer (iOS MainView). Plan §3.8 / D12: Apple Health -> Health Connect, otherwise verbatim. Title; 'to' as in 'Connect to Health Connect' elsewhere."
+  },
+  {
+    "ios": "Update Apple Health access?",
+    "android": "Update Health Connect access?",
+    "approvedByOwner": false,
+    "note": "Launch offer (iOS MainView). Plan §3.8 / D12: Apple Health -> Health Connect, otherwise verbatim. Title when she's connected and Keel reads something she hasn't been asked about."
+  },
+  {
+    "ios": "Keel can read your sleep, activity, heart readings and periods from Apple Health to show alongside your own record. You can change this any time under More, then Apple Health.",
+    "android": "Keel can read your sleep, activity, heart readings and periods from Health Connect to show alongside your own record. You can change this any time under More, then Health Connect.",
+    "approvedByOwner": false,
+    "note": "Launch offer (iOS MainView). Plan §3.8 / D12: Apple Health -> Health Connect, otherwise verbatim. Message for the Connect offer."
+  },
+  {
+    "ios": "Keel can now also show your periods from Apple Health. Continue to choose what Keel can read. Anything you've already shared keeps syncing either way.",
+    "android": "Keel can now read more from Health Connect. Continue to choose what Keel can read. Anything you've already shared keeps syncing either way.",
+    "approvedByOwner": false,
+    "note": "Launch offer (iOS MainView), message for the Update offer. Not a straight swap: on iOS the new read was periods, which Android has read from the start; on Android this offer appears when a later version (or a Health Connect update) adds a read, so it can't name one."
+  },
+  {
+    "ios": "Let Keel and Health work together",
+    "android": "Let Keel and Health Connect work together",
+    "approvedByOwner": false,
+    "note": "Health Connect screen (iOS AppleHealthSettingsView). Plan §3.8 / D12: Apple Health -> Health Connect, otherwise verbatim. Subtitle."
+  },
+  {
+    "ios": "Keel reads from Health to save you logging.",
+    "android": "Keel reads from Health Connect to save you logging.",
+    "approvedByOwner": false,
+    "note": "Health Connect screen (iOS AppleHealthSettingsView). Plan §3.8 / D12: Apple Health -> Health Connect, otherwise verbatim. Connection card."
+  },
+  {
+    "ios": "Connect with Apple Health",
+    "android": "Connect with Health Connect",
+    "approvedByOwner": false,
+    "note": "Health Connect screen (iOS AppleHealthSettingsView). Plan §3.8 / D12: Apple Health -> Health Connect, otherwise verbatim. Button while not connected."
+  },
+  {
+    "ios": "Sleep, heart readings and periods sit next to what you log, labelled as from Apple Health.",
+    "android": "Sleep, heart readings and periods sit next to what you log, labelled as from Health Connect.",
+    "approvedByOwner": false,
+    "note": "Health Connect screen (iOS AppleHealthSettingsView). Plan §3.8 / D12: Apple Health -> Health Connect, otherwise verbatim. Why connect?"
+  },
+  {
+    "ios": "Keel reads from Health. It never writes anything back.",
+    "android": "Keel reads from Health Connect. It never writes anything back.",
+    "approvedByOwner": false,
+    "note": "Health Connect screen (iOS AppleHealthSettingsView). Plan §3.8 / D12: Apple Health -> Health Connect, otherwise verbatim. Why connect?"
+  },
+  {
+    "ios": "Data stays on your device and in your Apple account.",
+    "android": "Data stays on your device and in Health Connect.",
+    "approvedByOwner": false,
+    "note": "Health Connect screen (iOS AppleHealthSettingsView). Plan §3.8 / D12: Apple Health -> Health Connect, otherwise verbatim. Why connect? Health Connect keeps data on the phone, not in an account (plan §3.8)."
+  },
+  {
+    "ios": "Remove imported Apple Health data",
+    "android": "Remove imported Health Connect data",
+    "approvedByOwner": false,
+    "note": "Health Connect screen (iOS AppleHealthSettingsView). Plan §3.8 / D12: Apple Health -> Health Connect, otherwise verbatim. Button."
+  },
+  {
+    "ios": "Remove imported Apple Health data?",
+    "android": "Remove imported Health Connect data?",
+    "approvedByOwner": false,
+    "note": "Health Connect screen (iOS AppleHealthSettingsView). Plan §3.8 / D12: Apple Health -> Health Connect, otherwise verbatim. Confirmation title."
+  },
+  {
+    "ios": "This deletes the sleep, activity, vitals and periods imported from Apple Health on this device. It does not change Apple Health, and does not touch anything you entered in Keel yourself. Imported data returns on the next sync if you stay connected.",
+    "android": "This deletes the sleep, activity, vitals and periods imported from Health Connect on this device. It does not change Health Connect, and does not touch anything you entered in Keel yourself. Imported data returns on the next sync if you stay connected.",
+    "approvedByOwner": false,
+    "note": "Health Connect screen (iOS AppleHealthSettingsView). Plan §3.8 / D12: Apple Health -> Health Connect, otherwise verbatim. Confirmation message."
+  },
+  {
+    "ios": "Removed imported Apple Health data.",
+    "android": "Removed imported Health Connect data.",
+    "approvedByOwner": false,
+    "note": "Health Connect screen (iOS AppleHealthSettingsView). Plan §3.8 / D12: Apple Health -> Health Connect, otherwise verbatim. After removing."
+  },
+  {
+    "ios": "Switch off anything you would rather Keel didn't import. Turning one off stops new data coming in, and keeps what was already imported until you remove it below. You can also change what Keel can read in the Health app: tap your profile picture, then Apps, then Keel. Keel only ever reads what you allow, and never writes back. Imported data is kept in a separate area on this phone, and only goes into a backup file if you export one.",
+    "android": "Switch off anything you would rather Keel didn't import. Turning one off stops new data coming in, and keeps what was already imported until you remove it below. You can also change what Keel can read in Health Connect: open Health Connect, then App permissions, then Keel. Keel only ever reads what you allow, and never writes back. Imported data is kept in a separate area on this phone, and only goes into a backup file if you export one.",
+    "approvedByOwner": false,
+    "note": "Health Connect screen (iOS AppleHealthSettingsView). Plan §3.8 / D12: Apple Health -> Health Connect, otherwise verbatim. Under the switches; Health Connect's own path to Keel's permissions replaces the Health app's."
+  },
+  {
+    "ios": "Connected, but no Apple Health data has come in yet. If you expected some, open the Health app, tap your profile picture, then Apps, then Keel, and check what Keel is allowed to read.",
+    "android": "Connected, but no Health Connect data has come in yet. If you expected some, open Health Connect, then App permissions, then Keel, and check what Keel is allowed to read.",
+    "approvedByOwner": false,
+    "note": "Health Connect screen (iOS AppleHealthSettingsView). Plan §3.8 / D12: Apple Health -> Health Connect, otherwise verbatim. Connected with nothing imported."
+  },
+  {
+    "ios": "Open the Health app",
+    "android": "Manage access in Health Connect",
+    "approvedByOwner": false,
+    "note": "Health Connect screen (iOS AppleHealthSettingsView). Plan §3.8 / D12: Apple Health -> Health Connect, otherwise verbatim. Button in the no-data note: opens Health Connect's page for Keel's permissions (Android 14+), or Health Connect itself before that."
   }
 ]

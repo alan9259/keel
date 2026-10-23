@@ -52,6 +52,8 @@ import com.therecalibrationyears.keel.designsystem.LocalKeelTheme
 import com.therecalibrationyears.keel.designsystem.components.KeelScreen
 import com.therecalibrationyears.keel.medications.MedicationsScreen
 import com.therecalibrationyears.keel.settings.ExactTimingDialog
+import com.therecalibrationyears.keel.settings.HealthConnectScreen
+import com.therecalibrationyears.keel.domain.HealthOffer
 import com.therecalibrationyears.keel.settings.AboutScreen
 import com.therecalibrationyears.keel.settings.AppLockScreen
 import com.therecalibrationyears.keel.settings.BackupRestoreScreen
@@ -81,6 +83,7 @@ import com.therecalibrationyears.keel.home.HomeData
 import com.therecalibrationyears.keel.home.HomeDestination
 import com.therecalibrationyears.keel.home.HomeScreen
 import java.time.LocalDate
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 import kotlinx.serialization.Serializable
 
@@ -230,7 +233,7 @@ fun MainShell(controller: KeelAppController) {
                             initialPeriod = DebugHarness.activitiesPeriod ?: ActivityPeriod.DAY,
                         )
                     }
-                    entry<MainRoute.HealthConnect> { StandInScreen("Health Connect", back) }
+                    entry<MainRoute.HealthConnect> { HealthConnectScreen(controller.healthConnectActions, back) }
                     entry<MainRoute.Stats> { StatsScreen(controller.statsActions, back) }
                     entry<MainRoute.More> { MoreScreen(controller.appInfo, onOpen = { backStack.add(MainRoute.of(it)) }, onBack = back) }
                     entry<MainRoute.Settings> {
@@ -280,6 +283,7 @@ fun MainShell(controller: KeelAppController) {
 
             ReminderExplainer(controller)
             ExactTimingOffer(controller)
+            HealthAccessOffer(controller)
 
             toast?.let {
                 Box(
@@ -358,10 +362,59 @@ internal fun YourPrivacyRoute(info: AppInfo, onBack: () -> Unit) {
     PrivacySummary.android?.let { YourPrivacyScreen(it, info, onBack) } ?: StandInScreen("Your privacy", onBack)
 }
 
-// FAKE: stands in for a feature screen not ported yet — shows only its iOS title, never sample data; remove when Your privacy has the owner's Android wording (plan D3) and Health Connect is built (M7)
+// FAKE: stands in for Your privacy — shows only its iOS title, never sample data; remove when Your privacy has the owner's Android wording (plan D3)
 @Composable
 private fun StandInScreen(title: String, onBack: () -> Unit) {
     KeelScreen(title = title, onBack = onBack) {}
+}
+
+/**
+ * The Health Connect offer (iOS MainView): once per launch, after Home settles and never
+ * alongside the reminders explanation, "Connect to Health Connect?" or "Update Health Connect
+ * access?" when Health Connect would really ask. It comes before Health Connect's own screen,
+ * so "Continue" is its only button; the choice is made there.
+ */
+@Composable
+private fun HealthAccessOffer(controller: KeelAppController) {
+    val theme = LocalKeelTheme.current
+    val scope = rememberCoroutineScope()
+    var offer by remember { mutableStateOf(HealthOffer.NONE) }
+    LaunchedEffect(Unit) {
+        if (!controller.claimHealthOfferCheck()) return@LaunchedEffect
+        delay(1_200)
+        if (controller.notificationExplainerPending.first()) return@LaunchedEffect
+        offer = if (DebugHarness.forceHealthOffer) HealthOffer.CONNECT else controller.checkHealthAccessOnLaunch()
+    }
+    if (offer == HealthOffer.NONE) return
+    val reconnect = offer == HealthOffer.RECONNECT
+    AlertDialog(
+        onDismissRequest = {},
+        properties = DialogProperties(dismissOnBackPress = false, dismissOnClickOutside = false),
+        containerColor = theme.card,
+        title = {
+            Text(if (reconnect) "Update Health Connect access?" else "Connect to Health Connect?", style = KeelFont.serif(20.sp), color = theme.heading)
+        },
+        text = {
+            Text(
+                if (reconnect) {
+                    "Keel can now read more from Health Connect. Continue to choose what Keel can read. Anything you've already shared keeps syncing either way."
+                } else {
+                    "Keel can read your sleep, activity, heart readings and periods from Health Connect to show alongside your own record. You can change this any time under More, then Health Connect."
+                },
+                style = KeelFont.body, color = theme.text,
+            )
+        },
+        confirmButton = {
+            TextButton(onClick = {
+                val answered = offer
+                offer = HealthOffer.NONE
+                scope.launch {
+                    controller.answerHealthOffer(answered)
+                    controller.connectHealth()
+                }
+            }) { Text("Continue", style = KeelFont.sans(15.sp, FontWeight.Medium), color = theme.accent) }
+        },
+    )
 }
 
 /**

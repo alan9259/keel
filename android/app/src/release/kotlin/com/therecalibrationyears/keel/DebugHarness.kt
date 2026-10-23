@@ -15,6 +15,7 @@ object DebugHarness {
     val colourMode: ColourMode? = null
     const val forcedOnboarded = false
     const val forceOnboarding = false
+    const val forceHealthOffer = false
     val onboardingStartStep: OnboardingStep? = null
     val initialRoute: MainRoute? = null
     val activitiesPeriod: ActivityPeriod? = null

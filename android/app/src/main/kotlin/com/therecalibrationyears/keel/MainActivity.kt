@@ -64,6 +64,7 @@ class MainActivity : FragmentActivity() {
         lifecycleScope.launch { DebugHarness.seed((application as KeelApplication).container) }
         if (savedInstanceState == null) handleReminderTap(intent)
         (application as KeelApplication).container.biometrics.attach(this)
+        (application as KeelApplication).container.healthPermissions.attach(this)
         lifecycleScope.launch {
             repeatOnLifecycle(Lifecycle.State.CREATED) {
                 controller.lock.state.collect { hideInRecents(it?.isEnabled == true) }

@@ -102,6 +102,16 @@ class UserRepositoryTests {
         assertNull(repo.currentProfile())
     }
 
+    /** Port of HealthSyncGatingTests.testSetHealthKitAuthorizedPersists. */
+    @Test fun setHealthConnectedPersists() = runBlocking {
+        repo.upsertProfile(firstName = "Mischa", email = null, appleUserID = null)
+        repo.setHealthConnected(true)
+        assertEquals(true, repo.currentProfile()?.healthConnected)
+        repo.setHealthConnected(false)
+        assertEquals(false, repo.currentProfile()?.healthConnected)
+    }
+
+    /** Port of HealthSyncGatingTests.testSetHealthKitAuthorizedCreatesProfileWhenMissing. */
     @Test fun setHealthConnectedCreatesAProfileRatherThanDropIt() = runBlocking {
         repo.setHealthConnected(true)
         assertEquals(true, repo.currentProfile()?.healthConnected)

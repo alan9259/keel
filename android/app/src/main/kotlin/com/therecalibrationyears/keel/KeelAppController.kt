@@ -60,6 +60,9 @@ import com.therecalibrationyears.keel.data.RecordEraser
 import com.therecalibrationyears.keel.data.AppLockService
 import com.therecalibrationyears.keel.domain.LockState
 import com.therecalibrationyears.keel.settings.AppLockActions
+import com.therecalibrationyears.keel.settings.HealthConnectActions
+import com.therecalibrationyears.keel.domain.HealthAvailability
+import com.therecalibrationyears.keel.domain.HealthOffer
 import kotlinx.coroutines.flow.filterNotNull
 import com.therecalibrationyears.keel.data.backup.BackupService
 import com.therecalibrationyears.keel.data.backup.KeelBackup
@@ -117,35 +120,73 @@ class KeelAppController(
     val appInfo: AppInfo,
     /** Removes files Keel made for sharing (the GP summary PDF in its cache). */
     private val clearSharedFiles: () -> Unit = {},
+    /** Health Connect: connecting, the launch offer and the sync (iOS `AppEnvironment`'s health part). */
+    val health: KeelHealth,
+    /** Opens Health Connect's page for what Keel may read. */
+    private val manageHealthAccess: () -> Unit = {},
 ) : OnboardingActions {
 
     /**
-     * Launch work (iOS `bootstrap`, in its order; later milestones add their steps): bring
-     * the built-in symptom catalog up to date, re-derive Looking back's pattern cards, carry
+     * Launch work (iOS `bootstrap`, in its order): bring the built-in symptom catalog up to
+     * date, clear out imports Keel no longer keeps, re-derive Looking back's pattern cards, carry
      * older medicine entries onto schedules, tidy brand examples out of their names, then the
-     * everyday reminders, today's auto-logged doses and the medication reminders.
+     * everyday reminders, today's auto-logged doses and the medication reminders, and last a
+     * Health Connect sync (only once she has connected, so it never asks at launch).
      */
     fun bootstrap() {
         // The lock's saved state first: the launch screen waits for it, so nothing shows unlocked.
         scope.launch { lock.load() }
         scope.launch {
             symptoms.syncBuiltIns()
+            health.purgeDiscontinued()
             insights.refreshDerived()
             medications.migrateLegacySchedules()
             medications.stripExampleBrandsFromNames()
             reminders.refreshAll(::autoLogTodaysDoses)
+            syncHealthData()
         }
     }
 
     /**
-     * Keel came to the foreground: log today's arrived auto-log doses and top up the
-     * medication reminders (laid out a few weeks ahead, so opening the app extends them).
+     * Keel came to the foreground: log today's arrived auto-log doses, top up the medication
+     * reminders (laid out a few weeks ahead, so opening the app extends them), and bring in new
+     * Health Connect data (at most every 30 minutes).
      */
     fun onForeground() {
         scope.launch {
             autoLogTodaysDoses()
             reminders.refreshMedicationReminders()
         }
+        syncHealthData()
+    }
+
+    /** Bring Health Connect data in (iOS `syncHealthData`): only once connected; `force` skips the 30-minute wait. */
+    fun syncHealthData(force: Boolean = false) = health.sync(force)
+
+    /** The launch offer (iOS `checkHealthAccessOnLaunch`): "Connect to Health Connect?" or "Update ...", once each. */
+    suspend fun checkHealthAccessOnLaunch(): HealthOffer =
+        health.checkAccessOnLaunch(hasOnboarded = users.currentProfile()?.onboardingCompletedAt != null)
+
+    private var healthOfferChecked = false
+
+    /** The launch offer is looked at once per launch (iOS: once per MainView), not again when the screen is recreated. */
+    fun claimHealthOfferCheck(): Boolean = !healthOfferChecked.also { healthOfferChecked = true }
+
+    /** She answered the offer (Continue): not made again on this install. */
+    suspend fun answerHealthOffer(offer: HealthOffer) = health.answerOffer(offer)
+
+    /** The Health Connect screen's view of the app. */
+    val healthConnectActions: HealthConnectActions = object : HealthConnectActions {
+        override val connected: Flow<Boolean> = users.observeCurrentProfile().map { it?.healthConnected == true }
+        override val hasImportedData: Flow<Boolean> = health.hasImportedData
+        override val disabledItems: Flow<Set<String>> = settings.disabledHealthItemIds
+        override suspend fun availability(): HealthAvailability = health.availability()
+        override suspend fun connect(): Boolean = health.connect()
+        override fun syncNow() = health.sync(force = true)
+        override suspend fun disconnect() = health.disconnect()
+        override suspend fun setSyncing(itemId: String, on: Boolean) = health.setSyncing(itemId, on)
+        override suspend fun removeImported(): Int = health.removeImported()
+        override fun manageAccess() = manageHealthAccess()
     }
 
     /** A reboot, a clock or time zone change, or an update: alarms are re-armed from scratch. */
@@ -568,8 +609,8 @@ class KeelAppController(
 
     /**
      * "Delete all my data" (iOS `eraseAllData`, in its order): every record, then the built-in
-     * symptoms re-seeded for the next person, every reminder (armed or showing), her
-     * preferences, and the local identity. Without her profile she is back at onboarding.
+     * symptoms re-seeded for the next person, every reminder (armed or showing), Keel's Health
+     * Connect access and sync state, her preferences, and the local identity. Without her profile she is back at onboarding.
      * Android also clears the GP summary it last made for sharing, held in Keel's cache.
      */
     suspend fun eraseAllData() {
@@ -577,6 +618,8 @@ class KeelAppController(
         symptoms.syncBuiltIns()
         reminders.removeEverything() // no reminder naming a deleted medicine fires
         lock.disable() // the PIN removed, the lock off
+        health.revokeAll() // Keel's Health Connect access too (plan D4)
+        health.resetSyncState()
         settings.resetToDefaults()
         identity.signOut()
         clearSharedFiles()
@@ -606,6 +649,6 @@ class KeelAppController(
 
     override suspend fun setPathway(pathway: Pathway) = users.setPathway(pathway)
 
-    // FAKE: stands in for the Health Connect permission request (port plan §3.6) — remove in M7 (not integrated yet: Continue just moves on, nothing is read)
-    override suspend fun connectHealth(): Boolean = false
+    /** The onboarding step's Continue (iOS `connectAppleHealth`): Health Connect asks, then the first import. */
+    override suspend fun connectHealth(): Boolean = health.connect()
 }

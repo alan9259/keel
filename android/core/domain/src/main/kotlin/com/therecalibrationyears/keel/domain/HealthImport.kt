@@ -261,3 +261,15 @@ interface HealthDataSource {
     /** Disconnect (plan D4): Keel gives back every permission. */
     suspend fun revokeAll()
 }
+
+/**
+ * Health Connect's own screens, which only an activity on screen can open (the app's activity
+ * registers itself). Kept apart from [HealthDataSource] so the connect flow is testable.
+ */
+interface HealthPermissionRequesting {
+    /** Shows Health Connect's permission screen; what she allowed, or null when it couldn't be shown. */
+    suspend fun request(permissions: Set<String>): Set<String>?
+
+    /** Health Connect needs installing or updating (Android 9 to 13): opens its Play Store page. */
+    fun openInstall()
+}

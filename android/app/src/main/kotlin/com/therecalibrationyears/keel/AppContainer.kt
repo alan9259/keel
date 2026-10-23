@@ -28,7 +28,10 @@ import com.therecalibrationyears.keel.data.db.HealthDatabase
 import com.therecalibrationyears.keel.data.db.MainDatabase
 import com.therecalibrationyears.keel.domain.HealthDataSource
 import com.therecalibrationyears.keel.domain.KeelClock
+import com.therecalibrationyears.keel.platform.HealthConnectPermissions
 import com.therecalibrationyears.keel.platform.HealthConnectSource
+import com.therecalibrationyears.keel.data.HealthIngestor
+import com.therecalibrationyears.keel.data.HealthRepository
 import com.therecalibrationyears.keel.platform.AlarmReminderScheduler
 import com.therecalibrationyears.keel.platform.ExactAlarms
 import com.therecalibrationyears.keel.platform.ReminderChannels
@@ -50,7 +53,7 @@ class AppContainer(context: Context) {
     /** Internal so debug seeds (src/debug) can write sample rows; features go through repositories. */
     internal val database = MainDatabase.open(context)
     /** Imported health readings, kept apart from her records (plan §1.4). */
-    private val health = HealthDatabase.open(context)
+    private val healthDatabase = HealthDatabase.open(context)
     val clock: KeelClock = KeelClock.System
 
     val settings = SettingsStore(preferences)
@@ -78,6 +81,8 @@ class AppContainer(context: Context) {
     private val speech = SpeechRecognitionService(context)
     /** Health Connect, read only (plan §3). Internal so debug probes (src/debug) can read it directly. */
     internal val healthSource: HealthDataSource = HealthConnectSource(context, clock)
+    /** Health Connect's permission screen; the activity on screen registers itself (MainActivity). */
+    val healthPermissions = HealthConnectPermissions(context)
 
     /** Work started by broadcast receivers (alarms, reminder buttons, reboot). */
     val receiverScope = CoroutineScope(SupervisorJob() + Dispatchers.Default)
@@ -113,12 +118,20 @@ class AppContainer(context: Context) {
     val biometrics = SystemBiometricAuthenticator(context, usePINLabel = "Enter PIN instead")
     private val lock = AppLockService(KeystorePINStore(secure), biometrics, preferences, clock)
 
+    private val health = KeelHealth(
+        healthSource, healthPermissions,
+        HealthIngestor(healthDatabase, database, identity::ownerId, clock), HealthRepository(healthDatabase, clock),
+        users, settings, clock, appScope,
+    )
+
     val controller = KeelAppController(
         users, identity, settings, checkIns, symptoms, medications, activities, cycle, insights, gpSummary, speech, treatments, reminders, clock, appScope,
-        records = RecordEraser(database, health),
-        backup = BackupService(database, health, clock) { appInfo.shortVersion },
+        records = RecordEraser(database, healthDatabase),
+        backup = BackupService(database, healthDatabase, clock) { appInfo.shortVersion },
         lock = lock,
         appInfo = appInfo,
         clearSharedFiles = { GPSummaryFiles.clearShared(context) },
+        health = health,
+        manageHealthAccess = healthPermissions::openManageAccess,
     )
 }

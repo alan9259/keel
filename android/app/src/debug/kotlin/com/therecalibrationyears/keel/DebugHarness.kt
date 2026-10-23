@@ -28,6 +28,7 @@ import com.therecalibrationyears.keel.onboarding.OnboardingStep
  *   uitGPStep <step>         the GP Visit Summary opens at review, details or preview (iOS -uitGPReview etc.)
  *   uitGPSummary true        seed a 12-week picture and write its GP summary PDF to files/keel-gp-summary.pdf,
  *                            logging KEEL_GPSUMMARY lines (iOS -uitGPSummary)
+ *   uitHealthOffer true      Home offers "Connect to Health Connect?" (iOS -uitHealthOffer)
  *   uitHealthSeed true       write a known week into Health Connect (DebugHealth lists the values)
  *   uitHealthProbe true      log what Keel reads from Health Connect as KEEL_HEALTH lines
  *
@@ -59,6 +60,10 @@ object DebugHarness {
     var gpInitialStep: GPSummaryStep? = null
         private set
 
+    /** `--ez uitHealthOffer true`: Home offers "Connect to Health Connect?" whatever the state (iOS -uitHealthOffer). */
+    var forceHealthOffer: Boolean = false
+        private set
+
     /** `--ez uitCycleSheet true`: the Cycle screen opens the log sheet for two days ago. */
     private var cycleSheet = false
 
@@ -80,6 +85,7 @@ object DebugHarness {
         }
         initialRoute = MainRoute.fromDebugName(intent.getStringExtra("uitRoute"))
         cycleSheet = intent.getBooleanExtra("uitCycleSheet", false)
+        forceHealthOffer = intent.getBooleanExtra("uitHealthOffer", false)
         gpInitialStep = intent.getStringExtra("uitGPStep")?.let { raw -> GPSummaryStep.entries.firstOrNull { it.name.equals(raw, ignoreCase = true) } }
         activitiesPeriod = intent.getStringExtra("uitActivitiesPeriod")?.let { raw -> ActivityPeriod.entries.firstOrNull { it.name.equals(raw, ignoreCase = true) } }
         seeds = listOf("uitReset", "uitSeedMed", "uitSeedCheckIn", "uitSeedEnergyMix", "uitSeedWeek", "uitReminderExplainer", "uitExactTimingAgain", "uitRemindSoon", "uitSeedCycle", "uitGPSummary", "uitHealthSeed", "uitHealthProbe")
