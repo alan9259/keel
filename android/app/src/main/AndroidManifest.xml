@@ -26,6 +26,27 @@
             </intent-filter>
         </activity>
 
+        <!-- Health Connect shows Keel's privacy screen from its permission dialog (Android 9 to
+             13) and its app list (14+); without these it won't show Keel's dialog at all. -->
+        <activity
+            android:name=".HealthPermissionsRationaleActivity"
+            android:exported="true"
+            android:screenOrientation="portrait">
+            <intent-filter>
+                <action android:name="androidx.health.ACTION_SHOW_PERMISSIONS_RATIONALE" />
+            </intent-filter>
+        </activity>
+        <activity-alias
+            android:name="ViewPermissionUsageActivity"
+            android:exported="true"
+            android:targetActivity=".HealthPermissionsRationaleActivity"
+            android:permission="android.permission.START_VIEW_PERMISSION_USAGE">
+            <intent-filter>
+                <action android:name="android.intent.action.VIEW_PERMISSION_USAGE" />
+                <category android:name="android.intent.category.HEALTH_PERMISSIONS" />
+            </intent-filter>
+        </activity-alias>
+
         <!-- Reminders: a reminder's time, its buttons, and re-arming after a reboot, a clock
              or time zone change, or an update. None are exported except where Android must
              reach them. -->

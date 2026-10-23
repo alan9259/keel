@@ -26,7 +26,9 @@ import com.therecalibrationyears.keel.data.UserRepository
 import com.therecalibrationyears.keel.data.backup.BackupService
 import com.therecalibrationyears.keel.data.db.HealthDatabase
 import com.therecalibrationyears.keel.data.db.MainDatabase
+import com.therecalibrationyears.keel.domain.HealthDataSource
 import com.therecalibrationyears.keel.domain.KeelClock
+import com.therecalibrationyears.keel.platform.HealthConnectSource
 import com.therecalibrationyears.keel.platform.AlarmReminderScheduler
 import com.therecalibrationyears.keel.platform.ExactAlarms
 import com.therecalibrationyears.keel.platform.ReminderChannels
@@ -74,6 +76,8 @@ class AppContainer(context: Context) {
     internal val appContext: Context = context.applicationContext
 
     private val speech = SpeechRecognitionService(context)
+    /** Health Connect, read only (plan §3). Internal so debug probes (src/debug) can read it directly. */
+    internal val healthSource: HealthDataSource = HealthConnectSource(context, clock)
 
     /** Work started by broadcast receivers (alarms, reminder buttons, reboot). */
     val receiverScope = CoroutineScope(SupervisorJob() + Dispatchers.Default)

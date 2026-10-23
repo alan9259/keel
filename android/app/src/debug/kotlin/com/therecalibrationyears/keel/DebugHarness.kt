@@ -28,6 +28,8 @@ import com.therecalibrationyears.keel.onboarding.OnboardingStep
  *   uitGPStep <step>         the GP Visit Summary opens at review, details or preview (iOS -uitGPReview etc.)
  *   uitGPSummary true        seed a 12-week picture and write its GP summary PDF to files/keel-gp-summary.pdf,
  *                            logging KEEL_GPSUMMARY lines (iOS -uitGPSummary)
+ *   uitHealthSeed true       write a known week into Health Connect (DebugHealth lists the values)
+ *   uitHealthProbe true      log what Keel reads from Health Connect as KEEL_HEALTH lines
  *
  * Never compiled into release builds (see src/release).
  */
@@ -80,7 +82,7 @@ object DebugHarness {
         cycleSheet = intent.getBooleanExtra("uitCycleSheet", false)
         gpInitialStep = intent.getStringExtra("uitGPStep")?.let { raw -> GPSummaryStep.entries.firstOrNull { it.name.equals(raw, ignoreCase = true) } }
         activitiesPeriod = intent.getStringExtra("uitActivitiesPeriod")?.let { raw -> ActivityPeriod.entries.firstOrNull { it.name.equals(raw, ignoreCase = true) } }
-        seeds = listOf("uitReset", "uitSeedMed", "uitSeedCheckIn", "uitSeedEnergyMix", "uitSeedWeek", "uitReminderExplainer", "uitExactTimingAgain", "uitRemindSoon", "uitSeedCycle", "uitGPSummary")
+        seeds = listOf("uitReset", "uitSeedMed", "uitSeedCheckIn", "uitSeedEnergyMix", "uitSeedWeek", "uitReminderExplainer", "uitExactTimingAgain", "uitRemindSoon", "uitSeedCycle", "uitGPSummary", "uitHealthSeed", "uitHealthProbe")
             .filter { intent.getBooleanExtra(it, false) }
     }
 
@@ -99,6 +101,8 @@ object DebugHarness {
                 "uitRemindSoon" -> s.remindSoon()
                 "uitSeedCycle" -> s.cycle()
                 "uitGPSummary" -> s.gpSummaryProbe()
+                "uitHealthSeed" -> DebugHealth(container).seed()
+                "uitHealthProbe" -> DebugHealth(container).probe()
             }
         }
         seeds = emptyList() // once per launch, not again on recreation

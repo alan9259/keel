@@ -115,7 +115,7 @@ private fun MainActivity.handleReminderTap(intent: Intent?) {
  * 3-button navigation (Android 9 and similar) the bar gets a scrim of the page colour.
  */
 @Composable
-private fun ComponentActivity.SystemBarsFollowKeel(themeId: String, colourMode: ColourMode) {
+internal fun ComponentActivity.SystemBarsFollowKeel(themeId: String, colourMode: ColourMode) {
     val systemDark = isSystemInDarkTheme()
     val dark = isDarkAppearance(themeId, colourMode, systemDark)
     val scrim = KeelTheme.resolve(themeId, colourMode.isDark(systemDark)).background.copy(alpha = 0.9f).toArgb()

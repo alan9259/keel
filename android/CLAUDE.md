@@ -97,7 +97,9 @@ adb exec-out screencap -p > shot.png
   (`AppearanceScreens.kt`), Profile, About, Connect and Get support (`InfoScreens.kt`), Your
   privacy (`YourPrivacyScreen`, shown once `PrivacySummary.android` has the owner's text), Reminders, and `rememberNotificationAccess`, the notification
   permission gate shared with Home's "Gentle reminders" and the push switch.
-- `core/platform`: device services: `SpeechRecognitionService` (on-device only),
+- `core/platform`: device services: `HealthConnectSource` (the read-only Health Connect reader
+  behind the domain's `HealthDataSource`; `HealthConnectReads` is the permission list the
+  manifest must match), `SpeechRecognitionService` (on-device only),
   `AlarmReminderScheduler` (alarms plus a device-only registry of armed ids, since Android
   can't list pending alarms), `ExactAlarms`, `ReminderChannels`, the reminder status icon.
 - `app`: `AppContainer` (manual DI, built once in `KeelApplication`), `KeelAppController`
@@ -182,6 +184,14 @@ create_account, pathway, health, ready). For a truly fresh start:
   combination on the emulator instead.
 - **uiautomator on API 28** can return a stale tree for Compose overlays after scrolling; drive
   those screens by coordinates from screenshots, or test on API 36.
+- **Health Connect on an emulator** (API 34+; Android 9 to 13 report "update required"):
+  grant with `adb shell pm grant com.therecalibrationyears.keel android.permission.health.READ_STEPS`
+  (and the other reads, plus the debug-only `WRITE_*`), then `--ez uitHealthSeed true` writes a
+  known week and `--ez uitHealthProbe true` logs what Keel reads (`adb logcat -s KEEL_HEALTH`;
+  `DebugHealth.kt` lists the expected values). On a fresh emulator, open Health Connect once
+  (finish its "Get started" and visit Manage data, Data sources and priority): until then Keel
+  isn't on its source list and daily totals (steps, exercise, energy, flights, distance) read
+  empty while averages and records read fine.
 - **Debug seeds:** `--ez uitSeedMed true --ez uitSeedWeek true --ez uitSeedCheckIn true`
   (and `uitReset`, `uitSeedEnergyMix`) fill Home for screenshots; `uitSeedCycle` seeds cycles
   and a current period, `uitCycleSheet` opens the Cycle log sheet, `--es uitActivitiesPeriod

@@ -111,3 +111,5 @@ test classes keep the iOS name. Suites not listed yet are ported with their mile
 | HealthAccessOfferTests: offerDecision | core/domain `HealthSyncRulesTests.offerDecision` | ported (+ Android's asked-permissions status) |
 | HealthSleepSourceTests (2), HealthKitImportIntegrationTests (3) | core/data `HealthImportTests` | ported (+ revised values, zero amounts) |
 | HealthImportPurgeTests (2), SubmissionPackATests.previouslyImportedUnusedTypesArePurged | core/data `HealthImportPurgeTests` | ported |
+| SubmissionPackATests: readsOnlyTheTypesKeelShows, syncControlsOnlyCoverReadTypes | core/platform `HealthConnectManifestTests` | ported (HRV is `hrvRmssd`, D13; + the manifest declares exactly the reads, no write or background access, and finds Health Connect on Android 9 to 13) |
+| (Android) Health Connect stages and flow levels | core/platform `HealthConnectMappingTests` | new: which stages count as asleep or in bed, unknown flow is a period day with no level |

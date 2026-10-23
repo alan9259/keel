@@ -19,6 +19,7 @@ dependencies {
     implementation(libs.kotlinx.coroutines.android)
     implementation(libs.androidx.core.ktx)
     implementation(libs.biometric) // BiometricPrompt for the app lock
+    api(libs.health.connect) // Health Connect: the permission contract is used by the app
     testImplementation(libs.junit)
     testImplementation(libs.robolectric)
 }

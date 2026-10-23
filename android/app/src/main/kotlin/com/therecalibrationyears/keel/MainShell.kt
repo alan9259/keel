@@ -59,6 +59,7 @@ import com.therecalibrationyears.keel.settings.ColourModeScreen
 import com.therecalibrationyears.keel.settings.ConnectScreen
 import com.therecalibrationyears.keel.settings.ProfileScreen
 import com.therecalibrationyears.keel.settings.SupportScreen
+import com.therecalibrationyears.keel.settings.AppInfo
 import com.therecalibrationyears.keel.settings.YourPrivacyScreen
 import com.therecalibrationyears.keel.domain.PrivacySummary
 import com.therecalibrationyears.keel.settings.MoodIconsScreen
@@ -245,10 +246,7 @@ fun MainShell(controller: KeelAppController) {
                     entry<MainRoute.About> {
                         AboutScreen(controller.appInfo, onOpenPrivacy = { backStack.add(MainRoute.Privacy) }, onBack = back)
                     }
-                    entry<MainRoute.Privacy> {
-                        // The owner's Android wording is still to come (plan D3); until then only the title shows.
-                        PrivacySummary.android?.let { YourPrivacyScreen(it, controller.appInfo, back) } ?: StandInScreen("Your privacy", back)
-                    }
+                    entry<MainRoute.Privacy> { YourPrivacyRoute(controller.appInfo, back) }
                     entry<MainRoute.GpSummary> {
                         GPSummaryScreen(controller.gpSummaryActions, back, initialStep = DebugHarness.gpInitialStep ?: GPSummaryStep.PERIOD)
                     }
@@ -348,6 +346,16 @@ private fun HomeRoute(controller: KeelAppController, flow: EntryFlow, push: (Mai
     } else {
         HomeScreen(loaded, now, controller.clock.zone(), actions)
     }
+}
+
+/**
+ * Your privacy, from More and About, and the screen Health Connect opens from its permission
+ * dialog (`HealthPermissionsRationaleActivity`). The owner's Android wording is still to come
+ * (plan D3); until then only the title shows.
+ */
+@Composable
+internal fun YourPrivacyRoute(info: AppInfo, onBack: () -> Unit) {
+    PrivacySummary.android?.let { YourPrivacyScreen(it, info, onBack) } ?: StandInScreen("Your privacy", onBack)
 }
 
 // FAKE: stands in for a feature screen not ported yet — shows only its iOS title, never sample data; remove when Your privacy has the owner's Android wording (plan D3) and Health Connect is built (M7)

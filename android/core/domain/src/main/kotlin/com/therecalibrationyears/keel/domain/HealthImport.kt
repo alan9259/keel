@@ -235,3 +235,29 @@ object HealthSync {
         else -> HealthRequestStatus.SHOULD_REQUEST
     }
 }
+
+/** Whether Health Connect can be used on this phone (plan §3.5). */
+enum class HealthAvailability {
+    AVAILABLE,
+    /** Android 9 to 13 without the Health Connect app, or an outdated one: Play can install it. */
+    UPDATE_REQUIRED,
+    UNAVAILABLE,
+}
+
+/**
+ * What Keel needs from Health Connect (port of iOS `HealthDataSource`), behind an interface so
+ * the connect and sync rules are tested with a fake. Asking for permission happens on screen
+ * (Health Connect's own page); this side reports what it can and what was granted.
+ */
+interface HealthDataSource {
+    suspend fun availability(): HealthAvailability
+    /** Every permission Keel would ask for on this phone (features it lacks left out). */
+    suspend fun requestablePermissions(): Set<String>
+    suspend fun grantedPermissions(): Set<String>
+    /** Whether the history permission is granted (a year back, rather than 30 days before the first grant). */
+    suspend fun readsHistory(): Boolean
+    /** Everything Keel reads, over the last [lastDays], from what she has allowed. */
+    suspend fun snapshot(lastDays: Int, flowWindowStart: LocalDate?): HealthSnapshot
+    /** Disconnect (plan D4): Keel gives back every permission. */
+    suspend fun revokeAll()
+}
