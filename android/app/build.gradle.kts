@@ -1,7 +1,19 @@
+import java.util.Properties
+
 plugins {
     alias(libs.plugins.android.application)
     alias(libs.plugins.kotlin.compose)
     alias(libs.plugins.kotlin.serialization)
+}
+
+// The Play upload key never lives in this repo. Its details are read from a properties file
+// outside it (KEEL_UPLOAD_PROPERTIES, default ~/.keel/upload.properties) with storeFile,
+// storePassword, keyAlias and keyPassword. Without it, release builds are debug-signed for
+// testing on a phone or emulator, and the Play bundle (bundleRelease) refuses to build.
+val uploadPropertiesFile = file(System.getenv("KEEL_UPLOAD_PROPERTIES") ?: "${System.getProperty("user.home")}/.keel/upload.properties")
+val uploadProperties: Properties? = uploadPropertiesFile.takeIf { it.isFile }?.let { f -> Properties().apply { f.inputStream().use(::load) } }
+if (uploadProperties == null && gradle.startParameter.taskNames.any { it.contains("bundleRelease", ignoreCase = true) }) {
+    throw GradleException("bundleRelease needs the Play upload key: put its details in $uploadPropertiesFile (see android/CLAUDE.md).")
 }
 
 android {
@@ -17,13 +29,25 @@ android {
         versionName = "1.0.0"
     }
 
+    signingConfigs {
+        uploadProperties?.let { p ->
+            create("upload") {
+                storeFile = file(p.getProperty("storeFile"))
+                storePassword = p.getProperty("storePassword")
+                keyAlias = p.getProperty("keyAlias")
+                keyPassword = p.getProperty("keyPassword")
+            }
+        }
+    }
+
     buildTypes {
         release {
             isMinifyEnabled = true
             isShrinkResources = true
             proguardFiles(getDefaultProguardFile("proguard-android-optimize.txt"), "proguard-rules.pro")
-            // Local release builds are debug-signed; Play App Signing handles the real key.
-            signingConfig = signingConfigs.getByName("debug")
+            // Signed with the upload key when it's set up (Play App Signing then signs for
+            // phones); otherwise debug-signed, for testing only.
+            signingConfig = signingConfigs.findByName("upload") ?: signingConfigs.getByName("debug")
         }
     }
     compileOptions {

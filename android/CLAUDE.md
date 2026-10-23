@@ -51,7 +51,8 @@ export ANDROID_HOME=~/Library/Android/sdk
 ./gradlew check                 # all unit tests (debug + release) and Android Lint
 ./gradlew testDebugUnitTest     # unit tests only
 ./gradlew assembleDebug         # app/build/outputs/apk/debug/app-debug.apk
-./gradlew :app:assembleRelease  # R8 + resource shrinking, debug-signed locally
+./gradlew :app:assembleRelease  # R8 + resource shrinking; debug-signed unless the upload key is set up
+./gradlew :app:bundleRelease    # the Play bundle; needs the upload key (docs/android-play-release.md)
 ./gradlew :feature:gpsummary:connectedDebugAndroidTest  # the PDF renderer, on every running emulator
 ./gradlew :core:data:connectedDebugAndroidTest           # the Keystore PIN store, on every running emulator
 adb install -r app/build/outputs/apk/debug/app-debug.apk
@@ -265,3 +266,9 @@ create_account, pathway, health, ready). For a truly fresh start:
   inputs so a change there re-runs them.
 - The `applicationId` `com.therecalibrationyears.keel` is permanent once uploaded to Play;
   confirm with the owner before the first upload.
+- **Signing:** the Play upload key and its passwords live outside the repo
+  (`~/.keel/upload.properties`, or `KEEL_UPLOAD_PROPERTIES`); never create or commit one for the
+  owner. Without it `assembleRelease` is debug-signed (fine for emulators) and `bundleRelease`
+  stops. Release steps, Play's forms and the real-phone checklist: `docs/android-play-release.md`.
+- **The release build has no `INTERNET` permission.** Adding one (or any library that brings
+  it) changes the Data safety answers; tell the owner.

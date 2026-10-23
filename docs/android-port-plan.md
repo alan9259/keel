@@ -21,9 +21,11 @@
 > privacy is built but shows its title only until the owner's Android wording arrives (D3).
 > **M7 is done** (see "M7 Health Connect"): reader, permissions, connect, launch offer, sync,
 > the Health Connect screen, and imported data on Home, check-in, Cycle, Activities and Stats.
-> **M8 is under way** (see "M8 accessibility and large screens"): TalkBack names, 48 dp targets,
-> 200% text, reduce motion, tablets and contrast are done; the release build and Play steps
-> come next.
+> **M8 is under way** (see "M8 accessibility and large screens" and "M8 release build"):
+> TalkBack names, 48 dp targets, 200% text, reduce motion, tablets and contrast are done, and so
+> is the Play bundle (signing from outside the repo, checked under R8). What's left needs the
+> owner: the Play account and upload key, the privacy policy and wording sign-offs, the Play
+> forms, and the internal-track run on real phones (`docs/android-play-release.md`).
 
 ## Context
 
@@ -729,6 +731,24 @@ GP summary; on API 28, Home and Cycle after the changes. Not verified: TalkBack'
 Switch Access. Once, while the Mac was at a load of about 17, the emulator showed "Keel isn't
 responding" mid-scroll; the system Settings app was as slow then (6.4 s to open), and it didn't
 recur once the load eased.
+
+### M8 release build (24 Oct 2026)
+The Play upload key is read from outside the repo (`~/.keel/upload.properties` or
+`KEEL_UPLOAD_PROPERTIES`; `.gitignore` also refuses keystores); without it `assembleRelease` is
+debug-signed for testing and `bundleRelease` stops with a message. Checked with a throwaway key:
+the bundle (8.0 MB) builds and verifies, carries R8's mapping for Play's crash reports, targets
+API 36 (Play's floor for new apps and updates from 31 Aug 2026), and its two AndroidX native
+libraries are aligned for 16 KB pages (`zipalign -c -P 16` passes). The release build asks for no
+`INTERNET` permission. R8 run-through on the API 36 emulator (release, not debuggable): a 2.2 s
+cold start; Home and Cycle on the debug-seeded records (Room); Cycle restored after the process
+was killed (Navigation 3 saved state); a backup exported through the system picker that iOS's
+decoder reads (`tools/ios-backup/run.sh read`); the GP summary preview; reminder alarms armed;
+no crashes logged. The owner's steps (account, upload key, Play App Signing, the Data safety and
+Health apps forms, listing, internal track, real-phone checklist) are in
+`docs/android-play-release.md`, with each Health Connect permission tied to the screen that shows
+it. `// FAKE:` review: two remain, both waiting on the owner (Your privacy's title-only screen,
+D3; the Play listing link, D24). Not done: no upload key was created (the owner's), nothing was
+uploaded, and no real phone was used.
 
 ### Reminders on time (21 Oct 2026, D25)
 Built: `ExactTiming` rules (`core/domain`); `ExactAlarms` (`core/platform`: whether Android

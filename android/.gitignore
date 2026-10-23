@@ -5,3 +5,7 @@ local.properties
 *.iml
 .kotlin/
 captures/
+# Signing keys and their passwords never go in the repo (see app/build.gradle.kts).
+*.jks
+*.keystore
+upload.properties
