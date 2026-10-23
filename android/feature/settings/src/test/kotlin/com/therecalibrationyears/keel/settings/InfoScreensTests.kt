@@ -7,7 +7,9 @@ import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.assertIsNotSelected
 import androidx.compose.ui.test.assertIsSelected
 import androidx.compose.ui.test.assertTextContains
+import androidx.compose.ui.test.hasAnyDescendant
 import androidx.compose.ui.test.hasSetTextAction
+import androidx.compose.ui.test.hasText
 import androidx.compose.ui.test.junit4.createAndroidComposeRule
 import androidx.compose.ui.test.onAllNodesWithText
 import androidx.compose.ui.test.onNodeWithContentDescription
@@ -117,6 +119,15 @@ class InfoScreensTests {
         compose.onNodeWithText("Changes saved").assertExists()
         compose.mainClock.advanceTimeBy(3_000) // shown for two seconds, as on iOS
         compose.onNodeWithText("Changes saved").assertDoesNotExist()
+    }
+
+    /** Android-only: each field carries its label, so TalkBack names it (no unnamed "Edit box"). */
+    @Test fun eachProfileFieldCarriesItsLabel() {
+        compose.setContent { KeelThemeProvider { ProfileScreen(FakeProfile(), onBack = {}) } }
+        compose.waitForIdle()
+        listOf("First name", "Last name (optional)", "Age (optional)", "Mobile (optional)", "Email (optional)").forEach { label ->
+            compose.onNode(hasSetTextAction() and hasAnyDescendant(hasText(label)), useUnmergedTree = true).assertExists(label)
+        }
     }
 
     @Test fun tappingHerAnswerAgainClearsItAndAYearIsOnlyAskedForAYes() {

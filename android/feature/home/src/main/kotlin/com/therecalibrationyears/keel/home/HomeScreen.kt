@@ -8,6 +8,7 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ExperimentalLayoutApi
 import androidx.compose.foundation.layout.FlowRow
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.WindowInsets
@@ -15,6 +16,7 @@ import androidx.compose.foundation.layout.WindowInsetsSides
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.navigationBars
 import androidx.compose.foundation.layout.only
 import androidx.compose.foundation.layout.padding
@@ -49,9 +51,12 @@ import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.semantics.clearAndSetSemantics
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.onClick
+import androidx.compose.ui.semantics.selected
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.semantics.stateDescription
 import androidx.compose.ui.text.font.FontWeight
@@ -64,8 +69,10 @@ import com.therecalibrationyears.keel.designsystem.KeelHapticKind
 import com.therecalibrationyears.keel.designsystem.KeelHaptics
 import com.therecalibrationyears.keel.designsystem.KeelIcons
 import com.therecalibrationyears.keel.designsystem.LocalKeelTheme
+import com.therecalibrationyears.keel.designsystem.MinTouchTarget
 import com.therecalibrationyears.keel.designsystem.Radius
 import com.therecalibrationyears.keel.designsystem.components.EmojiGlyph
+import com.therecalibrationyears.keel.designsystem.components.InsetTouchTarget
 import com.therecalibrationyears.keel.designsystem.components.StandardCard
 import com.therecalibrationyears.keel.designsystem.components.severityColour
 import com.therecalibrationyears.keel.designsystem.mixOklab
@@ -181,7 +188,9 @@ private fun TopBar(
             greeting,
             Modifier.padding(top = 4.dp),
             style = KeelFont.serif(22.sp).copy(color = theme.heading),
-            maxLines = 1,
+            // One line, shrinking as iOS does; with very large text it can't fit even shrunk, so
+            // it wraps rather than being cut to "Good".
+            maxLines = if (LocalDensity.current.fontScale > 1.3f) 2 else 1,
             autoSize = TextAutoSize.StepBased(minFontSize = 15.4.sp, maxFontSize = 22.sp, stepSize = 0.4.sp),
         )
     }
@@ -281,12 +290,16 @@ private fun MedicinesCard(model: HomeModel, day: LocalDate, label: String, actio
                 Text("Medications", Modifier.weight(1f), style = KeelFont.sans(12.sp), color = theme.muted)
                 Text(label, style = KeelFont.sans(11.sp), color = theme.muted)
             }
+            // Rows are 48 dp tall (Android's minimum touch target), touching, so the gap iOS
+            // leaves between them is inside each row.
+            Column {
             rows.forEach { row ->
                 val taken = row.taken
                 val hint = "Records whether you took it on $label"
                 Row(
                     Modifier
                         .fillMaxWidth()
+                        .heightIn(min = MinTouchTarget)
                         .clickable(role = Role.Button) {
                             haptic(KeelHapticKind.SUCCESS)
                             actions.toggleMedication(row.medication, day, taken)
@@ -313,6 +326,7 @@ private fun MedicinesCard(model: HomeModel, day: LocalDate, label: String, actio
                         if (taken) Icon(KeelIcons.check, contentDescription = null, tint = theme.onFill, modifier = Modifier.size(14.dp))
                     }
                 }
+            }
             }
             Box(Modifier.fillMaxWidth().padding(top = 2.dp).height(1.dp).background(theme.border))
             // A plain count, not a score or a progress bar: no failing-grade framing.
@@ -422,12 +436,23 @@ private fun BarTrendCard(
                     val value = bar.value?.takeIf { it > 0 }
                     val isSelected = bar.day == selected
                     Column(
-                        Modifier
-                            .weight(1f)
-                            .clickable(enabled = value != null, role = Role.Button) {
-                                haptic(KeelHapticKind.SELECTION)
-                                onSelect(if (isSelected) null else bar.day)
+                        Modifier.weight(1f).then(
+                            // TalkBack reads a day as tapping it shows it; a day with nothing isn't a
+                            // button (iOS disables it) and is skipped.
+                            if (value != null) {
+                                Modifier
+                                    .clickable(role = Role.Button) {
+                                        haptic(KeelHapticKind.SELECTION)
+                                        onSelect(if (isSelected) null else bar.day)
+                                    }
+                                    .semantics {
+                                        contentDescription = selectedText(bar.day, value).replace(" · ", ", ") // not-copy: a spoken pause in place of the dot
+                                        this.selected = isSelected
+                                    }
+                            } else {
+                                Modifier.clearAndSetSemantics {}
                             },
+                        ),
                         horizontalAlignment = Alignment.CenterHorizontally,
                         verticalArrangement = Arrangement.spacedBy(6.dp),
                     ) {
@@ -446,6 +471,7 @@ private fun BarTrendCard(
                         }
                         Text(
                             formats.letter(bar.day.dayOfWeek),
+                            Modifier.clearAndSetSemantics {}, // the bar's description names the day
                             style = KeelFont.sans(11.sp, if (isSelected) FontWeight.SemiBold else FontWeight.Normal),
                             color = if (isSelected) theme.text else theme.muted,
                         )
@@ -477,7 +503,7 @@ private fun CalendarCard(
                 ChromeButton(KeelIcons.chevronRight, "Next month", enabled = !isCurrentMonth, iconSize = 18.dp) { onMonth(1) }
             }
             Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
-                Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
+                Row {
                     CalendarGrid.weekOrder(formats.firstDayOfWeek).forEach {
                         Text(
                             formats.letter(it), Modifier.weight(1f), style = KeelFont.sans(11.sp)
@@ -486,26 +512,29 @@ private fun CalendarCard(
                         )
                     }
                 }
+                // Each day is a 48 dp touch target (Android's minimum) around the 38 dp day iOS draws.
+                Column {
                 cells.chunked(7).forEach { week ->
-                    Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
+                    Row {
                         week.forEach { day ->
-                            Box(Modifier.weight(1f).height(38.dp), contentAlignment = Alignment.Center) {
+                            Box(Modifier.weight(1f).height(MinTouchTarget), contentAlignment = Alignment.Center) {
                                 if (day != null) {
                                     val isSel = day == selected
                                     val future = model.isFuture(day)
                                     val mood = model.latestMood(day)
                                     val shape = RoundedCornerShape(10.dp)
-                                    Box(
-                                        Modifier
-                                            .fillMaxSize()
-                                            .clip(shape)
+                                    InsetTouchTarget(
+                                        onClick = { onSelect(day); haptic(KeelHapticKind.SELECTION) },
+                                        inset = PaddingValues(horizontal = 2.dp, vertical = 5.dp),
+                                        shape = shape,
+                                        modifier = Modifier.fillMaxSize().semantics(mergeDescendants = true) {
+                                            contentDescription = listOfNotNull(formats.fullDate(day), mood?.label).joinToString(", ")
+                                        },
+                                        enabled = !future,
+                                        role = null,
+                                        visual = Modifier
                                             .background(if (isSel) theme.accent.copy(alpha = 0.12f) else Color.Transparent)
-                                            .border(1.5.dp, if (isSel) theme.accent else Color.Transparent, shape)
-                                            .clickable(enabled = !future) { onSelect(day); haptic(KeelHapticKind.SELECTION) }
-                                            .semantics(mergeDescendants = true) {
-                                                contentDescription = listOfNotNull(formats.fullDate(day), mood?.label).joinToString(", ")
-                                            },
-                                        contentAlignment = Alignment.Center,
+                                            .border(1.5.dp, if (isSel) theme.accent else Color.Transparent, shape),
                                     ) {
                                         if (mood != null) {
                                             EmojiGlyph(pack.emojiFor(mood), size = 22.dp)
@@ -521,6 +550,7 @@ private fun CalendarCard(
                         }
                         repeat(7 - week.size) { Spacer(Modifier.weight(1f)) }
                     }
+                }
                 }
             }
         }

@@ -24,7 +24,7 @@ class HealthPermissionsRationaleActivity : ComponentActivity() {
             val colourMode = ColourMode.fromRaw(appearance?.colourModeRaw)
             SystemBarsFollowKeel(themeId, colourMode)
             KeelThemeProvider(themeId = themeId, colourMode = colourMode, hapticsEnabled = appearance?.haptics ?: true) {
-                YourPrivacyRoute(controller.appInfo, onBack = ::finish)
+                PhoneWidth { YourPrivacyRoute(controller.appInfo, onBack = ::finish) }
             }
         }
     }

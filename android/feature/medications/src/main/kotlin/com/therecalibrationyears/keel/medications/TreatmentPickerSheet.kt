@@ -28,6 +28,7 @@ import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
+import androidx.compose.material3.minimumInteractiveComponentSize
 import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.Text
 import androidx.compose.material3.rememberModalBottomSheetState
@@ -202,7 +203,8 @@ private fun PickerList(
                     if (TreatmentPicker.showsSectionHeading(visible, group)) Eyebrow(group.section)
                     if (group.title != group.section) Text(group.title, style = KeelFont.serif(16.sp), color = theme.text)
                     group.note?.let { Text(it, style = KeelFont.sans(12.sp), color = theme.muted) }
-                    FlowRow(horizontalArrangement = Arrangement.spacedBy(6.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                    // No vertical gap: each pill's 48 dp touch target already leaves one.
+                    FlowRow(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
                         group.sortedItems().forEach { item ->
                             ItemChip(item.name, isTaking(item.name)) { haptic(KeelHapticKind.SELECTION); onItem(item, group) }
                         }
@@ -305,7 +307,8 @@ private fun SearchField(value: String, onValueChange: (String) -> Unit) {
 private fun ItemChip(name: String, taking: Boolean, onClick: () -> Unit) {
     val theme = LocalKeelTheme.current
     Row(
-        Modifier.clip(CircleShape)
+        Modifier.minimumInteractiveComponentSize() // a 48 dp target around the pill
+            .clip(CircleShape)
             .background(if (taking) theme.accent.copy(alpha = 0.1f) else theme.card)
             .border(1.dp, if (taking) theme.accent.copy(alpha = 0.4f) else theme.border, CircleShape)
             .clickable(role = Role.Button, onClick = onClick)
@@ -324,7 +327,7 @@ private fun ItemChip(name: String, taking: Boolean, onClick: () -> Unit) {
 internal fun DashedAddPill(label: String, description: String? = null, vertical: androidx.compose.ui.unit.Dp = 8.dp, onClick: () -> Unit) {
     val theme = LocalKeelTheme.current
     Row(
-        Modifier.clip(CircleShape).dashedCapsule(theme.accent.copy(alpha = 0.5f))
+        Modifier.minimumInteractiveComponentSize().clip(CircleShape).dashedCapsule(theme.accent.copy(alpha = 0.5f))
             .clickable(role = Role.Button, onClick = onClick)
             .then(if (description != null) Modifier.semantics(mergeDescendants = true) { contentDescription = description } else Modifier)
             .padding(horizontal = 14.dp, vertical = vertical),

@@ -12,10 +12,12 @@ import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.rememberLazyListState
@@ -63,7 +65,9 @@ import com.therecalibrationyears.keel.designsystem.KeelHapticKind
 import com.therecalibrationyears.keel.designsystem.KeelHaptics
 import com.therecalibrationyears.keel.designsystem.KeelIcons
 import com.therecalibrationyears.keel.designsystem.LocalKeelTheme
+import com.therecalibrationyears.keel.designsystem.MinTouchTarget
 import com.therecalibrationyears.keel.designsystem.Radius
+import com.therecalibrationyears.keel.designsystem.components.InsetTouchTarget
 import com.therecalibrationyears.keel.designsystem.components.KeelScreen
 import com.therecalibrationyears.keel.designsystem.components.StandardCard
 import com.therecalibrationyears.keel.designsystem.lineSpacing
@@ -154,10 +158,10 @@ private fun TimelineCard(model: CycleModel, formats: KeelDateFormats, open: (Loc
         LaunchedEffect(model.railDays) {
             val index = model.railDays.indexOf(model.today).coerceAtLeast(0)
             val viewport = state.layoutInfo.viewportSize.width
-            val pip = with(density) { PIP_WIDTH.roundToPx() }
+            val pip = with(density) { dayWidth(density.fontScale).roundToPx() }
             state.scrollToItem(index, -((viewport - pip) / 2).coerceAtLeast(0))
         }
-        LazyRow(state = state, horizontalArrangement = Arrangement.spacedBy(9.dp), contentPadding = PaddingValues(horizontal = 2.dp)) {
+        LazyRow(state = state, contentPadding = PaddingValues(horizontal = 2.dp)) {
             items(model.railDays, key = { it.toEpochDay() }) { day -> DayPip(day, model, formats, open) }
         }
         if (model.hasAnyPeriod || model.hasAnyImported) {
@@ -180,6 +184,12 @@ private fun TimelineCard(model: CycleModel, formats: KeelDateFormats, open: (Loc
 
 private val PIP_WIDTH = 34.dp
 
+/** A day's circle, grown with large text so the date stays inside it. */
+private fun pipSize(fontScale: Float) = PIP_WIDTH * fontScale.coerceIn(1f, 1.6f)
+
+/** Each day in the strip is at least a 48 dp touch target (Android's minimum); iOS spaces its pips 9 apart. */
+private fun dayWidth(fontScale: Float) = maxOf(MinTouchTarget, pipSize(fontScale) + 8.dp)
+
 @Composable
 private fun DayPip(day: LocalDate, model: CycleModel, formats: KeelDateFormats, open: (LocalDate) -> Unit) {
     val theme = LocalKeelTheme.current
@@ -188,13 +198,13 @@ private fun DayPip(day: LocalDate, model: CycleModel, formats: KeelDateFormats, 
     val inEstimate = model.inEstimate(day)
     val label = model.accessibilityLabel(day, formats.fullDate(day), inEstimate)
     Column(
-        Modifier.clip(RoundedCornerShape(10.dp)).clickable(role = Role.Button) { open(day) }.semantics(mergeDescendants = true) { contentDescription = label },
+        Modifier.width(dayWidth(LocalDensity.current.fontScale)).clip(RoundedCornerShape(10.dp)).clickable(role = Role.Button) { open(day) }.semantics(mergeDescendants = true) { contentDescription = label },
         horizontalAlignment = Alignment.CenterHorizontally,
         verticalArrangement = Arrangement.spacedBy(6.dp),
     ) {
         Text(formats.letter(day.dayOfWeek), style = KeelFont.sans(11.sp), color = theme.muted)
         Box(
-            Modifier.size(PIP_WIDTH).clip(CircleShape)
+            Modifier.size(pipSize(LocalDensity.current.fontScale)).clip(CircleShape)
                 .background(mark?.let { theme.accent.copy(alpha = CycleModel.fillOpacity(it)) } ?: Color.Transparent)
                 .ring(
                     when {
@@ -358,8 +368,9 @@ private fun MonthButton(icon: ImageVector, label: String, enabled: Boolean, onCl
 private fun MonthGrid(model: CycleModel, formats: KeelDateFormats, open: (LocalDate) -> Unit) {
     val theme = LocalKeelTheme.current
     val firstDay = formats.firstDayOfWeek
-    Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
-        Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
+    // Days touch: each is a 48 dp target (Android's minimum) around the 40 dp shape iOS draws.
+    Column {
+        Row(Modifier.padding(bottom = 4.dp)) {
             (0L..6L).map { firstDay.plus(it) }.forEach { dow ->
                 Text(
                     formats.letter(dow), Modifier.weight(1f).padding(vertical = 4.dp),
@@ -368,7 +379,7 @@ private fun MonthGrid(model: CycleModel, formats: KeelDateFormats, open: (LocalD
             }
         }
         model.monthCells(firstDay).chunked(7).forEach { week ->
-            Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
+            Row {
                 week.forEach { day -> Box(Modifier.weight(1f)) { if (day != null) GridCell(day, model, formats, open) } }
                 repeat(7 - week.size) { Spacer(Modifier.weight(1f)) }
             }
@@ -384,8 +395,13 @@ private fun GridCell(day: LocalDate, model: CycleModel, formats: KeelDateFormats
     val isFuture = day > model.today
     val shape = RoundedCornerShape(11.dp)
     val label = model.accessibilityLabel(day, formats.fullDate(day), inEstimate = false)
-    Box(
-        Modifier.fillMaxWidth().heightIn(min = 40.dp).clip(shape)
+    InsetTouchTarget(
+        onClick = { open(day) },
+        inset = PaddingValues(horizontal = 2.dp, vertical = 4.dp),
+        shape = shape,
+        modifier = Modifier.fillMaxWidth().height(MinTouchTarget).semantics(mergeDescendants = true) { contentDescription = label },
+        enabled = !isFuture,
+        visual = Modifier
             .background(mark?.let { theme.accent.copy(alpha = CycleModel.fillOpacity(it)) } ?: Color.Transparent)
             .ring(
                 when {
@@ -394,10 +410,7 @@ private fun GridCell(day: LocalDate, model: CycleModel, formats: KeelDateFormats
                     else -> null
                 },
                 corner = 11.dp,
-            )
-            .clickable(enabled = !isFuture, role = Role.Button) { open(day) }
-            .semantics(mergeDescendants = true) { contentDescription = label },
-        contentAlignment = Alignment.Center,
+            ),
     ) {
         Text(
             "${day.dayOfMonth}", style = KeelFont.body,

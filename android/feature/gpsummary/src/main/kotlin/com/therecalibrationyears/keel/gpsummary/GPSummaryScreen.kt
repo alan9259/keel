@@ -39,6 +39,7 @@ import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.SelectableDates
 import androidx.compose.material3.Text
+import androidx.compose.material3.minimumInteractiveComponentSize
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.rememberDatePickerState
 import androidx.compose.runtime.Composable
@@ -475,7 +476,8 @@ private fun DetailsStep(draft: GPSummaryDraft, about: GPAboutMe, onChange: (GPSu
 
     // Impact.
     Block(GPSummaryCopy.impactHeading, prompt = null) {
-        FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+        // No vertical gap: each chip's 48 dp touch target already leaves one around the pill.
+        FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
             GPSummaryCopy.impactAreaOptions.forEach { area ->
                 Chip(area, selected = draft.isAreaSelected(area)) { onChange(draft.toggleArea(area)) }
             }
@@ -546,7 +548,8 @@ private fun Chip(label: String, selected: Boolean, onClick: () -> Unit) {
     val haptic = KeelHaptics.rememberPerformer()
     Text(
         label, style = KeelFont.body, color = if (selected) theme.onFill else theme.text.copy(alpha = 0.85f),
-        modifier = Modifier.clip(CircleShape)
+        modifier = Modifier.minimumInteractiveComponentSize() // a 48 dp target around the pill
+            .clip(CircleShape)
             .background(if (selected) theme.accent else theme.card)
             .border(1.dp, if (selected) Color.Transparent else theme.border, CircleShape)
             .selectable(selected = selected, role = Role.Checkbox) { haptic(KeelHapticKind.SELECTION); onClick() }

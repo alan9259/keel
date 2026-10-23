@@ -25,17 +25,17 @@ import com.therecalibrationyears.keel.designsystem.KeelHapticKind
 import com.therecalibrationyears.keel.designsystem.KeelHaptics
 import com.therecalibrationyears.keel.designsystem.KeelIcons
 import com.therecalibrationyears.keel.designsystem.LocalKeelTheme
+import com.therecalibrationyears.keel.designsystem.rememberReduceMotion
 
 /**
  * The diary's microphone toggle (port of iOS `VoiceInputButton`): pulses gently while
- * recording. Compose follows the system's animation scale, so it stays still when she has
- * turned animations off.
+ * recording, and stays still when she has turned animations off (iOS Reduce Motion).
  */
 @Composable
 internal fun VoiceInputButton(isRecording: Boolean, onClick: () -> Unit) {
     val theme = LocalKeelTheme.current
     val haptic = KeelHaptics.rememberPerformer()
-    val pulse = if (isRecording) {
+    val pulse = if (isRecording && !rememberReduceMotion()) {
         rememberInfiniteTransition(label = "micPulse").animateFloat(
             1f, 1.12f, infiniteRepeatable(tween(500, easing = EaseInOut), RepeatMode.Reverse), label = "micScale",
         ).value

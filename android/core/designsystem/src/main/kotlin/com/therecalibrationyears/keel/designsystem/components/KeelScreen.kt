@@ -148,6 +148,7 @@ private fun FloatingHeaderBar(title: String, onBack: () -> Unit, onHome: (() -> 
     Column(
         Modifier
             .fillMaxWidth()
+            .blocksTouchesBelow() // a tap on the title mustn't reach the row scrolled under it
             .shadow(6.dp, ambientColor = theme.scrim, spotColor = theme.scrim)
             .background(theme.background)
             .windowInsetsPadding(WindowInsets.statusBars),

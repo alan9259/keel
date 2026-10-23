@@ -32,6 +32,7 @@ import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.minimumInteractiveComponentSize
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -227,7 +228,8 @@ fun SymptomPickerSheet(
                             SensitiveInvitation(group) { haptic(KeelHapticKind.SELECTION); scope.launch { actions.showSensitive() } }
                         } else {
                             group.intro?.let { Text(it, style = KeelFont.sans(12.sp), color = theme.muted) }
-                            FlowRow(horizontalArrangement = Arrangement.spacedBy(6.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                            // No vertical gap: each pill's 48 dp touch target already leaves one.
+                            FlowRow(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
                                 group.items.forEach { s ->
                                     if (editing) {
                                         EditChip(s, onLongClick = { startDrag(s) }, onRename = { renaming = s }) {
@@ -306,7 +308,7 @@ private fun EditChip(s: SymptomEntity, onLongClick: () -> Unit, onRename: () -> 
     var menu by remember { mutableStateOf(false) }
     Box {
         Row(
-            Modifier.clip(CircleShape).background(theme.card).border(1.5.dp, theme.accent.copy(alpha = 0.45f), CircleShape)
+            Modifier.minimumInteractiveComponentSize().clip(CircleShape).background(theme.card).border(1.5.dp, theme.accent.copy(alpha = 0.45f), CircleShape)
                 .combinedClickable(role = Role.Button, onLongClick = onLongClick) { menu = true }
                 .semantics(mergeDescendants = true) { contentDescription = "Options for ${s.name}" }
                 .padding(horizontal = 14.dp, vertical = 8.dp),

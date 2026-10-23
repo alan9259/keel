@@ -60,33 +60,38 @@ fun KeelTextField(
     val borderColour by animateColorAsState(if (focused) theme.accent else theme.border, tween(150), label = "fieldBorder")
     val borderWidth by animateDpAsState(if (focused) 2.dp else 1.dp, tween(150), label = "fieldBorderWidth")
     val shape = RoundedCornerShape(Radius.md)
-    Column(modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(Spacing.sm)) {
-        Text(label, style = KeelFont.body.copy(fontWeight = FontWeight.Medium), color = theme.text)
-        BasicTextField(
-            value = value,
-            onValueChange = onValueChange,
-            singleLine = true,
-            textStyle = KeelFont.bodyLarge.copy(color = theme.text),
-            cursorBrush = SolidColor(theme.accent),
-            keyboardOptions = keyboardOptions,
-            keyboardActions = keyboardActions,
-            interactionSource = source,
-            modifier = Modifier
-                .then(if (contentType != null) Modifier.semantics { this.contentType = contentType } else Modifier)
-                .fillMaxWidth()
-                .clip(shape)
-                .background(theme.inputBackground)
-                .border(borderWidth, borderColour, shape)
-                .padding(16.dp),
-            decorationBox = { inner ->
-                Box {
+    BasicTextField(
+        value = value,
+        onValueChange = onValueChange,
+        singleLine = true,
+        textStyle = KeelFont.bodyLarge.copy(color = theme.text),
+        cursorBrush = SolidColor(theme.accent),
+        keyboardOptions = keyboardOptions,
+        keyboardActions = keyboardActions,
+        interactionSource = source,
+        modifier = modifier
+            .then(if (contentType != null) Modifier.semantics { this.contentType = contentType } else Modifier)
+            .fillMaxWidth(),
+        // The label sits inside the field (as in Material's text fields) so TalkBack reads it
+        // with the field, not as a separate line before an unnamed edit box.
+        decorationBox = { inner ->
+            Column(verticalArrangement = Arrangement.spacedBy(Spacing.sm)) {
+                Text(label, style = KeelFont.body.copy(fontWeight = FontWeight.Medium), color = theme.text)
+                Box(
+                    Modifier
+                        .fillMaxWidth()
+                        .clip(shape)
+                        .background(theme.inputBackground)
+                        .border(borderWidth, borderColour, shape)
+                        .padding(16.dp),
+                ) {
                     // One line, like the iOS placeholder, so the field doesn't change height as she types.
                     if (value.isEmpty()) Text(placeholder, style = KeelFont.bodyLarge, color = theme.muted, maxLines = 1, overflow = TextOverflow.Ellipsis)
                     inner()
                 }
-            },
-        )
-    }
+            }
+        },
+    )
 }
 
 /**

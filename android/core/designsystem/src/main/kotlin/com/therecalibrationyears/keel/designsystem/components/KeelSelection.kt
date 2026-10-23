@@ -16,6 +16,7 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Icon
+import androidx.compose.material3.minimumInteractiveComponentSize
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
@@ -27,6 +28,7 @@ import androidx.compose.ui.semantics.selected
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.semantics.stateDescription
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.therecalibrationyears.keel.designsystem.KeelFont
@@ -67,7 +69,10 @@ fun KeelSegmented(
                     .padding(vertical = 9.dp),
                 contentAlignment = Alignment.Center,
             ) {
-                Text(option, style = KeelFont.sans(14.sp, FontWeight.Medium), color = if (selected) theme.text else theme.muted)
+                Text(
+                    option, style = KeelFont.sans(14.sp, FontWeight.Medium), color = if (selected) theme.text else theme.muted,
+                    textAlign = TextAlign.Center,
+                )
             }
         }
     }
@@ -115,6 +120,7 @@ fun SymptomChip(
     val fill = severityColour(level, theme)
     Row(
         modifier
+            .minimumInteractiveComponentSize() // a 48 dp target around the pill
             .clip(CircleShape)
             .background(fill ?: theme.card)
             .border(1.dp, if (fill != null) Color.Transparent else theme.border, CircleShape)

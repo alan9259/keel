@@ -21,7 +21,9 @@
 > privacy is built but shows its title only until the owner's Android wording arrives (D3).
 > **M7 is done** (see "M7 Health Connect"): reader, permissions, connect, launch offer, sync,
 > the Health Connect screen, and imported data on Home, check-in, Cycle, Activities and Stats.
-> Next: M8 (polish and release).
+> **M8 is under way** (see "M8 accessibility and large screens"): TalkBack names, 48 dp targets,
+> 200% text, reduce motion, tablets and contrast are done; the release build and Play steps
+> come next.
 
 ## Context
 
@@ -680,6 +682,53 @@ Health Connect's rationale and permission-usage entry on Android 14+ beyond the 
 large real data volumes (a year of minute-level heart rate). Once, during the emulator run, the
 Flights switch was found off after scroll gestures were sent while the screen was still loading;
 the switch itself works, and the cause wasn't pinned down.
+
+### M8 accessibility and large screens (24 Oct 2026)
+Checked every screen (each route, onboarding, the GP steps, the check-in, symptom picker,
+medicine picker and form, Cycle's log sheet) with `android/tools/a11y_audit.py`, which reads
+the accessibility tree for unnamed buttons and targets under 48 dp, then at 200% text and as a
+tablet in landscape. Fixed:
+- **Taps passed through layers** (a real bug, both seen on the emulator and reproduced in
+  tests): a tap on the check-in's empty strip below "Save entry" opened Cycle from Home
+  underneath, and a tap on the floating header's title opened the row scrolled under it.
+  Compose hands a tap to whatever under the finger handles taps; both layers now claim their
+  taps (`blocksTouchesBelow`), and Home is hidden from TalkBack while the check-in is up.
+- TalkBack names: each text field carries its label (Last name had none), the sleep stepper's
+  minus and plus ("Decrease", "Increase", iOS's stepper words), the bars on Home's 7-day strips
+  and Stats ("Last night, 7.5h"; nights with nothing aren't buttons, as iOS disables them).
+- 48 dp targets: Home and Cycle calendar days (the iOS shape drawn inside a 48 dp target),
+  Cycle's day strip, Home's medicine rows, symptom and medicine pills, the GP summary's chips.
+  Days in a 7-column grid stay narrower than 48 dp on phones under about 430 dp wide, and the
+  Stats bars stay 24 dp wide (a chart); both are named for TalkBack.
+- 200% text: the Home greeting wraps instead of being cut to "Good"; the Health Connect
+  "Connected" badge moves under the name instead of one letter a line; Stats' period control
+  widens so "Months" isn't split; Cycle's day circles grow so dates stay inside.
+- Reduce motion: the recording pulse stays still with "Remove animations" on (iOS Reduce
+  Motion); one-off animations already follow the system's animation scale.
+- Large screens: Android 16 ignores the portrait lock on tablets and unfolded phones, so Keel
+  keeps a phone-width column (600 dp) in the middle there, as the iPhone-only iOS app does on
+  an iPad. Phones stay portrait.
+
+**Contrast, for the owner (not changed: the palette is shared with iOS).** Body text and
+headings read at 8.9:1 or better on every surface in every theme, and a test keeps it so. Short
+of WCAG's 4.5:1 for small text: muted text on off-white 3.9:1 (placeholders 3.6:1); amber
+attention text 3.6:1. In dark mode every theme keeps its light-mode accent, because `resolve`
+(iOS and Android alike) puts the theme's accent over the dark palette's lightened one, which is
+then never used: rosewood text on the dark background is 2.4:1 (Slate 2.7, Forest 2.1), mist
+blue 2.4:1. Dusk in light mode: accent text 2.3:1 and white on its buttons 2.5:1. Forest's
+secondary on off-white 1.8:1, Slate's 2.5:1. A likely fix for both apps is to use the dark
+palette's lightened accent family in dark mode, and darker muted and accent shades where text
+is small; it's a brand decision.
+
+Verified on the API 36 emulator (debug): the audit before and after; the check-in and header
+taps; 200% text on Home, Cycle, More, Settings, Medications, GP summary, Health Connect,
+Profile, Stats, Activities and three onboarding steps (Continue stays reachable by scrolling);
+a simulated tablet (1600x2560 at 320 dpi, landscape) on Home, Cycle, More, onboarding and the
+GP summary; on API 28, Home and Cycle after the changes. Not verified: TalkBack's actual speech
+(adb can't drive it; labels checked in the tree and in tests), a real tablet or foldable, and
+Switch Access. Once, while the Mac was at a load of about 17, the emulator showed "Keel isn't
+responding" mid-scroll; the system Settings app was as slow then (6.4 s to open), and it didn't
+recur once the load eased.
 
 ### Reminders on time (21 Oct 2026, D25)
 Built: `ExactTiming` rules (`core/domain`); `ExactAlarms` (`core/platform`: whether Android

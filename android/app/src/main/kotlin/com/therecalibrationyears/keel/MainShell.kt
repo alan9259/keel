@@ -76,6 +76,7 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.sp
+import androidx.compose.ui.semantics.clearAndSetSemantics
 import androidx.compose.ui.window.DialogProperties
 import com.therecalibrationyears.keel.designsystem.KeelFont
 import com.therecalibrationyears.keel.home.HomeActions
@@ -207,6 +208,8 @@ fun MainShell(controller: KeelAppController) {
         Box(Modifier.fillMaxSize()) {
             NavDisplay(
                 backStack = backStack,
+                // While the check-in covers the screen, TalkBack mustn't reach the screen beneath.
+                modifier = if (request != null) Modifier.clearAndSetSemantics {} else Modifier,
                 onBack = back,
                 entryProvider = entryProvider {
                     entry<MainRoute.Home> { HomeRoute(controller, flow) { backStack.add(it) } }

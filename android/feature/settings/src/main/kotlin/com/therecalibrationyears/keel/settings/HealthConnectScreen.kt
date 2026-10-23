@@ -6,6 +6,7 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.RowScope
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -181,13 +182,18 @@ private fun ConnectionCard(connected: Boolean, connecting: Boolean, onSyncNow: (
                 Icon(KeelIcons.heart, contentDescription = null, tint = theme.onFill, modifier = Modifier.size(26.dp))
             }
             Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
-                Row(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.CenterVertically) {
+                // The badge moves under the name when large text leaves no room beside it.
+                FlowRow(
+                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                    verticalArrangement = Arrangement.spacedBy(4.dp),
+                    itemVerticalAlignment = Alignment.CenterVertically,
+                ) {
                     Text("Health Connect", style = KeelFont.bodyLarge, color = theme.text)
                     if (connected) {
                         Text(
                             "Connected",
                             Modifier.clip(RoundedCornerShape(50)).background(theme.sageTint).padding(horizontal = 8.dp, vertical = 2.dp),
-                            style = KeelFont.sans(11.sp), color = theme.sage,
+                            style = KeelFont.sans(11.sp), color = theme.sage, maxLines = 1, softWrap = false,
                         )
                     }
                 }

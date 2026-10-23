@@ -31,6 +31,7 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.minimumInteractiveComponentSize
 import androidx.compose.material3.Icon
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
@@ -64,6 +65,7 @@ import com.therecalibrationyears.keel.designsystem.KeelHaptics
 import com.therecalibrationyears.keel.designsystem.KeelIcons
 import com.therecalibrationyears.keel.designsystem.LocalKeelTheme
 import com.therecalibrationyears.keel.designsystem.Radius
+import com.therecalibrationyears.keel.designsystem.components.blocksTouchesBelow
 import com.therecalibrationyears.keel.designsystem.components.EmojiGlyph
 import com.therecalibrationyears.keel.designsystem.components.KeelPrimaryButton
 import com.therecalibrationyears.keel.designsystem.components.KeelTextEditor
@@ -171,7 +173,8 @@ fun CheckInScreen(
         }
     }
 
-    Column(Modifier.fillMaxSize().background(theme.background).imePadding()) {
+    // Drawn over Home in the same window: taps on its empty parts mustn't reach Home.
+    Column(Modifier.fillMaxSize().blocksTouchesBelow().background(theme.background).imePadding()) {
         // Header
         Row(
             Modifier.fillMaxWidth().windowInsetsPadding(WindowInsets.statusBars)
@@ -245,6 +248,8 @@ fun CheckInScreen(
                     StepperRow(
                         leading = { Icon(KeelIcons.moon, null, tint = theme.sage, modifier = Modifier.size(15.dp)) },
                         value = CheckInRules.sleepLabel(hours), valueMinWidth = 68,
+                        // iOS's symbol buttons are named by VoiceOver; Android needs words (iOS's stepper wording).
+                        minusDescription = "Decrease", plusDescription = "Increase",
                         onMinus = { haptic(KeelHapticKind.SELECTION); draft = draft.copy(sleepHours = CheckInRules.adjustSleep(hours, -0.5)) },
                         onPlus = { haptic(KeelHapticKind.SELECTION); draft = draft.copy(sleepHours = CheckInRules.adjustSleep(hours, 0.5)) },
                         onClear = { draft = draft.copy(sleepHours = null) },
@@ -307,7 +312,8 @@ fun CheckInScreen(
                         }
                     }
                 }
-                FlowRow(horizontalArrangement = Arrangement.spacedBy(6.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                // No vertical gap: each pill's 48 dp touch target already leaves one.
+                FlowRow(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
                     quickChips(symptoms, defaultOrder, draft.selected).forEach { s ->
                         SymptomChip(s.name, draft.selected[s.id] ?: 0) { draft = draft.toggled(s.id) }
                     }
@@ -409,7 +415,7 @@ private fun FromHealthConnect() {
 internal fun AddPill(icon: ImageVector, label: String, description: String? = null, vertical: androidx.compose.ui.unit.Dp = 10.dp, onClick: () -> Unit) {
     val theme = LocalKeelTheme.current
     Row(
-        Modifier.clip(CircleShape).dashedCapsule(theme.accent.copy(alpha = 0.5f))
+        Modifier.minimumInteractiveComponentSize().clip(CircleShape).dashedCapsule(theme.accent.copy(alpha = 0.5f))
             .clickable(role = Role.Button, onClick = onClick)
             .then(if (description != null) Modifier.semantics(mergeDescendants = true) { contentDescription = description } else Modifier)
             .padding(horizontal = 14.dp, vertical = vertical),

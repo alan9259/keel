@@ -33,8 +33,10 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.selected
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
@@ -82,7 +84,9 @@ fun StatsScreen(actions: StatsActions, onBack: () -> Unit) {
         val theme = LocalKeelTheme.current
         KeelSegmented(
             options = StatsPeriod.entries.map { it.label }, selection = period.ordinal,
-            onSelect = { period = StatsPeriod.entries[it] }, modifier = Modifier.widthIn(max = 260.dp),
+            onSelect = { period = StatsPeriod.entries[it] },
+            // iOS caps it at 260; it widens with large text so "Months" isn't split.
+            modifier = Modifier.widthIn(max = 260.dp * LocalDensity.current.fontScale.coerceAtLeast(1f)),
         )
         Text(model.checkInLine, Modifier.padding(horizontal = 4.dp), style = KeelFont.body, color = theme.text.copy(alpha = 0.8f))
         Tiles(model)
@@ -244,11 +248,20 @@ private fun SleepSection(model: StatsModel, formats: KeelDateFormats) {
                     model.sleepSeries.forEachIndexed { i, h ->
                         val isSelected = selected == i
                         Box(
-                            Modifier.weight(1f).fillMaxHeight()
-                                .clickable(enabled = h > 0, role = Role.Button, onClickLabel = formats.weekdayMonthDay(model.sleepDays[i])) {
-                                    haptic(KeelHapticKind.SELECTION)
-                                    selected = if (isSelected) null else i
+                            Modifier.weight(1f).fillMaxHeight().then(
+                                // A night with nothing isn't a button (iOS disables it), so TalkBack skips it;
+                                // a night with hours is named by what tapping it shows.
+                                if (h > 0) {
+                                    Modifier
+                                        .clickable(role = Role.Button) {
+                                            haptic(KeelHapticKind.SELECTION)
+                                            selected = if (isSelected) null else i
+                                        }
+                                        .semantics { contentDescription = model.sleepDetail(i, formats::weekdayMonthDay); this.selected = isSelected }
+                                } else {
+                                    Modifier
                                 },
+                            ),
                             contentAlignment = Alignment.BottomCenter,
                         ) {
                             Box(

@@ -1,7 +1,12 @@
 package com.therecalibrationyears.keel.insights
 
+import androidx.compose.ui.test.assertCountEquals
 import androidx.compose.ui.test.assertIsDisplayed
+import androidx.compose.ui.test.assertIsNotSelected
+import androidx.compose.ui.test.assertIsSelected
 import androidx.compose.ui.test.junit4.createComposeRule
+import androidx.compose.ui.test.onAllNodesWithContentDescription
+import androidx.compose.ui.test.onNodeWithContentDescription
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
 import androidx.compose.ui.test.performScrollTo
@@ -53,5 +58,16 @@ class StatsScreenTests {
         compose.onNodeWithText("You checked in on 1 of the last 7 days.").assertIsDisplayed()
         compose.onNodeWithText("Tap a bar for that night's hours.").performScrollTo().assertIsDisplayed()
         compose.onNodeWithText("avg 7.5h").assertIsDisplayed()
+    }
+
+    /** Android-only: TalkBack names a night by what tapping it shows, and skips nights with nothing. */
+    @Test fun sleepBarsAreNamedForTalkBack() {
+        val data = StatsData(manualSleep = listOf(DayAmount("sleep", today, 7.5)))
+        compose.setContent { KeelThemeProvider { StatsScreen(FakeStats(data), {}) } }
+        compose.onNodeWithText("Week").performClick()
+        compose.onAllNodesWithContentDescription(": ", substring = true).assertCountEquals(1)
+        compose.onNodeWithContentDescription("Last night: 7.5h").performScrollTo().assertIsNotSelected().performClick()
+        compose.onNodeWithContentDescription("Last night: 7.5h").assertIsSelected()
+        compose.onNodeWithText("Last night: 7.5h").assertIsDisplayed()
     }
 }

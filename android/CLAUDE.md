@@ -240,6 +240,27 @@ create_account, pathway, health, ready). For a truly fresh start:
 - **Dates on screen** use `HomeFormats`-style skeletons (`DateFormat.getBestDateTimePattern`)
   so they follow her locale like iOS `.dateTime` formats; one-decimal numbers use
   `formatOneDecimal` (iOS `%.1f` rounds ties to even).
+- **Accessibility (M8):** `python3 tools/a11y_audit.py <serial> <outdir> [screen ...]` walks
+  screens and lists actionable nodes TalkBack can't name or that are under 48 dp. TalkBack itself
+  can't be driven over adb (injected taps and keys skip its touch exploration), so check labels
+  in the tree (the audit, or Compose tests on `contentDescription`). Touch targets: at least
+  `MinTouchTarget` (48 dp); pills take `minimumInteractiveComponentSize()` (their `FlowRow` then
+  needs no vertical gap); a grid of touching days uses `InsetTouchTarget` (48 dp target around
+  the smaller iOS shape). Repeating animations check `rememberReduceMotion()` ("Remove
+  animations"); one-off animations already follow the system's animation scale.
+- **Layers in the same window** (the check-in over Home, `KeelScreen`'s floating header): Compose
+  hands a tap to whatever under the finger handles taps, so a layer's empty parts pass taps
+  through to the screen beneath. Give the layer `Modifier.blocksTouchesBelow()`, and hide the
+  screen beneath from TalkBack while it's up (`clearAndSetSemantics {}`, as `MainShell` does).
+- **Large text and large screens:** `adb shell settings put system font_scale 2.0` (reset with
+  1.0) for 200% text. A tablet on the phone emulator: `wm size 1600x2560; wm density 320;
+  settings put system accelerometer_rotation 0; settings put system user_rotation 1` (undo with
+  `wm size reset`, `wm density reset`, `user_rotation 0`). Android 16 ignores the portrait lock
+  on large screens; `PhoneWidth` (`KeelRoot.kt`) keeps a phone-width column there.
+- **A starved emulator** (the Mac's load average above ~15, or the emulator swapping) can take
+  5 s a frame, show "Keel isn't responding", and turn a slow `input swipe` into a tap. Compare
+  with the system Settings app (`am start -W -a android.settings.SETTINGS`) before suspecting
+  Keel, and wait for screens by their text (not fixed sleeps).
 - Tests that read files outside their module (iOS sources, `brand/`) declare them as Gradle
   inputs so a change there re-runs them.
 - The `applicationId` `com.therecalibrationyears.keel` is permanent once uploaded to Play;

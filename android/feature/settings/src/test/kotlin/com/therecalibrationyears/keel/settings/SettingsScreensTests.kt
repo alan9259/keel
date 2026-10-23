@@ -73,10 +73,12 @@ class SettingsScreensTests {
     @Test fun moreLeadsToEachFeatureAndShowsTheVersion() {
         val opened = mutableListOf<MoreDestination>()
         showMore(opened)
+        // Before scrolling: once the floating header is up, a tap where App lock sits under it
+        // lands on the header (it no longer leaks through to the row).
+        compose.onNodeWithText("App lock").performClick()
         listOf("Profile/Settings", "Tracking", "Personalisation", "Data", "Feedback", "Support & about").forEach {
             compose.onNodeWithText(it.uppercase()).performScrollTo().assertIsDisplayed()
         }
-        compose.onNodeWithText("App lock").performClick()
         compose.onNodeWithText("Themes").performScrollTo().performClick()
         compose.onNodeWithText("Health Connect").performScrollTo().performClick()
         compose.onNodeWithText("About Keel").performScrollTo().performClick()
