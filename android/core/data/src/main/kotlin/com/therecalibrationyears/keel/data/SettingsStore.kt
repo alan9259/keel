@@ -5,6 +5,7 @@ import androidx.datastore.preferences.core.Preferences
 import androidx.datastore.preferences.core.booleanPreferencesKey
 import androidx.datastore.preferences.core.edit
 import androidx.datastore.preferences.core.intPreferencesKey
+import androidx.datastore.preferences.core.longPreferencesKey
 import androidx.datastore.preferences.core.stringPreferencesKey
 import androidx.datastore.preferences.core.stringSetPreferencesKey
 import com.therecalibrationyears.keel.domain.ReminderConfig
@@ -68,6 +69,21 @@ class SettingsStore(private val store: DataStore<Preferences>) {
      */
     val disabledHealthItemIds: Flow<Set<String>> = store.data.map { it[DISABLED_HEALTH_ITEMS] ?: emptySet() }
 
+    /** She answered the "Connect to Health Connect?" offer (either way): not offered again. */
+    val healthConnectOfferDeclined: Flow<Boolean> = store.data.map { it[HEALTH_OFFER_DECLINED] ?: false }
+
+    /** She answered the "Update Health Connect access?" offer for the current set of reads. */
+    val healthReconnectOfferAnswered: Flow<Boolean> = store.data.map { it[HEALTH_RECONNECT_ANSWERED] ?: false }
+
+    /**
+     * Android only (plan §3.6): the Health Connect permissions Keel has asked for, so it can
+     * tell whether asking again would show anything new (Health Connect can't say).
+     */
+    val healthAskedPermissions: Flow<Set<String>> = store.data.map { it[HC_ASKED] ?: emptySet() }
+
+    /** Android only (plan §3.4): the day Keel was first allowed to read periods, as an epoch day. */
+    val healthFirstMenstruationGrantDay: Flow<Long?> = store.data.map { it[HC_FIRST_MENSTRUATION_GRANT] }
+
     /** Android only: she has been told, once, how to get reminders on time (plan D25). */
     val exactTimingOffered: Flow<Boolean> = store.data.map { it[EXACT_TIMING_OFFERED] ?: false }
 
@@ -92,6 +108,11 @@ class SettingsStore(private val store: DataStore<Preferences>) {
     suspend fun setNotificationPermissionAsked(asked: Boolean) = store.edit { it[NOTIFICATION_PERMISSION_ASKED] = asked }
     suspend fun setExactTimingOffered(offered: Boolean) = store.edit { it[EXACT_TIMING_OFFERED] = offered }
     suspend fun setDisabledHealthItemIds(ids: Set<String>) = store.edit { it[DISABLED_HEALTH_ITEMS] = ids }
+    suspend fun setHealthConnectOfferDeclined(on: Boolean) = store.edit { it[HEALTH_OFFER_DECLINED] = on }
+    suspend fun setHealthReconnectOfferAnswered(on: Boolean) = store.edit { it[HEALTH_RECONNECT_ANSWERED] = on }
+    suspend fun addHealthAskedPermissions(permissions: Set<String>) = store.edit { it[HC_ASKED] = (it[HC_ASKED] ?: emptySet()) + permissions }
+    suspend fun clearHealthAskedPermissions() = store.edit { it.remove(HC_ASKED); it.remove(HC_FIRST_MENSTRUATION_GRANT) }
+    suspend fun setHealthFirstMenstruationGrantDay(epochDay: Long) = store.edit { if (it[HC_FIRST_MENSTRUATION_GRANT] == null) it[HC_FIRST_MENSTRUATION_GRANT] = epochDay }
 
     /**
      * Back to a fresh install's preferences ("Delete all my data"; iOS `resetToDefaults`).
@@ -103,7 +124,7 @@ class SettingsStore(private val store: DataStore<Preferences>) {
         listOf(
             COLOUR_MODE, THEME_ID, MOOD_PACK_ID, HAPTICS, PUSH_NOTIFICATIONS, REMINDERS, DISABLED_HEALTH_ITEMS,
             REMINDER_CONFIG, SENSITIVE_SYMPTOMS, NOTES_ALCOHOL, MED_NAMES_IN_REMINDERS, NOTIFICATION_EXPLAINER_PENDING,
-            EXACT_TIMING_OFFERED,
+            EXACT_TIMING_OFFERED, HEALTH_OFFER_DECLINED, HEALTH_RECONNECT_ANSWERED, HC_ASKED, HC_FIRST_MENSTRUATION_GRANT,
         ).forEach { prefs.remove(it) }
     }
 
@@ -127,5 +148,9 @@ class SettingsStore(private val store: DataStore<Preferences>) {
         private val NOTIFICATION_PERMISSION_ASKED = booleanPreferencesKey("keel.notificationPermissionAsked")
         private val EXACT_TIMING_OFFERED = booleanPreferencesKey("keel.exactTimingOffered")
         private val DISABLED_HEALTH_ITEMS = stringSetPreferencesKey("keel.disabledHealthItems")
+        private val HEALTH_OFFER_DECLINED = booleanPreferencesKey("keel.healthOfferDeclined")
+        private val HEALTH_RECONNECT_ANSWERED = booleanPreferencesKey("keel.healthReconnectAnswered")
+        private val HC_ASKED = stringSetPreferencesKey("keel.hcAskedPermissions")
+        private val HC_FIRST_MENSTRUATION_GRANT = longPreferencesKey("keel.hcFirstMenstruationGrantAt")
     }
 }

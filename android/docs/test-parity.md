@@ -102,3 +102,12 @@ test classes keep the iOS name. Suites not listed yet are ported with their mile
 | EraseAllDataTests: the app lock part | app `KeelAppControllerTests.deletesEverythingAndResetsTheRest` | ported (lock off, PIN gone, off after a relaunch) |
 | (Android) Keystore PIN store | core/data androidTest `KeystorePINStoreTests` | new: round trip, nothing in the clear on disk, the key removed with the PIN, a blob without its key reads as no PIN (checked on API 28 and 36) |
 | (Android) App lock, PIN setup, lock screen | feature/settings `AppLockScreensTests` | new: the iOS views are untested there (turning it on twice, a mismatch, the biometric toggle, the right and wrong PIN, the lockout, biometrics first, the PIN from Android's prompt, both forgot-PIN paths) |
+| HealthSleepMergeTests (8) | core/domain `HealthSleepMergeTests` | ported |
+| (Android) Sleep sessions to nights | core/domain `HealthSleepSessionTests` | new: Health Connect sessions and stages (no stages, asleep stages, in-bed fallback, D8 session end day in her zone) |
+| AppleHealthPeriodsTests: flowMappingDropsNoneAndKeepsTheHeaviestPerDay, snapshotWithOnlyFlowIsNotEmpty, switchingPeriodsOffStopsImport | core/domain `HealthFlowTests` | ported (+ period records fill days without flow, D5; the read window without history) |
+| AppleHealthPeriodsTests: import, deleted days, window, estimate, removal | core/data `HealthConnectPeriodsTests` | ported on the ingestor (the Delete-all part is in app `KeelAppControllerTests`) |
+| HealthSyncCatalogTests (7) | core/domain `HealthSyncCatalogTests`, core/data `HealthImportTests.aSwitchedOffItemIsNotImportedButOthersAre` | ported |
+| HealthSyncGatingTests: the throttle (7) | core/domain `HealthSyncRulesTests` | ported |
+| HealthAccessOfferTests: offerDecision | core/domain `HealthSyncRulesTests.offerDecision` | ported (+ Android's asked-permissions status) |
+| HealthSleepSourceTests (2), HealthKitImportIntegrationTests (3) | core/data `HealthImportTests` | ported (+ revised values, zero amounts) |
+| HealthImportPurgeTests (2), SubmissionPackATests.previouslyImportedUnusedTypesArePurged | core/data `HealthImportPurgeTests` | ported |
