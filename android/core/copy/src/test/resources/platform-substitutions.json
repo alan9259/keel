@@ -148,5 +148,23 @@
     "android": "Confirm it's you with your screen lock to reset your PIN",
     "approvedByOwner": false,
     "note": "Forgot PIN: the title of Android's screen-lock prompt. App lock. Plan D15: Android doesn't say which biometric (face or fingerprint), so 'biometrics' replaces 'Face ID'/'Touch ID'; 'screen lock' is Android's word for the device passcode."
+  },
+  {
+    "ios": "Apple exercise minutes",
+    "android": "Time in exercise sessions",
+    "approvedByOwner": false,
+    "note": "Health Connect screen, the per-item switches (iOS HealthSyncCatalog). Plan §3.8 / D12. Exercise minutes item: Health Connect has exercise sessions, not Apple's exercise ring minutes."
+  },
+  {
+    "ios": "Distance covered on foot",
+    "android": "Distance covered",
+    "approvedByOwner": false,
+    "note": "Health Connect screen, the per-item switches (iOS HealthSyncCatalog). Plan §3.8 / D12. Distance item (label 'Distance', iOS 'Walking & running distance'): Health Connect's distance isn't limited to walking and running."
+  },
+  {
+    "ios": "Body temperature and overnight wrist temperature",
+    "android": "Body temperature and overnight skin temperature",
+    "approvedByOwner": false,
+    "note": "Health Connect screen, the per-item switches (iOS HealthSyncCatalog). Plan §3.8 / D12. Body temperature item: Health Connect's measure is skin temperature (plan §3.2)."
   }
 ]
