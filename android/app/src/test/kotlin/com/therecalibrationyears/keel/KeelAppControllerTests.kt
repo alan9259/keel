@@ -14,6 +14,7 @@ import com.therecalibrationyears.keel.data.MedicationRepository
 import com.therecalibrationyears.keel.data.SettingsStore
 import com.therecalibrationyears.keel.data.SymptomRepository
 import com.therecalibrationyears.keel.data.RecordEraser
+import com.therecalibrationyears.keel.data.AppLockService
 import com.therecalibrationyears.keel.data.backup.BackupService
 import com.therecalibrationyears.keel.data.db.HealthDatabase
 import com.therecalibrationyears.keel.settings.AppInfo
@@ -104,6 +105,20 @@ class KeelAppControllerTests {
     private val scheduler = FakeScheduler()
     private var exactAllowed = true
     private var postedCleared = 0
+    /** The PIN as the Keystore would hold it, in memory, shared across launches like the real file. */
+    private val pinStore = object : com.therecalibrationyears.keel.data.PINSecureStore {
+        var stored: Pair<ByteArray, ByteArray>? = null
+        override suspend fun hasPIN() = stored != null
+        override suspend fun save(salt: ByteArray, hash: ByteArray) { stored = salt to hash }
+        override suspend fun load() = stored
+        override suspend fun clear() { stored = null }
+    }
+    private val biometricsFake = object : com.therecalibrationyears.keel.domain.BiometricAuthenticating {
+        override fun canAuthenticate() = false
+        override suspend fun authenticate(reason: String) = com.therecalibrationyears.keel.domain.BiometricOutcome.CANCELLED
+        override fun canAuthenticateOwner() = false
+        override suspend fun authenticateOwner(reason: String) = false
+    }
     private var sharedFilesCleared = 0
 
     private fun launch(): KeelAppController {
@@ -128,6 +143,7 @@ class KeelAppControllerTests {
             clock, scope,
             records = RecordEraser(db, health),
             backup = BackupService(db, health, clock) { "1.0.0" },
+            lock = AppLockService(pinStore, biometricsFake, prefs, clock).also { runBlocking { it.load() } },
             appInfo = AppInfo("1.0.0", "1.0.0 (1)", "Android 16 (API 36)", "Google Pixel 8"),
             clearSharedFiles = { sharedFilesCleared++ },
         )
@@ -491,9 +507,15 @@ class KeelAppControllerTests {
         health.samples().insertAll(
             listOf(com.therecalibrationyears.keel.data.db.HealthSampleEntity("H1", "heartRate", clock.now(), 70.0, "bpm", ownerID = "o", createdAt = clock.now(), updatedAt = clock.now())),
         )
+        assertTrue(app.lock.setPIN("2468"))
         assertTrue(scheduler.armed.isNotEmpty())
 
         app.eraseAllData()
+
+        // Regression (iOS): the app lock and its PIN survived "delete everything".
+        assertFalse(app.lock.state.value!!.isEnabled)
+        assertFalse(app.lock.verifyPIN("2468"))
+        assertFalse("off after a relaunch too", launch().lock.state.value!!.isEnabled)
 
         assertTrue("imported readings go too", health.samples().all().isEmpty())
 

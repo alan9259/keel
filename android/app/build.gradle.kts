@@ -40,6 +40,7 @@ dependencies {
     implementation(project(":core:designsystem"))
     implementation(project(":core:data"))
     implementation(project(":core:platform"))
+    implementation(libs.biometric) // FragmentActivity, for the biometric prompt
     implementation(project(":feature:onboarding"))
     implementation(project(":feature:home"))
     implementation(project(":feature:checkin"))

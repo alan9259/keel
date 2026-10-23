@@ -53,6 +53,7 @@ import com.therecalibrationyears.keel.designsystem.components.KeelScreen
 import com.therecalibrationyears.keel.medications.MedicationsScreen
 import com.therecalibrationyears.keel.settings.ExactTimingDialog
 import com.therecalibrationyears.keel.settings.AboutScreen
+import com.therecalibrationyears.keel.settings.AppLockScreen
 import com.therecalibrationyears.keel.settings.BackupRestoreScreen
 import com.therecalibrationyears.keel.settings.ColourModeScreen
 import com.therecalibrationyears.keel.settings.ConnectScreen
@@ -237,7 +238,7 @@ fun MainShell(controller: KeelAppController) {
                     entry<MainRoute.Themes> { ThemesScreen(controller.appearanceActions, back) }
                     entry<MainRoute.ColourMode> { ColourModeScreen(controller.appearanceActions, back) }
                     entry<MainRoute.MoodIcons> { MoodIconsScreen(controller.appearanceActions, back) }
-                    entry<MainRoute.AppLock> { StandInScreen("App lock", back) }
+                    entry<MainRoute.AppLock> { AppLockScreen(controller.lockActions, back) }
                     entry<MainRoute.Backup> { BackupRestoreScreen(controller.backupActions, back) }
                     entry<MainRoute.Support> { SupportScreen(back) }
                     entry<MainRoute.Connect> { ConnectScreen(controller.appInfo, back) }
@@ -349,7 +350,7 @@ private fun HomeRoute(controller: KeelAppController, flow: EntryFlow, push: (Mai
     }
 }
 
-// FAKE: stands in for a feature screen not ported yet — shows only its iOS title, never sample data; remove as each screen is built (M6, M7)
+// FAKE: stands in for a feature screen not ported yet — shows only its iOS title, never sample data; remove when Your privacy has the owner's Android wording (plan D3) and Health Connect is built (M7)
 @Composable
 private fun StandInScreen(title: String, onBack: () -> Unit) {
     KeelScreen(title = title, onBack = onBack) {}

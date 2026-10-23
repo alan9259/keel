@@ -53,6 +53,7 @@ export ANDROID_HOME=~/Library/Android/sdk
 ./gradlew assembleDebug         # app/build/outputs/apk/debug/app-debug.apk
 ./gradlew :app:assembleRelease  # R8 + resource shrinking, debug-signed locally
 ./gradlew :feature:gpsummary:connectedDebugAndroidTest  # the PDF renderer, on every running emulator
+./gradlew :core:data:connectedDebugAndroidTest           # the Keystore PIN store, on every running emulator
 adb install -r app/build/outputs/apk/debug/app-debug.apk
 adb exec-out screencap -p > shot.png
 ```
@@ -146,8 +147,7 @@ create_account, pathway, health, ready). For a truly fresh start:
   "Try out your stylus" sheet that swallows typed text. Turn it off once per emulator:
   `adb shell settings put secure stylus_handwriting_enabled 0`.
 - **Stand-ins:** `grep -rn "// FAKE:" android/` lists them (currently: the title-only feature
-  screens in `MainShell.kt` (App lock, Your privacy until the owner's Android wording, Health
-  Connect), the Health Connect request in
+  screens in `MainShell.kt` (Your privacy until the owner's Android wording, Health Connect), the Health Connect request in
   `KeelAppController.kt`, and the Play link in `ShareInvite`).
 - **Backup format:** iOS reads it with Swift's `JSONDecoder` (`.iso8601`, no fractions, every
   top-level key required). After changing `BackupCodec`, re-run the Android tests (the committed
@@ -155,6 +155,17 @@ create_account, pathway, health, ready). For a truly fresh start:
   `core/data/build/backup/`) and check iOS can still read it:
   `tools/ios-backup/run.sh read ../fixtures/backup/v1-android-export.keelbackup`. If the iOS
   `KeelBackup.swift` changes, `tools/ios-backup/run.sh fixture` rewrites the iPhone sample.
+- **App lock on an emulator:** with the lock on, Android 9 to 12 mark Keel's window secure, so
+  `screencap` comes back empty and `uiautomator dump` is the way to read the screen. Android's
+  biometric and screen-lock prompts are blank in screenshots on every version. To try biometrics:
+  `adb shell locksettings set-pin 1111`, start fingerprint enrolment
+  (`adb shell am start -a android.settings.FINGERPRINT_ENROLL`, enter 1111), then
+  `adb -e emu finger touch 1` (and `emu finger remove 1`) until it's added; the same touch
+  answers Keel's prompt. Undo with `adb shell locksettings clear --old 1111`. A debug launch with
+  `uitOnboarded` still shows the lock if it's on.
+- **Compose tests and the clock:** a `waitUntil` whose condition reads only app state (not the
+  UI) never advances the test clock, so a `delay` in the screen never ends; call
+  `compose.waitForIdle()` first (see `AppLockScreensTests.type`).
 - **Files on an emulator:** `adb push` into `/sdcard/Download/` doesn't index the file; the
   picker shows it under its side menu's Downloads (or run
   `adb shell content call --method scan_volume --uri content://media --arg external_primary`).

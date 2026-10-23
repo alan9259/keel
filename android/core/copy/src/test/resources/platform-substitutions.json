@@ -88,5 +88,65 @@
     "android": "No vitals from Health Connect in this {} yet. Resting heart rate, heart rate variability, weight and blood pressure appear here once there's data.",
     "approvedByOwner": false,
     "note": "Stats (iOS ReportsView). Plan §3.8 / D12: Apple Health -> Health Connect, otherwise verbatim. Body section, empty."
+  },
+  {
+    "ios": "Unlock with {} or a PIN",
+    "android": "Unlock with biometrics or a PIN",
+    "approvedByOwner": false,
+    "note": "App lock settings, the lock row's subtitle when a biometric is enrolled. App lock. Plan D15: Android doesn't say which biometric (face or fingerprint), so 'biometrics' replaces 'Face ID'/'Touch ID'; 'screen lock' is Android's word for the device passcode."
+  },
+  {
+    "ios": "Use {}",
+    "android": "Use biometric unlock",
+    "approvedByOwner": false,
+    "note": "App lock settings, the biometric toggle (iOS 'Use Face ID'). App lock. Plan D15: Android doesn't say which biometric (face or fingerprint), so 'biometrics' replaces 'Face ID'/'Touch ID'; 'screen lock' is Android's word for the device passcode."
+  },
+  {
+    "ios": "Unlock with {} instead of typing your PIN",
+    "android": "Unlock with biometrics instead of typing your PIN",
+    "approvedByOwner": false,
+    "note": "App lock settings, the biometric toggle's subtitle. App lock. Plan D15: Android doesn't say which biometric (face or fingerprint), so 'biometrics' replaces 'Face ID'/'Touch ID'; 'screen lock' is Android's word for the device passcode."
+  },
+  {
+    "ios": "Keel asks to unlock when you open it, and after you've been away for a while. Your PIN is the backup if {} isn't used. If you forget your PIN, you can reset it with your device passcode.",
+    "android": "Keel asks to unlock when you open it, and after you've been away for a while. Your PIN is the backup when biometrics aren't used. If you forget your PIN, you can reset it with your phone's screen lock.",
+    "approvedByOwner": false,
+    "note": "App lock settings footnote. 'when biometrics aren't used' (iOS fills in 'Face ID isn't used'), 'your phone's screen lock' for 'your device passcode'. App lock. Plan D15: Android doesn't say which biometric (face or fingerprint), so 'biometrics' replaces 'Face ID'/'Touch ID'; 'screen lock' is Android's word for the device passcode."
+  },
+  {
+    "ios": "Keel will ask for this to unlock, when Face ID isn't used.",
+    "android": "Keel will ask for this to unlock, when biometrics aren't used.",
+    "approvedByOwner": false,
+    "note": "PIN setup. iOS names Face ID even on Touch ID phones. App lock. Plan D15: Android doesn't say which biometric (face or fingerprint), so 'biometrics' replaces 'Face ID'/'Touch ID'; 'screen lock' is Android's word for the device passcode."
+  },
+  {
+    "ios": "Use {}",
+    "android": "Use biometrics",
+    "approvedByOwner": false,
+    "note": "Lock screen, the button that asks for the biometric again. App lock. Plan D15: Android doesn't say which biometric (face or fingerprint), so 'biometrics' replaces 'Face ID'/'Touch ID'; 'screen lock' is Android's word for the device passcode."
+  },
+  {
+    "ios": "Use {}, or enter your PIN.",
+    "android": "Use biometrics, or enter your PIN.",
+    "approvedByOwner": false,
+    "note": "Lock screen subtitle once the PIN pad is showing. App lock. Plan D15: Android doesn't say which biometric (face or fingerprint), so 'biometrics' replaces 'Face ID'/'Touch ID'; 'screen lock' is Android's word for the device passcode."
+  },
+  {
+    "ios": "Unlock with {}.",
+    "android": "Unlock with biometrics.",
+    "approvedByOwner": false,
+    "note": "Lock screen subtitle, leading with the biometric. App lock. Plan D15: Android doesn't say which biometric (face or fingerprint), so 'biometrics' replaces 'Face ID'/'Touch ID'; 'screen lock' is Android's word for the device passcode."
+  },
+  {
+    "ios": "Set a passcode for your device in the Settings app to reset your Keel PIN. Without one, the only way to reset is to reinstall Keel, which erases the data on this device unless you have a backup.",
+    "android": "Set a screen lock for your phone in Settings to reset your Keel PIN. Without one, the only way to reset is to reinstall Keel, which erases the data on this device unless you have a backup.",
+    "approvedByOwner": false,
+    "note": "Lock screen, 'Forgot PIN?' when the phone has no screen lock. App lock. Plan D15: Android doesn't say which biometric (face or fingerprint), so 'biometrics' replaces 'Face ID'/'Touch ID'; 'screen lock' is Android's word for the device passcode."
+  },
+  {
+    "ios": "Confirm it's you with your device passcode to reset your PIN",
+    "android": "Confirm it's you with your screen lock to reset your PIN",
+    "approvedByOwner": false,
+    "note": "Forgot PIN: the title of Android's screen-lock prompt. App lock. Plan D15: Android doesn't say which biometric (face or fingerprint), so 'biometrics' replaces 'Face ID'/'Touch ID'; 'screen lock' is Android's word for the device passcode."
   }
 ]

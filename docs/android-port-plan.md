@@ -15,11 +15,11 @@
 > "Reminders on time" for exact alarms (D25). Open: the daily top-up (D11). **M4 is done:**
 > Cycle, Looking back, Activities and Stats (see the "M4" sections); imported health data
 > fills them in M7, and Activities and Stats are reached from More in M6. **M5 is done:** the
-> GP Visit Summary (see "M5 GP Visit Summary"). **M6 is under way:** More, Settings (with
-> "Delete all my data"), Themes, Colour mode and Mood icons are built (see "M6 More and
-> Settings"), then Profile, About, Connect and Get support (see "M6 Profile, About, Connect,
-> Get support"); Your privacy waits on the owner's Android wording (D3). Next: Backup & Restore,
-> App lock. **Backup & Restore is built** (see "M6 Backup & Restore"). Next: App lock.
+> GP Visit Summary (see "M5 GP Visit Summary"). **M6 is done** (see the four "M6" sections):
+> More, Settings and "Delete all my data", Themes, Colour mode, Mood icons, Profile, About,
+> Connect, Get support, Backup & Restore (with the shared backup fixtures) and the app lock. Your
+> privacy is built but shows its title only until the owner's Android wording arrives (D3).
+> Next: M7 (Health Connect).
 
 ## Context
 
@@ -612,6 +612,35 @@ and Swift decoded it; export, uninstall, reinstall, restore brought everything b
 real 100-check-in store exported (175 kB) and Swift decoded it. Not verified: the iOS app itself
 restoring an Android file (Swift's decoder reads it; the iOS restore code wasn't run), cloud
 providers in the picker (Drive), and very large archives.
+
+### M6 App lock (23 Oct 2026)
+
+Ported from iOS `AppLockService`, `PINSecurity`, `AppLockSettingsView`, `PINSetupView`,
+`LockGate`, `PINComponents`. Pure rules in core/domain (`PINHasher`, the same bytes as iOS;
+`AppLockRules`: 4 digits, 5 tries then 60 s, 30 s grace); `AppLockService` in core/data
+(state as a `StateFlow`, the launch screen waits for it so nothing shows unlocked; flags and the
+attempt count in the main preferences under the iOS keys); the PIN's salt and hash in
+`KeystorePINStore` (AES-GCM, key in the Android Keystore, its own `keel-secure` file; a blob
+whose key is gone reads as no PIN). Biometrics: `SystemBiometricAuthenticator` in core/platform,
+`BiometricPrompt` with `BIOMETRIC_WEAK` and the iOS "Enter PIN instead" as its button; that
+button opens Keel's PIN pad directly (Android only: iOS would ask a second time). Forgot PIN:
+`BIOMETRIC_WEAK or DEVICE_CREDENTIAL`, Android's own screen-lock screen. `MainActivity` is now a
+`FragmentActivity`. The lock screen and PIN setup are full-screen dialogs, so they sit above any
+dialog or sheet already open. Lifecycle: process start applies the grace window, process stop
+marks the time. App switcher (D16, refined): while the lock is on, Android 13+ takes no
+snapshot (`setRecentsScreenshotEnabled(false)`), Android 9 to 12 mark the window secure (which
+also blocks screenshots of Keel), and on Android 10+ Keel draws the iOS privacy cover whenever it
+stops being the top app: the switcher shows Keel's live window when opened straight from it,
+which the snapshot setting alone didn't hide (seen on the API 36 emulator, then fixed). "Delete
+all my data" turns the lock off. Wording (D15, owner): "biometrics" for Face ID / Touch ID and
+"screen lock" for the device passcode, ten sentences in `platform-substitutions.json`. Verified
+on emulators: API 36 (debug and release) set a PIN, cold launch locked, wrong PIN message, right
+PIN, grace (5 s stays open, 36 s locks), the app switcher card covered, "Delete all my data"
+turns it off; with an emulator screen lock and enrolled fingerprint: the prompt on arrival,
+fingerprint unlock, "Enter PIN instead" to the pad, forgot PIN through the screen lock to a new
+PIN. API 28: set, cold launch locked, PIN unlock, the window secure while on and not after. Not
+verified: real fingerprint or face hardware, biometrics or the screen-lock prompt on Android 9
+and 10 (the API 28 emulator has no fingerprint set up), OEM screen-lock screens.
 
 ### Reminders on time (21 Oct 2026, D25)
 Built: `ExactTiming` rules (`core/domain`); `ExactAlarms` (`core/platform`: whether Android

@@ -18,6 +18,7 @@ dependencies {
     implementation(libs.datastore.preferences)
     implementation(libs.kotlinx.coroutines.android)
     implementation(libs.androidx.core.ktx)
+    implementation(libs.biometric) // BiometricPrompt for the app lock
     testImplementation(libs.junit)
     testImplementation(libs.robolectric)
 }

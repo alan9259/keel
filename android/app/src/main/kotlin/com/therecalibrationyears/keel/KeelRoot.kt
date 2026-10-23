@@ -16,12 +16,15 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.therecalibrationyears.keel.domain.RootRouting
 import com.therecalibrationyears.keel.onboarding.OnboardingFlow
 import com.therecalibrationyears.keel.onboarding.OnboardingStep
+import com.therecalibrationyears.keel.settings.LockGate
+import com.therecalibrationyears.keel.settings.PrivacyCover
 import kotlinx.coroutines.launch
 
 /** Decides between onboarding and the main app (port of iOS `RootView`). */
 @Composable
-fun KeelRoot(controller: KeelAppController) {
+fun KeelRoot(controller: KeelAppController, inFront: Boolean = true) {
     val onboarded by controller.hasCompletedOnboarding.collectAsStateWithLifecycle()
+    val lock by controller.lock.state.collectAsStateWithLifecycle()
     // Not read yet: the launch screen is still up.
     val hasOnboarded = onboarded ?: return
     // She finished onboarding in this session. Kept apart from the saved record so that
@@ -54,4 +57,8 @@ fun KeelRoot(controller: KeelAppController) {
             )
         }
     }
+    // Keel isn't in front (the app switcher, a system prompt): cover it while the lock is on.
+    lock?.let { if (it.isEnabled && !it.isLocked && !inFront) PrivacyCover(controller.lock.useBiometrics(it)) }
+    // Above everything (its own window), so nothing behind it shows until she unlocks (iOS LockGate).
+    lock?.takeIf { it.isLocked }?.let { LockGate(controller.lockActions, it) }
 }

@@ -13,6 +13,9 @@ import com.therecalibrationyears.keel.data.InsightRepository
 import com.therecalibrationyears.keel.data.MedicationRepository
 import com.therecalibrationyears.keel.data.LocalIdentity
 import com.therecalibrationyears.keel.data.RecordEraser
+import com.therecalibrationyears.keel.data.AppLockService
+import com.therecalibrationyears.keel.data.KeystorePINStore
+import com.therecalibrationyears.keel.platform.SystemBiometricAuthenticator
 import com.therecalibrationyears.keel.data.SettingsStore
 import com.therecalibrationyears.keel.gpsummary.GPSummaryFiles
 import com.therecalibrationyears.keel.settings.AppInfo
@@ -97,10 +100,20 @@ class AppContainer(context: Context) {
         AppInfo(shortVersion = info.versionName.orEmpty(), appVersion = device.appVersion, osVersion = device.osVersion, deviceModel = device.deviceModel)
     }
 
+    /** The PIN's salt and hash, Keystore-encrypted, in a file of their own. */
+    private val secure = PreferenceDataStoreFactory.create(
+        scope = CoroutineScope(SupervisorJob() + Dispatchers.IO),
+        produceFile = { context.preferencesDataStoreFile("keel-secure") },
+    )
+    /** The biometric prompt; the activity on screen registers itself (MainActivity). */
+    val biometrics = SystemBiometricAuthenticator(context, usePINLabel = "Enter PIN instead")
+    private val lock = AppLockService(KeystorePINStore(secure), biometrics, preferences, clock)
+
     val controller = KeelAppController(
         users, identity, settings, checkIns, symptoms, medications, activities, cycle, insights, gpSummary, speech, treatments, reminders, clock, appScope,
         records = RecordEraser(database, health),
         backup = BackupService(database, health, clock) { appInfo.shortVersion },
+        lock = lock,
         appInfo = appInfo,
         clearSharedFiles = { GPSummaryFiles.clearShared(context) },
     )

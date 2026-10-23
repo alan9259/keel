@@ -57,6 +57,10 @@ import com.therecalibrationyears.keel.settings.RemindersActions
 import com.therecalibrationyears.keel.settings.SettingsActions
 import com.therecalibrationyears.keel.designsystem.ColourMode
 import com.therecalibrationyears.keel.data.RecordEraser
+import com.therecalibrationyears.keel.data.AppLockService
+import com.therecalibrationyears.keel.domain.LockState
+import com.therecalibrationyears.keel.settings.AppLockActions
+import kotlinx.coroutines.flow.filterNotNull
 import com.therecalibrationyears.keel.data.backup.BackupService
 import com.therecalibrationyears.keel.data.backup.KeelBackup
 import com.therecalibrationyears.keel.data.backup.UnsupportedBackupVersionException
@@ -107,6 +111,8 @@ class KeelAppController(
     private val scope: CoroutineScope,
     private val records: RecordEraser,
     private val backup: BackupService,
+    /** The app lock (iOS `env.lock`). */
+    val lock: AppLockService,
     /** The app's version and support context, for More and feedback drafts. */
     val appInfo: AppInfo,
     /** Removes files Keel made for sharing (the GP summary PDF in its cache). */
@@ -120,6 +126,8 @@ class KeelAppController(
      * everyday reminders, today's auto-logged doses and the medication reminders.
      */
     fun bootstrap() {
+        // The lock's saved state first: the launch screen waits for it, so nothing shows unlocked.
+        scope.launch { lock.load() }
         scope.launch {
             symptoms.syncBuiltIns()
             insights.refreshDerived()
@@ -488,6 +496,22 @@ class KeelAppController(
         }
     }
 
+    /** The app lock screens' view of the app. */
+    val lockActions: AppLockActions = object : AppLockActions {
+        override val state: Flow<LockState> = lock.state.filterNotNull()
+        override val biometricsAvailable: Boolean get() = lock.biometricsAvailable
+        override fun useBiometrics(state: LockState) = lock.useBiometrics(state)
+        override val canRecoverWithScreenLock: Boolean get() = lock.canRecoverWithScreenLock
+        override fun now(): Instant = clock.now()
+        override suspend fun setPIN(pin: String) = lock.setPIN(pin)
+        override suspend fun disable() = lock.disable()
+        override suspend fun setBiometricUnlock(on: Boolean) = lock.setBiometricUnlock(on)
+        override suspend fun verifyPIN(pin: String) = lock.verifyPIN(pin)
+        override fun isLockedOut() = lock.isLockedOut()
+        override suspend fun unlockWithBiometrics() = lock.unlockWithBiometrics("Unlock Keel")
+        override suspend fun authenticateOwner() = lock.authenticateOwner("Confirm it's you with your screen lock to reset your PIN")
+    }
+
     /** A backup file she chose, kept until she confirms or cancels the restore. */
     private var pendingBackup: KeelBackup? = null
 
@@ -552,6 +576,7 @@ class KeelAppController(
         records.deleteEverything()
         symptoms.syncBuiltIns()
         reminders.removeEverything() // no reminder naming a deleted medicine fires
+        lock.disable() // the PIN removed, the lock off
         settings.resetToDefaults()
         identity.signOut()
         clearSharedFiles()
@@ -559,7 +584,7 @@ class KeelAppController(
     }
 
     /** Everything the first frame depends on has loaded (the launch screen waits for this). */
-    val isReady: Boolean get() = hasCompletedOnboarding.value != null && appearance.value != null
+    val isReady: Boolean get() = hasCompletedOnboarding.value != null && appearance.value != null && lock.state.value != null
 
     /** She finished onboarding: record it on her profile (a reinstall onboards again). */
     suspend fun markOnboarded() = users.markOnboardingCompleted()
