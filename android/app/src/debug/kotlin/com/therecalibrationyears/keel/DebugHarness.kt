@@ -88,7 +88,7 @@ object DebugHarness {
         forceHealthOffer = intent.getBooleanExtra("uitHealthOffer", false)
         gpInitialStep = intent.getStringExtra("uitGPStep")?.let { raw -> GPSummaryStep.entries.firstOrNull { it.name.equals(raw, ignoreCase = true) } }
         activitiesPeriod = intent.getStringExtra("uitActivitiesPeriod")?.let { raw -> ActivityPeriod.entries.firstOrNull { it.name.equals(raw, ignoreCase = true) } }
-        seeds = listOf("uitReset", "uitSeedMed", "uitSeedCheckIn", "uitSeedEnergyMix", "uitSeedWeek", "uitReminderExplainer", "uitExactTimingAgain", "uitRemindSoon", "uitSeedCycle", "uitGPSummary", "uitHealthSeed", "uitHealthProbe")
+        seeds = listOf("uitReset", "uitSeedMed", "uitSeedCheckIn", "uitSeedEnergyMix", "uitSeedWeek", "uitReminderExplainer", "uitExactTimingAgain", "uitRemindSoon", "uitRemindSoonAutoLog", "uitTopUpNow", "uitSeedCycle", "uitGPSummary", "uitHealthSeed", "uitHealthProbe")
             .filter { intent.getBooleanExtra(it, false) }
     }
 
@@ -105,6 +105,10 @@ object DebugHarness {
                 "uitReminderExplainer" -> container.settings.setNotificationExplainerPending(true)
                 "uitExactTimingAgain" -> container.settings.setExactTimingOffered(false) // "Reminders on time" can show again
                 "uitRemindSoon" -> s.remindSoon()
+                "uitRemindSoonAutoLog" -> s.remindSoonAutoLog()
+                // The daily reminder top-up, once, now (WorkManager won't run the daily job early).
+                "uitTopUpNow" -> androidx.work.WorkManager.getInstance(container.appContext)
+                    .enqueue(androidx.work.OneTimeWorkRequestBuilder<ReminderTopUpWorker>().build())
                 "uitSeedCycle" -> s.cycle()
                 "uitGPSummary" -> s.gpSummaryProbe()
                 "uitHealthSeed" -> DebugHealth(container).seed()

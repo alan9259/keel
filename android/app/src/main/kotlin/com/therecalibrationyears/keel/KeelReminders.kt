@@ -42,11 +42,21 @@ class KeelReminders(
     private fun now() = clock.now().atZone(clock.zone())
     private fun today(): LocalDate = now().toLocalDate()
 
-    /** Everything, in the iOS launch order (bootstrap, a reboot or a clock change). */
+    /** Everything, in the iOS launch order, with her open in Keel (restoring a backup). */
     suspend fun refreshAll(autoLog: suspend () -> List<LoggedDose>) {
         refreshLifestyleReminders()
         // Auto-log first, so the scheduler sees today's doses as logged and skips them.
         autoLog()
+        refreshMedicationReminders()
+    }
+
+    /**
+     * Everything laid out again, logging nothing: for when Keel may not be open (its process
+     * starting to deliver a reminder, a reboot, a clock change, the daily top-up). Auto-logged
+     * doses wait until she opens Keel (D22).
+     */
+    suspend fun refreshReminders() {
+        refreshLifestyleReminders()
         refreshMedicationReminders()
     }
 

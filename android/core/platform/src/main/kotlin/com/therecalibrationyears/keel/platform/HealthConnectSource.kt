@@ -87,10 +87,20 @@ object HealthConnectReads {
  * duplicates across apps (plan D7); sleep, HRV, breathing, blood oxygen, temperatures and periods
  * from the records themselves. A type she hasn't allowed (or that fails) reads as empty.
  */
-class HealthConnectSource(private val context: Context, private val clock: KeelClock) : HealthDataSource {
-    private val client: HealthConnectClient by lazy { HealthConnectClient.getOrCreate(context) }
+class HealthConnectSource internal constructor(
+    private val clock: KeelClock,
+    private val sdkStatus: () -> Int,
+    clientFactory: () -> HealthConnectClient,
+) : HealthDataSource {
+    constructor(context: Context, clock: KeelClock) : this(
+        clock,
+        sdkStatus = { HealthConnectClient.getSdkStatus(context, HealthConnectReads.PROVIDER_PACKAGE) },
+        clientFactory = { HealthConnectClient.getOrCreate(context) },
+    )
 
-    override suspend fun availability(): HealthAvailability = when (HealthConnectClient.getSdkStatus(context, HealthConnectReads.PROVIDER_PACKAGE)) {
+    private val client: HealthConnectClient by lazy(clientFactory)
+
+    override suspend fun availability(): HealthAvailability = when (sdkStatus()) {
         HealthConnectClient.SDK_AVAILABLE -> HealthAvailability.AVAILABLE
         HealthConnectClient.SDK_UNAVAILABLE_PROVIDER_UPDATE_REQUIRED -> HealthAvailability.UPDATE_REQUIRED
         else -> HealthAvailability.UNAVAILABLE
@@ -182,14 +192,16 @@ class HealthConnectSource(private val context: Context, private val clock: KeelC
         }
 
         val sleep = if (has(HealthConnectReads.SLEEP)) sleepByDay(readFrom, now, firstDay) else emptyMap()
-        val flow = if (has(HealthConnectReads.MENSTRUATION)) menstrualFlow(readFrom, now) else emptyMap()
+        // Null when the read failed (no access from the background, Health Connect's rate limit, a
+        // dropped connection): that isn't "no periods", so nothing is reconciled against it.
+        val flow = if (has(HealthConnectReads.MENSTRUATION)) menstrualFlow(readFrom, now) else null
         return HealthSnapshot(
             sleepByDay = sleep,
             activityAmounts = activity,
             vitals = vitals,
-            menstrualFlow = flow,
-            // Reconcile deleted period days only when periods are allowed and readable here.
-            flowWindowStart = if (has(HealthConnectReads.MENSTRUATION)) flowWindowStart else null,
+            menstrualFlow = flow.orEmpty(),
+            // Reconcile deleted period days only when periods are allowed and were read here.
+            flowWindowStart = if (flow != null) flowWindowStart else null,
         )
     }
 
@@ -204,15 +216,16 @@ class HealthConnectSource(private val context: Context, private val clock: KeelC
         return HealthSleep.hoursByDay(sessions, clock.zone()).filterKeys { it >= firstDay }
     }
 
-    private suspend fun menstrualFlow(readFrom: Instant, now: Instant): Map<LocalDate, FlowLevel> {
+    /** Period days, or null if either read failed. */
+    private suspend fun menstrualFlow(readFrom: Instant, now: Instant): Map<LocalDate, FlowLevel>? {
         val zone = clock.zone()
-        val flow = records(MenstruationFlowRecord::class, readFrom, now).mapNotNull { record ->
+        val flow = recordsOrNull(MenstruationFlowRecord::class, readFrom, now)?.mapNotNull { record ->
             flowLevel(record.flow)?.let { record.time.atZone(zone).toLocalDate() to it }
-        }
-        val periods = records(MenstruationPeriodRecord::class, readFrom, now).map { record ->
+        } ?: return null
+        val periods = recordsOrNull(MenstruationPeriodRecord::class, readFrom, now)?.map { record ->
             // A period's end is exclusive: a record ending at midnight doesn't cover the next day.
             record.startTime.atZone(zone).toLocalDate()..record.endTime.minusNanos(1).atZone(zone).toLocalDate()
-        }
+        } ?: return null
         return HealthFlow.byDay(flow, periods)
     }
 
@@ -243,7 +256,10 @@ class HealthConnectSource(private val context: Context, private val clock: KeelC
         points.groupBy({ it.first.atZone(clock.zone()).toLocalDate() }, { it.second }).mapValues { (_, values) -> values.average() }
 
     /** Every record of a type in the range, page by page. */
-    private suspend fun <T : Record> records(type: KClass<T>, from: Instant, to: Instant): List<T> = safely("read ${type.simpleName}", emptyList()) {
+    private suspend fun <T : Record> records(type: KClass<T>, from: Instant, to: Instant): List<T> = recordsOrNull(type, from, to).orEmpty()
+
+    /** Every record in the range, paged; null if the read failed. */
+    private suspend fun <T : Record> recordsOrNull(type: KClass<T>, from: Instant, to: Instant): List<T>? = safely<List<T>?>("read ${type.simpleName}", null) {
         val out = mutableListOf<T>()
         var page: String? = null
         do {

@@ -50,8 +50,9 @@ passes `zipalign -c -P 16`.
 
 **Permissions the release build asks for:** Health Connect reads (listed below),
 `RECORD_AUDIO` (voice notes, transcribed on the phone only), `POST_NOTIFICATIONS`,
-`SCHEDULE_EXACT_ALARM` and `RECEIVE_BOOT_COMPLETED` (reminders), `USE_BIOMETRIC` (app lock).
-**It has no `INTERNET` permission**: Keel itself can't send anything off the phone. Data leaves
+`SCHEDULE_EXACT_ALARM` and `RECEIVE_BOOT_COMPLETED` (reminders), `USE_BIOMETRIC` (app lock), and
+`WAKE_LOCK` and `ACCESS_NETWORK_STATE` (brought by WorkManager for the daily reminder top-up;
+neither sends anything). **It has no `INTERNET` permission**: Keel itself can't send anything off the phone. Data leaves
 only when she chooses to, through another app: sharing the GP summary PDF or a backup file, or
 writing an email in her own mail app.
 
@@ -99,6 +100,8 @@ What the emulators couldn't prove (see the plan's "not verified" notes):
 - [ ] A check-in with voice: speech is transcribed on the phone (or the "type instead" note shows).
 - [ ] A medicine with reminders: the reminder arrives on time with the phone locked and idle,
       "Mark taken" works, a tap on the reminder marks it taken, and reminders survive a restart.
+- [ ] An auto-logged medicine: its dose isn't recorded until she opens Keel that day; reminders
+      keep arriving after several days without opening Keel (the daily top-up).
 - [ ] App lock: PIN, fingerprint or face, "Forgot PIN" with the phone's screen lock; Keel's
       card is blank in the app switcher while the lock is on.
 - [ ] GP summary: generate and share the PDF to email or Files; it opens and reads correctly.

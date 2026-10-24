@@ -2,6 +2,10 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:tools="http://schemas.android.com/tools">
 
+    <!-- The daily reminder top-up (WorkManager) never runs as a foreground service: drop the
+         foreground-service parts WorkManager brings, so Keel doesn't claim one. -->
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE" tools:node="remove" />
+
     <!-- Keel's own .keelbackup export is the backup path; nothing goes to Google's
          automatic backup (plan D9, owner to confirm). -->
     <application
@@ -56,6 +60,9 @@
         <!-- Reminders: a reminder's time, its buttons, and re-arming after a reboot, a clock
              or time zone change, or an update. None are exported except where Android must
              reach them. -->
+        <service
+            android:name="androidx.work.impl.foreground.SystemForegroundService"
+            tools:node="remove" />
         <receiver android:name=".ReminderAlarmReceiver" android:exported="false" />
         <receiver android:name=".MedicationActionReceiver" android:exported="false" />
         <receiver android:name=".RescheduleReceiver" android:exported="true">

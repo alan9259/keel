@@ -14,15 +14,15 @@ class KeelApplication : Application() {
         super.onCreate()
         container = AppContainer(this)
         container.controller.bootstrap()
-        // iOS `scenePhase` .active: each time Keel comes to the foreground (not the first
-        // start, which bootstrap covers). The lock is checked first, so the gate is up before
-        // anything behind it does work.
+        ReminderTopUpWorker.schedule(this)
+        // iOS `scenePhase` .active: each time Keel comes to the foreground, the first time too
+        // (the process may have started in the background, so launch work alone isn't her
+        // opening Keel). The lock is checked first, so the gate is up before anything behind it
+        // does work.
         ProcessLifecycleOwner.get().lifecycle.addObserver(object : DefaultLifecycleObserver {
-            private var started = false
             override fun onStart(owner: LifecycleOwner) {
                 container.controller.lock.applyForeground()
-                if (started) container.controller.onForeground()
-                started = true
+                container.controller.onForeground()
             }
 
             // iOS `.background`: note when she left; a return after the grace window locks.

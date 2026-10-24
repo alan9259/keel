@@ -188,6 +188,14 @@ internal class DebugSeeds(private val container: AppContainer) {
     }
 
     /** A medicine due in 2 minutes and the daily check-in in 3, each laid out as she'd set them. */
+    /** [remindSoon], with the medicine set to log its doses automatically (D22: only while Keel is open). */
+    suspend fun remindSoonAutoLog() {
+        remindSoon()
+        val dao = container.database.medications()
+        dao.active().filter { it.name == "Magnesium" }.forEach { dao.upsert(it.copy(autoLogDoses = true)) }
+        container.controller.reminders.refreshMedicationReminders()
+    }
+
     suspend fun remindSoon() {
         val now = clock.now().atZone(clock.zone())
         val dose = now.plusMinutes(2)

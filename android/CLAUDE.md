@@ -241,6 +241,21 @@ create_account, pathway, health, ready). For a truly fresh start:
 - **Dates on screen** use `HomeFormats`-style skeletons (`DateFormat.getBestDateTimePattern`)
   so they follow her locale like iOS `.dateTime` formats; one-decimal numbers use
   `formatOneDecimal` (iOS `%.1f` rounds ties to even).
+- **Launch work isn't her opening Keel.** `KeelApplication.onCreate` (so `bootstrap`) runs
+  whenever Android starts the process, often in the background: to show a reminder, after a
+  reboot, for the daily top-up job. Anything that should happen only when she opens Keel (logging
+  auto-logged doses, D22; the Health Connect sync) belongs in `onForeground`, which runs on every
+  start including the first, after the launch work. Background paths (`rearmReminders`, the
+  `ReminderTopUpWorker` daily job, D11) re-arm reminders and log nothing. To check on an
+  emulator: `--ez uitRemindSoonAutoLog true` (an auto-logged medicine due in 2 minutes), Home,
+  `adb shell am kill com.therecalibrationyears.keel`, wait for the reminder, and read
+  `medication_log` (`run-as ... cat databases/keel-main.db*`); reopen Keel with a plain launcher
+  intent (`am start -a android.intent.action.MAIN -c android.intent.category.LAUNCHER -f
+  0x10008000 -n ...`), since bringing the old task back replays its debug extras.
+  `--ez uitTopUpNow true` runs the top-up once (WorkManager won't run the daily job early).
+- **Health Connect reads that fail** read as empty, except periods: an empty period read removes
+  imported days she deleted, so a failed one (from the background, the rate limit) reconciles
+  nothing (`HealthConnectSource`, `HealthConnectSourceTests`).
 - **Accessibility (M8):** `python3 tools/a11y_audit.py <serial> <outdir> [screen ...]` walks
   screens and lists actionable nodes TalkBack can't name or that are under 48 dp. TalkBack itself
   can't be driven over adb (injected taps and keys skip its touch exploration), so check labels

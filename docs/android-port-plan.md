@@ -12,7 +12,7 @@
 > under §5. **Home is built** on the check-in, symptom, medicine and activity tables (see
 > "Home slice"). **The check-in flow is built** (see "Check-in slice"). **M3 medications are
 > built** (see "M3 medications") **and so are reminders** (see "M3 reminders"), with
-> "Reminders on time" for exact alarms (D25). Open: the daily top-up (D11). **M4 is done:**
+> "Reminders on time" for exact alarms (D25), and the daily top-up (D11, M8). **M4 is done:**
 > Cycle, Looking back, Activities and Stats (see the "M4" sections); imported health data
 > fills them in M7, and Activities and Stats are reached from More in M6. **M5 is done:** the
 > GP Visit Summary (see "M5 GP Visit Summary"). **M6 is done** (see the four "M6" sections):
@@ -535,7 +535,7 @@ deep Doze; Hydration turned on lays 7 alarms. API 28: the explanation with no pr
 alarms. **Finding for the owner:** on Android 14+ exact alarms aren't granted by default (Android
 12 and 13 grant them), so without them Android may deliver a reminder up to an hour late
 (`window=+1h`). The owner chose to offer them (D25, below). Not done: the daily top-up (D11;
-reminders are topped up whenever Keel opens, as iOS); the Settings master switch and
+reminders are topped up whenever Keel opens, as iOS; done in M8); the Settings master switch and
 "Medicine names in reminders" (with Settings, M6; the logic is in place and tested). Not verified: a real phone (OEM battery savers can delay
 or drop alarms), the lock-screen look with names hidden, TalkBack.
 
@@ -749,6 +749,28 @@ Health apps forms, listing, internal track, real-phone checklist) are in
 it. `// FAKE:` review: two remain, both waiting on the owner (Your privacy's title-only screen,
 D3; the Play listing link, D24). Not done: no upload key was created (the owner's), nothing was
 uploaded, and no real phone was used.
+
+### M8 daily top-up and background starts (24 Oct 2026, D11, D22)
+A daily WorkManager job (`ReminderTopUpWorker`, unique and kept across launches) re-arms the
+reminders, so they don't run out when she doesn't open Keel for weeks (D11; iOS's do). Its
+foreground-service parts are removed from the manifest, as Keel never runs one.
+
+Found while building it, reproduced on the emulator and fixed: Android starts Keel's process in
+the background to show a reminder, and the launch work (`bootstrap`, from
+`Application.onCreate`) then logged auto-logged doses, on a day she never opened Keel (an
+auto-logged medicine's 10:17 dose was logged at 10:17:03 with Keel closed), against D22 and the
+reminder's own wording. Launch work now only tidies records and lays reminders out; logging and
+the Health Connect sync run when Keel comes to the foreground, the first time included, after the
+launch work. Reboots, clock changes and the top-up log nothing either. After the fix, on the
+emulator: the reminder fired with Keel's process started in the background and nothing was
+logged; opening Keel logged it. Also fixed: a failed Health Connect period read (Health Connect
+refuses reads from the background, or its rate limit) looked like an empty one, which removes
+imported period days she deleted; a failed read now reconciles nothing. Tests:
+`aBackgroundStartLogsNothingUntilSheOpensKeel`, `rearmingRemindersLogsNothing`,
+`ReminderTopUpTests`, `HealthConnectSourceTests` (each fails without its fix). The worker ran
+once on the emulator (`uitTopUpNow`, "Worker result SUCCESS"); R8 keeps its class name, and the
+release build schedules the daily job. Not verified: the daily job firing on its own a day later,
+or on a real phone with a vendor battery saver (which can hold back background work).
 
 ### Reminders on time (21 Oct 2026, D25)
 Built: `ExactTiming` rules (`core/domain`); `ExactAlarms` (`core/platform`: whether Android

@@ -293,6 +293,37 @@ class KeelAppControllerTests {
 
     // M3: the Medications screen's actions and the launch steps for medicines.
 
+    /**
+     * Regression (found on the emulator, M8): Android starts Keel's process in the background to
+     * show a reminder, and the launch work used to log auto-logged doses then, on a day she
+     * never opened Keel. Logging waits until she does (D22, as iOS).
+     */
+    @Test fun aBackgroundStartLogsNothingUntilSheOpensKeel() = runBlocking {
+        val app = launch()
+        app.medicationsActions.add(TreatmentDraft(name = "Magnesium", kind = TreatmentKind.SUPPLEMENT, schedule = DoseSchedule(slots = listOf(DoseSlot(hour = 8)))))
+        val med = db.medications().active().single()
+        db.medications().upsert(med.copy(autoLogDoses = true)) // due at 8:00; it's 12:00
+        app.bootstrap()
+        app.awaitLaunchWork()
+        assertTrue("nothing logged by the launch work alone", db.medications().observeLiveLogs().first().isEmpty())
+        assertTrue("its reminders are laid out", scheduler.armed.keys.any { it.startsWith("keel.med.${med.id}") })
+        app.onForeground()
+        withTimeout(5_000) { while (db.medications().observeLiveLogs().first().isEmpty()) delay(20) }
+        assertEquals(med.id, db.medications().observeLiveLogs().first().single().medicationID)
+    }
+
+    /** A reboot, a clock change or the daily top-up re-arms reminders and logs nothing (D22). */
+    @Test fun rearmingRemindersLogsNothing() = runBlocking {
+        val app = launch()
+        app.medicationsActions.add(TreatmentDraft(name = "Magnesium", kind = TreatmentKind.SUPPLEMENT, schedule = DoseSchedule(slots = listOf(DoseSlot(hour = 8)))))
+        val med = db.medications().active().single()
+        db.medications().upsert(med.copy(autoLogDoses = true))
+        scheduler.armed.clear()
+        app.rearmReminders()
+        assertTrue(db.medications().observeLiveLogs().first().isEmpty())
+        assertTrue(scheduler.armed.keys.any { it.startsWith("keel.med.${med.id}") })
+    }
+
     @Test fun addingWithAutoLogTicksTodayStraightAway() = runBlocking {
         val app = launch()
         app.medicationsActions.add(

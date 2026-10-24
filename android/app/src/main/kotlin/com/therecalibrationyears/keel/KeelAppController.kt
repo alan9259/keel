@@ -86,6 +86,7 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
@@ -127,38 +128,46 @@ class KeelAppController(
     private val manageHealthAccess: () -> Unit = {},
 ) : OnboardingActions {
 
+    private var launchWork: Job? = null
+
     /**
      * Launch work (iOS `bootstrap`, in its order): bring the built-in symptom catalog up to
      * date, clear out imports Keel no longer keeps, re-derive Looking back's pattern cards, carry
-     * older medicine entries onto schedules, tidy brand examples out of their names, then the
-     * everyday reminders, today's auto-logged doses and the medication reminders, and last a
-     * Health Connect sync (only once she has connected, so it never asks at launch).
+     * older medicine entries onto schedules, tidy brand examples out of their names, then lay
+     * the reminders out. Android runs this whenever it starts Keel's process, which can be in
+     * the background (to show a reminder, after a reboot, for the daily top-up), so logging
+     * auto-logged doses and the Health Connect sync wait for [onForeground]: iOS does both at
+     * launch, which there is always her opening the app (D22).
      */
     fun bootstrap() {
         // The lock's saved state first: the launch screen waits for it, so nothing shows unlocked.
         scope.launch { lock.load() }
-        scope.launch {
+        launchWork = scope.launch {
             symptoms.syncBuiltIns()
             health.purgeDiscontinued()
             insights.refreshDerived()
             medications.migrateLegacySchedules()
             medications.stripExampleBrandsFromNames()
-            reminders.refreshAll(::autoLogTodaysDoses)
-            syncHealthData()
+            reminders.refreshReminders()
         }
     }
 
+    /** Waits for [bootstrap]'s work (tests). */
+    internal suspend fun awaitLaunchWork() = launchWork?.join()
+
     /**
-     * Keel came to the foreground: log today's arrived auto-log doses, top up the medication
-     * reminders (laid out a few weeks ahead, so opening the app extends them), and bring in new
-     * Health Connect data (at most every 30 minutes).
+     * Keel came to the foreground, the first time too: after the launch work, log today's
+     * arrived auto-log doses, top up the medication reminders (laid out a few weeks ahead, so
+     * opening the app extends them), and bring in new Health Connect data (only once she has
+     * connected, at most every 30 minutes, so it never asks).
      */
     fun onForeground() {
         scope.launch {
+            launchWork?.join()
             autoLogTodaysDoses()
             reminders.refreshMedicationReminders()
+            syncHealthData()
         }
-        syncHealthData()
     }
 
     /** Bring Health Connect data in (iOS `syncHealthData`): only once connected; `force` skips the 30-minute wait. */
@@ -194,8 +203,11 @@ class KeelAppController(
         override fun manageAccess() = manageHealthAccess()
     }
 
-    /** A reboot, a clock or time zone change, or an update: alarms are re-armed from scratch. */
-    suspend fun rearmReminders() = reminders.refreshAll(::autoLogTodaysDoses)
+    /**
+     * A reboot, a clock or time zone change, an update, or the daily top-up: alarms are re-armed
+     * from scratch, with Keel likely not open, so nothing is logged (D22).
+     */
+    suspend fun rearmReminders() = reminders.refreshReminders()
 
     /**
      * Log today's arrived doses for medicines set to auto-log (iOS `autoLogTodaysDoses`), and
