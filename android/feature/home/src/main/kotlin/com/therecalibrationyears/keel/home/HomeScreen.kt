@@ -86,6 +86,7 @@ import java.time.Instant
 import java.time.LocalDate
 import java.time.YearMonth
 import java.time.ZoneId
+import com.therecalibrationyears.keel.designsystem.DisabledPlainAlpha
 
 /** Where Home's buttons lead (the iOS `MainRoute`s reachable from the dashboard). */
 enum class HomeDestination { CYCLE, MEDICATIONS, PATTERNS, MORE, GP_SUMMARY }
@@ -450,7 +451,8 @@ private fun BarTrendCard(
                                         this.selected = isSelected
                                     }
                             } else {
-                                Modifier.clearAndSetSemantics {}
+                                // A day with nothing is a disabled button on iOS, drawn faint.
+                                Modifier.clearAndSetSemantics {}.alpha(DisabledPlainAlpha)
                             },
                         ),
                         horizontalAlignment = Alignment.CenterHorizontally,
@@ -541,7 +543,7 @@ private fun CalendarCard(
                                         } else {
                                             Text(
                                                 "${day.dayOfMonth}", style = KeelFont.sans(13.sp),
-                                                color = theme.text.copy(alpha = if (future) 0.25f else 0.75f),
+                                                color = theme.text.copy(alpha = if (future) 0.25f * DisabledPlainAlpha else 0.75f),
                                             )
                                         }
                                     }

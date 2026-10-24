@@ -89,7 +89,7 @@ fun MoreScreen(info: AppInfo, onOpen: (MoreDestination) -> Unit, onBack: () -> U
         // Cycle Tracking and the GP Visit Summary both live on Home, so they aren't repeated here.
         "Tracking" to listOf(
             item("Activities", KeelIcons.walk, { it.sage }, MoreDestination.ACTIVITIES),
-            item("Reminders", KeelIcons.bell, { it.accent }, MoreDestination.REMINDERS),
+            item("Reminders", KeelIcons.bellFill, { it.accent }, MoreDestination.REMINDERS),
             item("Stats", KeelIcons.barChart, { it.plum }, MoreDestination.STATS),
         ),
         "Personalisation" to listOf(

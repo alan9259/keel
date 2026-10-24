@@ -80,6 +80,8 @@ import java.time.Instant
 import java.time.LocalDate
 import java.time.ZoneId
 import java.time.ZoneOffset
+import com.therecalibrationyears.keel.designsystem.DisabledPlainAlpha
+import androidx.compose.ui.draw.alpha
 
 /**
  * The details step, shared by adding and editing (port of iOS `TreatmentDetailForm`).
@@ -461,7 +463,7 @@ private fun StepButton(icon: androidx.compose.ui.graphics.vector.ImageVector, la
     val theme = LocalKeelTheme.current
     val haptic = KeelHaptics.rememberPerformer()
     Box(
-        Modifier.size(44.dp).clip(CircleShape).background(theme.track)
+        Modifier.size(44.dp).alpha(if (enabled) 1f else DisabledPlainAlpha).clip(CircleShape).background(theme.track)
             .clickable(enabled = enabled, role = Role.Button) { haptic(KeelHapticKind.SELECTION); onClick() }
             .semantics { contentDescription = label },
         contentAlignment = Alignment.Center,

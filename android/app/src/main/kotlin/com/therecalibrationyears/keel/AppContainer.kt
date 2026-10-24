@@ -66,7 +66,8 @@ class AppContainer(context: Context) {
     private val checkIns = CheckInRepository(database.checkIns(), identity::ownerId, clock)
     private val symptoms = SymptomRepository(database.symptoms(), database.checkIns(), settings, identity::ownerId, clock)
     // The locale's time words for the stored `timing` text, read at save time (12 or 24 hour).
-    private val medications = MedicationRepository(database.medications(), identity::ownerId, clock) {
+    // Internal so debug seeds (src/debug) add medicines the way she does.
+    internal val medications = MedicationRepository(database.medications(), identity::ownerId, clock) {
         KeelDateFormats(context, zone = clock.zone())
     }
     private val treatments = TreatmentCatalogStore(context)

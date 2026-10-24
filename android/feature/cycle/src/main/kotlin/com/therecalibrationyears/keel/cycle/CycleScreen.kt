@@ -81,6 +81,7 @@ import java.time.YearMonth
 import java.time.ZoneId
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.launch
+import com.therecalibrationyears.keel.designsystem.DisabledPlainAlpha
 
 /** What the Cycle screen asks of the app. */
 interface CycleActions {
@@ -360,7 +361,7 @@ private fun MonthButton(icon: ImageVector, label: String, enabled: Boolean, onCl
             .semantics { contentDescription = label },
         contentAlignment = Alignment.Center,
     ) {
-        Icon(icon, null, tint = theme.muted.copy(alpha = if (enabled) 1f else 0.35f), modifier = Modifier.size(20.dp))
+        Icon(icon, null, tint = theme.muted.copy(alpha = if (enabled) 1f else 0.35f * DisabledPlainAlpha), modifier = Modifier.size(20.dp))
     }
 }
 
@@ -416,7 +417,7 @@ private fun GridCell(day: LocalDate, model: CycleModel, formats: KeelDateFormats
             "${day.dayOfMonth}", style = KeelFont.body,
             color = when {
                 mark != null -> if (CycleModel.isDarkFill(mark)) theme.onFill else theme.text
-                isFuture -> theme.muted.copy(alpha = 0.5f)
+                isFuture -> theme.muted.copy(alpha = 0.5f * DisabledPlainAlpha)
                 else -> theme.text
             },
         )

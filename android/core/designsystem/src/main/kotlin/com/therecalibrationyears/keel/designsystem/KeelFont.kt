@@ -4,6 +4,7 @@ import androidx.compose.ui.text.ExperimentalTextApi
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.Font
 import androidx.compose.ui.text.font.FontFamily
+import androidx.compose.ui.text.font.FontSynthesis
 import androidx.compose.ui.text.font.FontVariation
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.LineHeightStyle
@@ -53,9 +54,14 @@ object KeelFont {
         lineHeight = serifLineHeight, lineHeightStyle = lineHeightStyle,
     )
 
+    /**
+     * Poppins is never slanted: Keel bundles no Poppins italic, and iOS draws an italic request
+     * for it upright (it slants only Literata), so Android doesn't fake one either.
+     */
     fun sans(size: TextUnit, weight: FontWeight = FontWeight.Normal) = TextStyle(
         fontFamily = SansFamily, fontWeight = weight, fontSize = size,
         lineHeight = sansLineHeight, lineHeightStyle = lineHeightStyle,
+        fontSynthesis = FontSynthesis.None,
     )
 
     // Type scale (same sizes as iOS).

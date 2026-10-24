@@ -63,6 +63,7 @@ import com.therecalibrationyears.keel.designsystem.components.KeelScreen
 import com.therecalibrationyears.keel.designsystem.components.KeelToggleRow
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.launch
+import com.therecalibrationyears.keel.designsystem.DisabledPlainAlpha
 
 /** What the Settings screen asks of the app. */
 interface SettingsActions {
@@ -115,7 +116,7 @@ fun SettingsScreen(actions: SettingsActions, onOpenPrivacy: () -> Unit, onBack: 
 
     KeelScreen(title = "Settings", onBack = onBack) {
         Group("Notifications") {
-            SettingsToggle(KeelIcons.bell, "Push notifications", "Reminders and alerts", push, ::setPush)
+            SettingsToggle(KeelIcons.bellFill, "Push notifications", "Reminders and alerts", push, ::setPush)
             Divider()
             SettingsToggle(KeelIcons.vibration, "Haptic feedback", "Vibration on interactions", haptics) {
                 scope.launch { actions.setHaptics(it) }
@@ -305,7 +306,7 @@ private fun DeleteEverythingDialog(onCancel: () -> Unit, onDelete: () -> Unit) {
                         contentAlignment = Alignment.Center,
                     ) { Text("Cancel", style = KeelFont.body, color = theme.text) }
                     Box(
-                        Modifier.weight(1f).alpha(if (confirmed) 1f else 0.5f).clip(buttonShape).background(theme.attention)
+                        Modifier.weight(1f).alpha(if (confirmed) 1f else 0.5f * DisabledPlainAlpha).clip(buttonShape).background(theme.attention)
                             .clickable(enabled = confirmed, role = Role.Button, onClick = onDelete).padding(vertical = 13.dp),
                         contentAlignment = Alignment.Center,
                     ) { Text("Delete", style = KeelFont.body, color = theme.onFill) }

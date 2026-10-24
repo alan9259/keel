@@ -772,6 +772,55 @@ once on the emulator (`uitTopUpNow`, "Worker result SUCCESS"); R8 keeps its clas
 release build schedules the daily job. Not verified: the daily job firing on its own a day later,
 or on a real phone with a vendor battery saver (which can hold back background work).
 
+### Side-by-side review against iOS (24 Oct 2026)
+Every screen compared on the iPhone 17 Simulator (iOS 26.5, Debug, en-NZ) and the API 36
+emulator (app locale en-NZ, so weeks start on Monday on both), from the same debug seeds (the
+Android seeds now mirror iOS `-uitSeedMed`, `-uitSeedWeek`, `-uitSeedEnergyMix`), then the code
+read side by side for what screenshots can't show. Compared: onboarding (6 steps), Home (filled,
+empty, dark), the mood sheet, check-in detail, symptom picker and its edit mode, Cycle and its log
+sheet, Medications, the catalog picker and details form, Looking back and Your notes, the GP
+summary's 4 steps and PDF preview, More, Settings and "Delete all my data", Profile, About, Connect,
+Get support, Your privacy, Reminders, Backup & Restore, Themes, Colour mode, Mood icons, App lock
+and PIN setup, Health Connect (connected and not), Activities (day, week, month), Stats, "Gentle
+reminders" and the Health Connect offer; plus every iOS alert and toast (each has its Android
+counterpart, same wording) and the app controller against `AppEnvironment`.
+
+Fixed so Android looks as iOS does:
+- Stats' card titles ("Mood distribution", "Frequency: days reported", "Hours per night") were
+  capitalised; iOS capitalises only the tiles' labels (`cardTitlesKeepTheirCase`).
+- Poppins was slanted where iOS asks for italics ("Find your even keel..." on Welcome, the pattern
+  cards' timeframes on Looking back and Cycle). Keel bundles no Poppins italic and iOS draws those
+  upright (it slants only Literata, as in the "Ohhh... that explains a lot." quote), so `KeelFont`
+  turns off font synthesis for Poppins (`KeelFontTests`).
+- iOS draws a disabled control in SwiftUI's plain button style at half the opacity it's given;
+  Android didn't. Measured on screenshots and now matched (`DisabledPlainAlpha`): Home's empty
+  Energy and Sleep days and future calendar days, Cycle's future days and next-month arrow, Stats'
+  empty nights, the dose stepper, and "Delete" before DELETE is typed. Pixel samples after the fix
+  agree within one level (e.g. a future day 223,221,219 on iOS, 224,222,219 on Android).
+- Icons drawn filled where iOS's SF symbol is outlined, or the reverse: the GP summary document
+  (Home, Looking back), Profile in More, and the bell for Reminders (More) and Push notifications
+  (Settings) is now filled as on iOS.
+
+Left as they are, on purpose:
+- Platform conventions: times read "10:27 PM" on iOS and "10:28 pm" on Android (each phone's own
+  locale data); Android's switches, dialogs, bottom sheets, date and time pickers and share sheet
+  are Android's; Material symbols stand in for SF symbols (a single pill for "pills.fill", a trend
+  line without axes for the chart).
+- Android's 48 dp touch targets (M8) make the Medicines rows and calendar days a little taller.
+- Recorded Android decisions and wording: Health Connect for Apple Health (D12), biometrics and
+  screen lock wording (D15), "Reminders on time" (D25), honouring the medication reminders switch
+  (D2), the daily top-up (D11), the export picker in place of the share sheet (D17), all awaiting
+  sign-off where marked.
+- Your privacy is still title-only until the owner's Android text (D3), the one screen that
+  differs in content.
+- iOS observations, not changed (iOS stays as is): on the Reminders screen the large title scrolls
+  under the status bar with no compact header; the symptom chips on a Home entry have no fixed
+  order (SwiftData's relationship order: two seedings of the same entry showed them differently),
+  where Android's order is stable.
+
+Not compared: real devices, notification delivery and its buttons, biometrics, voice notes, and
+Health Connect or Apple Health with real data (the Simulator can't read HealthKit).
+
 ### Reminders on time (21 Oct 2026, D25)
 Built: `ExactTiming` rules (`core/domain`); `ExactAlarms` (`core/platform`: whether Android
 allows them, and its "Alarms & reminders" page for Keel, falling back to app info);

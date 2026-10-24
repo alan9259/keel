@@ -5,14 +5,17 @@ import com.therecalibrationyears.keel.data.db.CheckInEntity
 import com.therecalibrationyears.keel.data.db.CheckInSymptomEntity
 import com.therecalibrationyears.keel.data.db.CycleEntryEntity
 import com.therecalibrationyears.keel.data.db.MedicationEntity
-import com.therecalibrationyears.keel.data.db.MedicationLogEntity
 import com.therecalibrationyears.keel.data.db.SymptomEntity
 import com.therecalibrationyears.keel.domain.CycleEntryType
 import com.therecalibrationyears.keel.domain.FlowLevel
 import com.therecalibrationyears.keel.domain.Mood
+import com.therecalibrationyears.keel.domain.DoseSchedule
+import com.therecalibrationyears.keel.domain.DoseSlot
+import com.therecalibrationyears.keel.domain.DoseUnit
+import com.therecalibrationyears.keel.domain.TreatmentDraft
+import com.therecalibrationyears.keel.domain.TreatmentKind
 import java.time.Duration
 import java.time.Instant
-import java.time.LocalTime
 import java.util.UUID
 import kotlinx.coroutines.flow.first
 import android.util.Log
@@ -24,7 +27,8 @@ import java.io.File
 
 /**
  * Debug-only sample records for screenshots, mirroring the iOS harness seeds
- * (`-uitReset`, `-uitSeedCheckIn`, `-uitSeedMed`, `-uitSeedEnergyMix`). Exempt from the
+ * (`-uitReset`, `-uitSeedCheckIn`, `-uitSeedMed`, `-uitSeedEnergyMix`, `-uitSeedWeek`), so the two apps can
+ * be compared side by side from the same records. Exempt from the
  * no-fake-data rule because it never ships (src/debug).
  */
 internal class DebugSeeds(private val container: AppContainer) {
@@ -69,50 +73,41 @@ internal class DebugSeeds(private val container: AppContainer) {
         }
     }
 
-    /** Two supplements (iOS -uitSeedMed). */
+    /** Two supplements, each due at 8:00 every day (iOS -uitSeedMed). */
     suspend fun medications() {
-        val owner = container.identity.continueLocally()
-        val now = clock.now()
-        listOf("Magnesium" to "400mg", "Vitamin D" to "2000 IU").forEachIndexed { i, (name, dose) ->
-            db.medications().upsert(
-                MedicationEntity(id(), name, dosage = dose, timing = "8:00 am", ownerID = owner,
-                    createdAt = now.plusMillis(i.toLong()), updatedAt = now),
+        container.identity.continueLocally()
+        listOf(Triple("Magnesium", 400.0, DoseUnit.MG), Triple("Vitamin D", 2000.0, DoseUnit.IU)).forEach { (name, amount, unit) ->
+            container.medications.add(
+                TreatmentDraft(name, TreatmentKind.SUPPLEMENT, doseAmount = amount, doseUnit = unit,
+                    schedule = DoseSchedule(slots = listOf(DoseSlot(hour = 8, minute = 0)))),
             )
         }
     }
 
-    /** Drained, Drained, Charged this week (iOS -uitSeedEnergyMix: the Home Energy label check). */
+    /** Drained, Drained, Charged at 9:00 on three days (iOS -uitSeedEnergyMix: the Home Energy label check). */
     suspend fun energyMix() {
         val owner = container.identity.continueLocally()
-        val now = clock.now()
-        listOf(1L to 20, 30L to 20, 60L to 100).forEach { (hoursAgo, energy) ->
-            val at = now.minus(Duration.ofHours(hoursAgo))
+        val today = clock.now().atZone(clock.zone()).toLocalDate()
+        listOf(-2L to 20, -1L to 20, 0L to 100).forEach { (offset, energy) ->
+            val at = today.plusDays(offset).atTime(9, 0).atZone(clock.zone()).toInstant()
             db.checkIns().upsert(CheckInEntity(id(), at, Mood.OKAY.raw, energy, ownerID = owner, createdAt = at, updatedAt = at))
         }
     }
 
-    /** Android-only: a week of entries, sleep and ticks, to see every strip filled. */
+    /** Seven days of Okay entries at this time of day, with sleep (iOS -uitSeedWeek). */
     suspend fun week() {
         val owner = container.identity.continueLocally()
         val zone = clock.zone()
-        val today = clock.now().atZone(zone).toLocalDate()
-        val moods = listOf(Mood.LOW, Mood.OKAY, Mood.GOOD, Mood.DIFFICULT, Mood.OKAY, Mood.GREAT, Mood.GOOD)
-        val energies = listOf(40, 60, 80, 20, 0, 100, 60)
-        val sleep = listOf(6.5, 7.0, 8.0, 5.5, 7.5, 0.0, 7.25)
-        val meds = db.medications().observeActive().first()
+        val now = clock.now()
+        val energies = listOf(45, 60, 52, 74, 58, 80, 66)
+        val sleeps = listOf(6.0, 7.5, 5.5, 8.0, 6.5, 7.0, 8.5)
         (0..6).forEach { i ->
-            val day = today.minusDays(6L - i)
-            val at = day.atTime(LocalTime.of(9, 15)).atZone(zone).toInstant().coerceAtMost(clock.now())
-            db.checkIns().upsert(CheckInEntity(id(), at, moods[i].raw, energies[i], ownerID = owner, createdAt = at, updatedAt = at))
-            val midnight = day.atStartOfDay(zone).toInstant()
-            if (sleep[i] > 0) {
-                // Seeding again on a later day replaces that night rather than adding a second row.
-                val existing = db.activityLogs().liveOn("sleep", midnight)
-                db.activityLogs().upsert(ActivityLogEntity(existing?.id ?: id(), midnight, "sleep", sleep[i], ownerID = owner, createdAt = midnight, updatedAt = midnight))
-            }
-            if (i % 2 == 0) meds.firstOrNull()?.let {
-                db.medications().upsertLog(MedicationLogEntity(id(), midnight, null, true, it.id, ownerID = owner, createdAt = midnight, updatedAt = midnight))
-            }
+            val at = now.atZone(zone).minusDays(6L - i).toInstant()
+            db.checkIns().upsert(CheckInEntity(id(), at, Mood.OKAY.raw, energies[i], ownerID = owner, createdAt = at, updatedAt = at))
+            val midnight = at.atZone(zone).toLocalDate().atStartOfDay(zone).toInstant()
+            // Seeding again on a later day replaces that night rather than adding a second row.
+            val existing = db.activityLogs().liveOn("sleep", midnight)
+            db.activityLogs().upsert(ActivityLogEntity(existing?.id ?: id(), midnight, "sleep", sleeps[i], ownerID = owner, createdAt = midnight, updatedAt = midnight))
         }
     }
 

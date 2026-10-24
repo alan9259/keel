@@ -57,6 +57,7 @@ import com.therecalibrationyears.keel.domain.VitalTrend
 import java.time.Instant
 import java.time.ZoneId
 import kotlinx.coroutines.flow.Flow
+import com.therecalibrationyears.keel.designsystem.DisabledPlainAlpha
 
 /** What the Stats screen asks of the app. */
 interface StatsActions {
@@ -98,9 +99,10 @@ fun StatsScreen(actions: StatsActions, onBack: () -> Unit) {
     }
 }
 
+/** A small letter-spaced label. iOS capitalises the tiles' labels only; card titles keep their case. */
 @Composable
-private fun Eyebrow(text: String, modifier: Modifier = Modifier) {
-    Text(text.uppercase(), modifier, style = KeelFont.eyebrow.copy(letterSpacing = 0.6.sp), color = LocalKeelTheme.current.muted)
+private fun Eyebrow(text: String, modifier: Modifier = Modifier, uppercase: Boolean = false) {
+    Text(if (uppercase) text.uppercase() else text, modifier, style = KeelFont.eyebrow.copy(letterSpacing = 0.6.sp), color = LocalKeelTheme.current.muted)
 }
 
 private fun Modifier.statCard(theme: KeelTheme): Modifier {
@@ -125,7 +127,7 @@ private fun Tiles(model: StatsModel) {
             Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
                 row.forEach { (label, value, caption) ->
                     Column(Modifier.weight(1f).statCard(theme).padding(14.dp).semantics(mergeDescendants = true) {}, verticalArrangement = Arrangement.spacedBy(4.dp)) {
-                        Eyebrow(label)
+                        Eyebrow(label, uppercase = true)
                         Text(value, style = KeelFont.serif(24.sp), color = theme.heading)
                         Text(caption, style = KeelFont.caption, color = theme.muted)
                     }
@@ -266,7 +268,7 @@ private fun SleepSection(model: StatsModel, formats: KeelDateFormats) {
                         ) {
                             Box(
                                 Modifier.fillMaxWidth().height(maxOf(h / 10 * 84, 3.0).dp).clip(RoundedCornerShape(3.dp))
-                                    .background(theme.plum.copy(alpha = if (h > 0) (if (isSelected) 1f else 0.8f) else 0.15f)),
+                                    .background(theme.plum.copy(alpha = if (h > 0) (if (isSelected) 1f else 0.8f) else 0.15f * DisabledPlainAlpha)),
                             )
                         }
                     }

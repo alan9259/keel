@@ -28,3 +28,10 @@ object Radius {
 
 /** Minimum touch target on Android (iOS uses 44pt; Material asks for 48dp). */
 val MinTouchTarget = 48.dp
+
+/**
+ * iOS draws a disabled control in SwiftUI's plain button style at half the opacity it's given
+ * (a future day, an empty night, the Delete button before "DELETE" is typed). Android
+ * multiplies by this where iOS uses that style, so those controls look as faint as on iPhone.
+ */
+const val DisabledPlainAlpha = 0.5f

@@ -253,6 +253,17 @@ create_account, pathway, health, ready). For a truly fresh start:
   intent (`am start -a android.intent.action.MAIN -c android.intent.category.LAUNCHER -f
   0x10008000 -n ...`), since bringing the old task back replays its debug extras.
   `--ez uitTopUpNow true` runs the top-up once (WorkManager won't run the daily job early).
+- **Looking as iOS does, not as its code reads:** SwiftUI draws a disabled control in the plain
+  button style at half the opacity the code gives it, so where iOS has `.buttonStyle(.plain)` and
+  `.disabled(...)`, multiply by `DisabledPlainAlpha` (default-style and `KeelPrimaryButton`
+  controls get no extra dimming). An `.italic()` on Poppins draws upright on iOS (no italic face is
+  bundled), so Poppins is never slanted here; Literata is.
+- **Comparing with iOS side by side:** build the iOS app for the Simulator (Debug, so its
+  `DebugHarness` `-uit*` launch arguments work), set the emulator's app locale to the Simulator's
+  (`adb shell cmd locale set-app-locales com.therecalibrationyears.keel --locales en-NZ`; `pm clear`
+  resets it), seed both the same way (`-uitSeedMed -uitSeedWeek -uitSeedCheckIn` and the matching
+  `--ez` extras), and launch both at the same screen (`-uitRouteX` and `--es uitRoute x`). Measure
+  colours from the screenshots rather than judging by eye.
 - **Health Connect reads that fail** read as empty, except periods: an empty period read removes
   imported days she deleted, so a failed one (from the background, the rate limit) reconciles
   nothing (`HealthConnectSource`, `HealthConnectSourceTests`).
