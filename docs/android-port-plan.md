@@ -813,8 +813,10 @@ Left as they are, on purpose:
   sign-off where marked.
 - Your privacy is still title-only until the owner's Android text (D3), the one screen that
   differs in content.
-- iOS observations, not changed (iOS stays as is): on the Reminders screen the large title scrolls
-  under the status bar with no compact header; the symptom chips on a Home entry have no fixed
+- iOS observations, not changed (iOS stays as is), each seen in screenshots and not investigated:
+  on the Reminders screen, scrolled a little, the large title sat under the status bar with no
+  compact header (the screen is short, so it may never reach the point where that header shows);
+  the symptom chips on a Home entry have no fixed
   order (SwiftData's relationship order: two seedings of the same entry showed them differently),
   where Android's order is stable.
 
