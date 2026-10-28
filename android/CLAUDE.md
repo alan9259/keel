@@ -257,7 +257,10 @@ create_account, pathway, health, ready). For a truly fresh start:
   button style at half the opacity the code gives it, so where iOS has `.buttonStyle(.plain)` and
   `.disabled(...)`, multiply by `DisabledPlainAlpha` (default-style and `KeelPrimaryButton`
   controls get no extra dimming). An `.italic()` on Poppins draws upright on iOS (no italic face is
-  bundled), so Poppins is never slanted here; Literata is.
+  bundled), so Poppins is never slanted here; Literata is. Where iOS lays a control out smaller
+  than its tap area (the header's back and Home take 32pt of the row, `headerHitTarget()`), lay
+  it out at the iOS size and let the 48dp target spill past it, or text beside it wraps sooner
+  than on iPhone (a 393dp phone gave "Medications and supplements" three lines, iPhone two).
 - **Comparing with iOS side by side:** build the iOS app for the Simulator (Debug, so its
   `DebugHarness` `-uit*` launch arguments work), set the emulator's app locale to the Simulator's
   (`adb shell cmd locale set-app-locales com.therecalibrationyears.keel --locales en-NZ`; `pm clear`

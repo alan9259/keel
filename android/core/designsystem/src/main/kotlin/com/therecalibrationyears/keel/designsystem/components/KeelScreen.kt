@@ -39,6 +39,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.layout.layout
 import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.compose.ui.layout.positionInParent
 import androidx.compose.ui.semantics.contentDescription
@@ -168,17 +169,32 @@ private fun FloatingHeaderBar(title: String, onBack: () -> Unit, onHome: (() -> 
                 textAlign = androidx.compose.ui.text.style.TextAlign.Center,
                 modifier = Modifier.weight(1f).semantics { heading() },
             )
-            if (onHome != null) HeaderIconButton(KeelIcons.home, "Home", onHome) else Spacer(Modifier.size(48.dp))
+            if (onHome != null) HeaderIconButton(KeelIcons.home, "Home", onHome) else Spacer(Modifier.size(HeaderButtonSlot))
         }
         Box(Modifier.fillMaxWidth().height(1.dp).background(theme.border))
     }
 }
 
+/** The room a header button takes in its row (iOS lays them out at 32pt). */
+private val HeaderButtonSlot = 32.dp
+
 /** The back / Home icon button: muted glyph, 48dp touch target. */
 @Composable
 private fun HeaderIconButton(icon: ImageVector, label: String, onClick: () -> Unit) {
     val theme = LocalKeelTheme.current
-    IconButton(onClick = onClick, modifier = Modifier.semantics { contentDescription = label }) {
+    IconButton(onClick = onClick, modifier = Modifier.headerHitTarget().semantics { contentDescription = label }) {
         Icon(icon, contentDescription = null, tint = theme.muted, modifier = Modifier.size(24.dp))
     }
+}
+
+/**
+ * As iOS `headerHitTarget()`: the button keeps its full touch target but takes only
+ * [HeaderButtonSlot] of the row, spilling evenly past it. Laid out at 48dp, the two buttons
+ * left the title 32dp less room than on iPhone, so "Medications and supplements" took three
+ * lines on a 393dp phone where the iPhone shows two.
+ */
+private fun Modifier.headerHitTarget() = layout { measurable, constraints ->
+    val button = measurable.measure(constraints.copy(minWidth = 0, minHeight = 0))
+    val slot = HeaderButtonSlot.roundToPx()
+    layout(slot, slot) { button.place((slot - button.width) / 2, (slot - button.height) / 2) }
 }
